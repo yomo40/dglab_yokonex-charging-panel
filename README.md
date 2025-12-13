@@ -1,6 +1,8 @@
 # Device Adapter App
 
-⚡ 统一设备适配器应用 - 支持 DG-LAB(郊狼) 和 役次元 设备的控制与管理。
+⚡ 充电宝面板 - 支持 DG-LAB(郊狼) 和 役次元 设备的控制与管理。
+![Version](https://img.shields.io/badge/version-0.95.0-blue)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
 
 ## 版本 0.95.0
 
@@ -10,7 +12,6 @@
 - ✅ **护甲识别**: 新增护甲条识别功能，支持独立区域框选
 - ✅ **透明窗口区域选择器**: Electron 集成的屏幕区域拾取工具
 - ✅ **系统托盘支持**: 最小化到托盘，后台运行
-- ✅ **UI全面优化**: 现代化界面设计，渐变按钮，发光效果
 
 ## 功能特性
 
@@ -31,9 +32,8 @@
 
 ### 方式一：直接运行发行版
 
-1. 下载 `device-adapter-v0.95.zip`
-2. 解压后运行 `安装依赖.bat` (首次)
-3. 运行 `启动.bat`
+1. 下载 `充电宝2合1工具-v0.95.zip`
+2. 运行 `充电宝2合1工具.exe`
 
 ### 方式二：从源码运行
 
@@ -395,5 +395,15 @@ await fetch('http://localhost:3000/api/control/event', {
 ```
 
 ## 许可证
+- 本项目采用 GNU GPL v3.0（详见 [LICENSE](LICENSE)）。
+- 允许商用，但需公开完整源代码，并在相同协议下分发。
+- 所有修改和再分发版本必须附带源码与版权声明。
 
-MIT License
+## 开发者
+
+- [yomo40](https://github.com/yomo40)
+
+## 致谢
+
+- [DG-LAB](https://github.com/DG-LAB-OPENSOURCE) - 郊狼设备协议
+- [YCY-YOKONEX-OpenSource](https://github.com/YCY-YOKONEX/YCY-YOKONEX-OpenSource) - 役次元设备协议
