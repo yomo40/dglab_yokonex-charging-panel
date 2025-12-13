@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 文档 - 设备适配器</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --border-color: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    h1 { color: var(--primary); margin-bottom: 10px; }
+    h2 { color: var(--primary); margin: 30px 0 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+    h3 { color: var(--text-primary); margin: 20px 0 10px; }
+    
+    .subtitle { color: var(--text-secondary); margin-bottom: 30px; }
+    
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .method {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    
+    .method.get { background: var(--success); color: white; }
+    .method.post { background: var(--primary); color: white; }
+    .method.put { background: var(--warning); color: white; }
+    .method.delete { background: var(--danger); color: white; }
+    
+    .path {
+      font-family: 'Consolas', monospace;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    
+    .description { color: var(--text-secondary); margin-bottom: 15px; }
+    
+    pre {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+      color: #e6db74;
+    }
+    
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    
+    .param-table th, .param-table td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .param-table th {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    
+    .required { color: var(--danger); }
+    .optional { color: var(--text-secondary); }
+    
+    .event-list { list-style: none; }
+    .event-list li { padding: 5px 0; }
+    .event-id { 
+      font-family: monospace; 
+      background: var(--bg-dark); 
+      padding: 2px 6px; 
+      border-radius: 4px;
+      color: var(--primary);
+    }
+    
+    .developer {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 30px;
+      padding: 20px;
+      background: var(--bg-card);
+      border-radius: 8px;
+    }
+    
+    .developer img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+    }
+    
+    .developer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    .developer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 设备适配器 API 文档</h1>
+    <p class="subtitle">DG-LAB & 役次元 统一控制接口 v1.0</p>
+    
+    <h2>📡 API 基础信息</h2>
+    <div class="card">
+      <p><strong>基础 URL:</strong> <code>http://localhost:3000/api</code></p>
+      <p><strong>WebSocket:</strong> <code>ws://localhost:3000</code></p>
+      <p><strong>内容类型:</strong> <code>application/json</code></p>
+    </div>
+    
+    <h2>🔌 设备管理 API</h2>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/devices</span>
+      </div>
+      <p class="description">获取所有已注册设备列表</p>
+      <h4>响应示例:</h4>
+      <pre><code>{
+  "success": true,
+  "data": [{
+    "id": "device_1",
+    "name": "我的郊狼",
+    "type": "dglab",
+    "status": "connected",
+    "isVirtual": false
+  }]
+}</code></pre>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/devices</span>
+      </div>
+      <p class="description">添加新设备</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>type</td><td>string</td><td class="required">是</td><td>"dglab" 或 "yokonex"</td></tr>
+        <tr><td>name</td><td>string</td><td class="optional">否</td><td>设备名称</td></tr>
+        <tr><td>config</td><td>object</td><td class="required">是</td><td>连接配置</td></tr>
+        <tr><td>config.isVirtual</td><td>boolean</td><td class="optional">否</td><td>是否为虚拟测试设备</td></tr>
+      </table>
+      <h4>请求示例:</h4>
+      <pre><code>{
+  "type": "dglab",
+  "name": "我的郊狼",
+  "config": {
+    "websocketUrl": "ws://192.168.1.100:9999",
+    "connectionType": "websocket"
+  }
+}</code></pre>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/devices/:id/connect</span>
+      </div>
+      <p class="description">连接指定设备</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/devices/:id/disconnect</span>
+      </div>
+      <p class="description">断开指定设备连接</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method delete">DELETE</span>
+        <span class="path">/api/devices/:id</span>
+      </div>
+      <p class="description">删除指定设备</p>
+    </div>
+    
+    <h2>🎛️ 设备控制 API</h2>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/control/strength</span>
+      </div>
+      <p class="description">设置设备强度</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>deviceId</td><td>string</td><td class="required">是</td><td>设备ID</td></tr>
+        <tr><td>channel</td><td>string</td><td class="required">是</td><td>"A", "B", 或 "AB"</td></tr>
+        <tr><td>value</td><td>number</td><td class="required">是</td><td>强度值 (0-200 郊狼, 0-276 役次元)</td></tr>
+        <tr><td>mode</td><td>string</td><td class="optional">否</td><td>"set", "increase", 或 "decrease"</td></tr>
+      </table>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/control/waveform</span>
+      </div>
+      <p class="description">发送波形数据 (仅 DG-LAB)</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>deviceId</td><td>string</td><td class="required">是</td><td>设备ID</td></tr>
+        <tr><td>channel</td><td>string</td><td class="required">是</td><td>"A" 或 "B"</td></tr>
+        <tr><td>waveform</td><td>object</td><td class="required">是</td><td>波形数据</td></tr>
+      </table>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/control/event</span>
+      </div>
+      <p class="description">发送事件到设备</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>deviceId</td><td>string</td><td class="optional">否</td><td>设备ID (不填则发送到所有设备)</td></tr>
+        <tr><td>eventId</td><td>string</td><td class="required">是</td><td>事件ID</td></tr>
+        <tr><td>payload</td><td>object</td><td class="optional">否</td><td>事件数据</td></tr>
+      </table>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/control/stop</span>
+      </div>
+      <p class="description">紧急停止所有设备 (强度归零)</p>
+    </div>
+    
+    <h2>📅 事件管理 API</h2>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/events</span>
+      </div>
+      <p class="description">获取所有已注册事件</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/events</span>
+      </div>
+      <p class="description">创建自定义事件</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>eventId</td><td>string</td><td class="required">是</td><td>事件唯一标识</td></tr>
+        <tr><td>name</td><td>string</td><td class="required">是</td><td>事件名称</td></tr>
+        <tr><td>description</td><td>string</td><td class="optional">否</td><td>事件描述</td></tr>
+        <tr><td>channel</td><td>string</td><td class="optional">否</td><td>"A", "B", 或 "AB"</td></tr>
+        <tr><td>action</td><td>string</td><td class="optional">否</td><td>"set", "pulse", "increase", "decrease"</td></tr>
+        <tr><td>value</td><td>number</td><td class="optional">否</td><td>强度值</td></tr>
+        <tr><td>duration</td><td>number</td><td class="optional">否</td><td>脉冲持续时间(ms)</td></tr>
+      </table>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method put">PUT</span>
+        <span class="path">/api/events/:id</span>
+      </div>
+      <p class="description">更新事件配置</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method delete">DELETE</span>
+        <span class="path">/api/events/:id</span>
+      </div>
+      <p class="description">删除事件</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/events/:id/trigger</span>
+      </div>
+      <p class="description">触发指定事件</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>deviceId</td><td>string</td><td class="optional">否</td><td>目标设备ID</td></tr>
+        <tr><td>multiplier</td><td>number</td><td class="optional">否</td><td>强度倍率</td></tr>
+      </table>
+    </div>
+    
+    <h2>🎯 必备事件架构</h2>
+    <div class="card">
+      <p class="description">游戏适配器应发送以下标准事件ID来触发设备动作：</p>
+      <ul class="event-list">
+        <li><span class="event-id">lost-ahp</span> - 护甲血量减少事件</li>
+        <li><span class="event-id">lost-hp</span> - 角色血量减少事件 (核心)</li>
+        <li><span class="event-id">add-ahp</span> - 护甲血量恢复事件</li>
+        <li><span class="event-id">add-hp</span> - 角色血量恢复事件</li>
+        <li><span class="event-id">character-debuff</span> - 角色Debuff事件 (中毒、燃烧等)</li>
+        <li><span class="event-id">query</span> - 角色血量上报 (状态同步)</li>
+        <li><span class="event-id">dead</span> - 角色死亡事件 (最高优先级)</li>
+        <li><span class="event-id">new-credit</span> - 关卡重置事件 (复活/新关卡)</li>
+      </ul>
+    </div>
+    
+    <h2>📜 脚本管理 API</h2>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/scripts</span>
+      </div>
+      <p class="description">获取所有脚本</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/scripts</span>
+      </div>
+      <p class="description">创建脚本</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/scripts/:id/start</span>
+      </div>
+      <p class="description">启动脚本</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/scripts/:id/stop</span>
+      </div>
+      <p class="description">停止脚本</p>
+    </div>
+    
+    <h2>⚙️ 系统设置 API</h2>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/settings</span>
+      </div>
+      <p class="description">获取系统设置</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method put">PUT</span>
+        <span class="path">/api/settings</span>
+      </div>
+      <p class="description">更新系统设置</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/settings/export/all</span>
+      </div>
+      <p class="description">导出所有数据 (JSON格式备份)</p>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/settings/import</span>
+      </div>
+      <p class="description">导入数据</p>
+      <h4>请求参数:</h4>
+      <table class="param-table">
+        <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+        <tr><td>data</td><td>object</td><td class="required">是</td><td>备份数据</td></tr>
+        <tr><td>options.merge</td><td>boolean</td><td class="optional">否</td><td>是否合并 (默认覆盖)</td></tr>
+      </table>
+    </div>
+    
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/settings/reset</span>
+      </div>
+      <p class="description">重置所有数据为默认值</p>
+    </div>
+    
+    <h2>🔗 WebSocket 事件</h2>
+    <div class="card">
+      <p class="description">连接 WebSocket 后可订阅以下事件：</p>
+      <h4>订阅消息:</h4>
+      <pre><code>{
+  "type": "subscribe",
+  "events": ["device:status", "device:feedback", "device:strength"]
+}</code></pre>
+      <h4>接收事件:</h4>
+      <ul class="event-list">
+        <li><span class="event-id">device:status</span> - 设备连接状态变化</li>
+        <li><span class="event-id">device:strength</span> - 设备强度变化</li>
+        <li><span class="event-id">device:feedback</span> - 设备反馈消息</li>
+        <li><span class="event-id">device:connected</span> - 设备已连接</li>
+        <li><span class="event-id">device:disconnected</span> - 设备已断开</li>
+      </ul>
+    </div>
+    
+    <h2>👨‍💻 开发者</h2>
+    <div class="developer">
+      <img src="https://github.com/yomo40.png" alt="yomo40" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%236366f1%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2260%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2240%22>Y</text></svg>'">
+      <div>
+        <strong>yomo40</strong>
+        <p>GitHub: <a href="https://github.com/yomo40" target="_blank">https://github.com/yomo40</a></p>
+      </div>
+    </div>
+    
+    <p style="margin-top: 40px; text-align: center; color: var(--text-secondary);">
+      &copy; 2025 Device Adapter Project | MIT License
+    </p>
+  </div>
+</body>
+</html>

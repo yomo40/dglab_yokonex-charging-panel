@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备适配器控制台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 侧边栏导航 -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-bolt"></i>
+        <span>设备控制台</span>
+      </div>
+      <ul class="nav-menu">
+        <li class="nav-item active" data-page="dashboard">
+          <i class="fas fa-home"></i>
+          <span>概览</span>
+        </li>
+        <li class="nav-item" data-page="devices">
+          <i class="fas fa-microchip"></i>
+          <span>设备管理</span>
+        </li>
+        <li class="nav-item" data-page="control">
+          <i class="fas fa-sliders-h"></i>
+          <span>设备控制</span>
+        </li>
+        <li class="nav-item" data-page="scripts">
+          <i class="fas fa-code"></i>
+          <span>游戏适配</span>
+        </li>
+        <li class="nav-item" data-page="ocr">
+          <i class="fas fa-eye"></i>
+          <span>血量识别</span>
+        </li>
+        <li class="nav-item" data-page="events">
+          <i class="fas fa-calendar-alt"></i>
+          <span>电击调节</span>
+        </li>
+        <li class="nav-item" data-page="logs">
+          <i class="fas fa-history"></i>
+          <span>设备动作日志</span>
+        </li>
+        <li class="nav-item" data-page="settings">
+          <i class="fas fa-cog"></i>
+          <span>系统设置</span>
+        </li>
+        <li class="nav-item" onclick="window.open('/docs/api.html', '_blank')">
+          <i class="fas fa-book"></i>
+          <span>API 文档</span>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <div class="connection-status" id="wsStatus">
+          <i class="fas fa-circle"></i>
+          <span>未连接</span>
+        </div>
+        <div class="developer-info">
+          <a href="https://github.com/yomo40" target="_blank" title="开发者: yomo40">
+            <i class="fab fa-github"></i> yomo40
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 概览页 -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <h1>概览</h1>
+          <p>设备状态总览与快捷控制</p>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-microchip"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-devices">0</span>
+              <span class="stat-label">已注册设备</span>
+            </div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-icon"><i class="fas fa-link"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-connected">0</span>
+              <span class="stat-label">已连接</span>
+            </div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-icon"><i class="fas fa-code"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-scripts">0</span>
+              <span class="stat-label">运行中脚本</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-events">0</span>
+              <span class="stat-label">激活的电击规则</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 设备强度预览 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> 设备通道状态</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" onclick="refreshDeviceStrength()">
+                <i class="fas fa-sync"></i> 刷新
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="device-strength-preview" class="device-strength-grid">
+              <p class="text-muted">暂无已连接设备</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- OCR 状态概览 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-eye"></i> 血量识别概览</h3>
+          </div>
+          <div class="card-body">
+            <div id="ocr-overview" class="ocr-overview-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px;">
+              <div class="stat-item">
+                <span class="stat-label">当前血量</span>
+                <span class="stat-value" id="dashboard-ocr-blood">100</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">识别状态</span>
+                <span class="stat-value" id="dashboard-ocr-status" style="color: var(--text-muted);">未运行</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">启用规则</span>
+                <span class="stat-value" id="dashboard-ocr-rules">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">最近触发</span>
+                <span class="stat-value text-sm" id="dashboard-ocr-last">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快捷控制 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-sliders-h"></i> 快捷控制</h3>
+          </div>
+          <div class="card-body">
+            <div id="quick-device-list" class="device-quick-list">
+              <p class="text-muted">暂无已连接设备</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最近事件 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-history"></i> 最近电击动作</h3>
+          </div>
+          <div class="card-body">
+            <div id="recent-events" class="event-log">
+              <p class="text-muted">暂无事件记录</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="developer-credit" style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+          <span>Developed by </span>
+          <a href="https://github.com/yomo40" target="_blank" style="color: var(--primary); text-decoration: none;">
+            <i class="fab fa-github"></i> yomo40
+          </a>
+        </div>
+      </div>
+
+      <!-- 设备管理页 -->
+      <div class="page" id="page-devices">
+        <div class="page-header">
+          <h1>设备管理</h1>
+          <p>添加和管理您的设备</p>
+        </div>
+
+        <!-- 虚拟测试设备 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-vial"></i> 虚拟测试设备</h3>
+          </div>
+          <div class="card-body">
+            <p class="text-muted text-sm" style="margin-bottom: 15px;">
+              虚拟设备用于测试事件和脚本，不需要真实设备即可模拟控制响应
+            </p>
+            <div class="btn-group">
+              <button class="btn btn-primary" onclick="addVirtualDevice('dglab')">
+                <i class="fas fa-bolt"></i> 添加虚拟郊狼
+              </button>
+              <button class="btn btn-primary" onclick="addVirtualDevice('yokonex')">
+                <i class="fas fa-mobile-alt"></i> 添加虚拟役次元
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-plus-circle"></i> 添加真实设备</h3>
+          </div>
+          <div class="card-body">
+            <div class="device-type-tabs">
+              <button class="tab-btn active" data-type="dglab">
+                <i class="fas fa-bolt"></i> DG-LAB (郊狼)
+              </button>
+              <button class="tab-btn" data-type="yokonex">
+                <i class="fas fa-mobile-alt"></i> 役次元
+              </button>
+            </div>
+
+            <!-- DG-LAB 表单 -->
+            <div class="device-form active" id="form-dglab">
+              <div class="form-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                  <p><strong>DG-LAB 郊狼脉冲主机 3.0</strong></p>
+                  <p>支持强度控制 (0-200)、波形发送 (HEX格式)、波形队列清空、APP反馈接收</p>
+                </div>
+              </div>
+              
+              <!-- 连接方式选择 -->
+              <div class="connection-type-selector">
+                <label class="connection-option">
+                  <input type="radio" name="dglab-conn-type" value="websocket" checked>
+                  <div class="option-card">
+                    <i class="fas fa-globe"></i>
+                    <span>WebSocket 中转</span>
+                    <small>通过DG-LAB APP连接</small>
+                  </div>
+                </label>
+                <label class="connection-option">
+                  <input type="radio" name="dglab-conn-type" value="bluetooth">
+                  <div class="option-card">
+                    <i class="fab fa-bluetooth-b"></i>
+                    <span>蓝牙直连</span>
+                    <small>直接连接设备 (需浏览器支持)</small>
+                  </div>
+                </label>
+              </div>
+
+              <!-- WebSocket 连接表单 -->
+              <form id="dglab-form" class="dglab-conn-form active" data-conn-type="websocket">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" name="deviceName" class="form-control" placeholder="我的郊狼" required>
+                  </div>
+                  <div class="form-group flex-grow">
+                    <label>WebSocket 服务地址</label>
+                    <input type="text" name="wsUrl" class="form-control" placeholder="ws://192.168.1.100:9999" required>
+                  </div>
+                </div>
+                <div class="form-steps">
+                  <h4>连接步骤：</h4>
+                  <ol>
+                    <li>部署 WebSocket 中转服务器 (参考 DG-LAB 官方示例)</li>
+                    <li>填写 WebSocket 服务地址并添加设备</li>
+                    <li>使用 DG-LAB APP 扫描生成的二维码</li>
+                    <li>APP 完成绑定后即可开始控制</li>
+                  </ol>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-plus"></i> 添加 WebSocket 设备
+                </button>
+              </form>
+
+              <!-- 蓝牙连接表单 -->
+              <form id="dglab-bluetooth-form" class="dglab-conn-form" data-conn-type="bluetooth">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" name="deviceName" class="form-control" placeholder="我的郊狼" required>
+                  </div>
+                </div>
+                <div class="form-info">
+                  <i class="fas fa-bluetooth-b"></i>
+                  <div>
+                    <p><strong>蓝牙设备名称</strong>：47L121000 (脉冲主机 3.0)</p>
+                    <p>确保设备已开机且蓝牙可见，点击下方按钮搜索设备</p>
+                  </div>
+                </div>
+                <div class="form-steps">
+                  <h4>连接步骤：</h4>
+                  <ol>
+                    <li>确保浏览器支持 Web Bluetooth (Chrome/Edge)</li>
+                    <li>打开郊狼脉冲主机 3.0 电源</li>
+                    <li>点击搜索按钮选择设备 (名称: 47L121000)</li>
+                    <li>连接成功后即可直接控制设备</li>
+                  </ol>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fab fa-bluetooth-b"></i> 搜索蓝牙设备
+                </button>
+              </form>
+            </div>
+
+            <!-- 役次元 表单 -->
+            <div class="device-form" id="form-yokonex">
+              <div class="form-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                  <p><strong>役次元设备</strong></p>
+                  <p>支持腾讯 IM 远程控制和蓝牙直连两种方式</p>
+                </div>
+              </div>
+              
+              <!-- 连接方式选择 -->
+              <div class="connection-type-selector">
+                <label class="connection-option">
+                  <input type="radio" name="yokonex-conn-type" value="im" checked>
+                  <div class="option-card">
+                    <i class="fas fa-cloud"></i>
+                    <span>腾讯 IM 远程</span>
+                    <small>通过云端中转控制</small>
+                  </div>
+                </label>
+                <label class="connection-option">
+                  <input type="radio" name="yokonex-conn-type" value="bluetooth">
+                  <div class="option-card">
+                    <i class="fab fa-bluetooth-b"></i>
+                    <span>蓝牙直连</span>
+                    <small>直接连接设备 (需浏览器支持)</small>
+                  </div>
+                </label>
+              </div>
+
+              <!-- IM 连接表单 -->
+              <form id="yokonex-form" class="yokonex-conn-form active" data-conn-type="im">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" name="deviceName" class="form-control" placeholder="我的役次元" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>用户 UID</label>
+                    <input type="text" name="uid" class="form-control" placeholder="game_xxx" required>
+                  </div>
+                  <div class="form-group">
+                    <label>游戏 Token</label>
+                    <input type="text" name="token" class="form-control" placeholder="从游戏链接获取" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>目标用户 ID</label>
+                    <input type="text" name="targetUserId" class="form-control" placeholder="设备端用户ID (不带game_前缀)" required>
+                  </div>
+                </div>
+                <div class="form-steps">
+                  <h4>连接步骤：</h4>
+                  <ol>
+                    <li>在役次元 APP 中创建游戏并获取配置</li>
+                    <li>填写 UID 和 Token (从游戏启动链接获取)</li>
+                    <li>填写目标用户 ID (设备端)</li>
+                    <li>添加设备后，使用事件ID发送指令</li>
+                  </ol>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-plus"></i> 添加 IM 设备
+                </button>
+              </form>
+
+              <!-- 蓝牙连接表单 -->
+              <form id="yokonex-bluetooth-form" class="yokonex-conn-form" data-conn-type="bluetooth">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" name="deviceName" class="form-control" placeholder="我的役次元" required>
+                  </div>
+                </div>
+                <div class="form-info">
+                  <i class="fab fa-bluetooth-b"></i>
+                  <div>
+                    <p><strong>YSKJ EMS 蓝牙协议 V1.6</strong></p>
+                    <p>确保设备已开机且蓝牙可见，点击下方按钮搜索设备</p>
+                    <p class="text-muted text-sm">支持 A/B 双通道控制，276 级强度，16 种预设模式</p>
+                  </div>
+                </div>
+                <div class="form-steps">
+                  <h4>连接步骤：</h4>
+                  <ol>
+                    <li>确保浏览器支持 Web Bluetooth (Chrome/Edge)</li>
+                    <li>打开役次元电击设备电源</li>
+                    <li>点击搜索按钮选择设备</li>
+                    <li>连接成功后即可直接控制设备</li>
+                  </ol>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fab fa-bluetooth-b"></i> 搜索蓝牙设备
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> 已添加设备</h3>
+          </div>
+          <div class="card-body">
+            <div id="device-list" class="device-list">
+              <p class="text-muted">暂无设备</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 设备控制页 -->
+      <div class="page" id="page-control">
+        <div class="page-header">
+          <h1>设备控制</h1>
+          <p>实时控制设备输出</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-crosshairs"></i> 目标设备</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group flex-grow">
+                <select id="control-device-select" class="form-control">
+                  <option value="">-- 选择设备 --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <button class="btn btn-danger" id="btn-stop-all">
+                  <i class="fas fa-stop"></i> 紧急停止
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-panel">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-sliders-h"></i> 通道 A 控制</h3>
+            </div>
+            <div class="card-body">
+              <div class="channel-control">
+                <div class="strength-display">
+                  <div class="strength-circle" id="channelACircle">
+                    <span class="strength-number" id="channelAStrength">0</span>
+                  </div>
+                </div>
+                <div class="strength-controls">
+                  <label>强度 (0-200)</label>
+                  <input type="range" id="channelASlider" min="0" max="200" value="0" class="slider slider-a">
+                  <div class="strength-buttons">
+                    <button class="btn btn-sm" data-channel="A" data-action="decrease" data-value="10">-10</button>
+                    <button class="btn btn-sm" data-channel="A" data-action="decrease" data-value="1">-1</button>
+                    <button class="btn btn-sm btn-warning" data-channel="A" data-action="set" data-value="0">归零</button>
+                    <button class="btn btn-sm" data-channel="A" data-action="increase" data-value="1">+1</button>
+                    <button class="btn btn-sm" data-channel="A" data-action="increase" data-value="10">+10</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-sliders-h"></i> 通道 B 控制</h3>
+            </div>
+            <div class="card-body">
+              <div class="channel-control">
+                <div class="strength-display">
+                  <div class="strength-circle strength-circle-b" id="channelBCircle">
+                    <span class="strength-number" id="channelBStrength">0</span>
+                  </div>
+                </div>
+                <div class="strength-controls">
+                  <label>强度 (0-200)</label>
+                  <input type="range" id="channelBSlider" min="0" max="200" value="0" class="slider slider-b">
+                  <div class="strength-buttons">
+                    <button class="btn btn-sm" data-channel="B" data-action="decrease" data-value="10">-10</button>
+                    <button class="btn btn-sm" data-channel="B" data-action="decrease" data-value="1">-1</button>
+                    <button class="btn btn-sm btn-warning" data-channel="B" data-action="set" data-value="0">归零</button>
+                    <button class="btn btn-sm" data-channel="B" data-action="increase" data-value="1">+1</button>
+                    <button class="btn btn-sm" data-channel="B" data-action="increase" data-value="10">+10</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-cogs"></i> 高级设置</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-info" style="margin-bottom: 15px;">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <p><strong>设备类型说明：</strong></p>
+                <p><strong>郊狼 (DG-LAB)</strong>: 支持直接设置强度、波形、强度上限、清空队列</p>
+                <p><strong>役次元</strong>: 通过事件指令控制，强度/波形操作会转换为 IM 事件发送</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>强度上限 A (仅郊狼)</label>
+                <input type="number" id="limitA" class="form-control" value="200" min="0" max="200">
+              </div>
+              <div class="form-group">
+                <label>强度上限 B (仅郊狼)</label>
+                <input type="number" id="limitB" class="form-control" value="200" min="0" max="200">
+              </div>
+              <div class="form-group">
+                <button class="btn btn-primary" id="btn-set-limits">
+                  <i class="fas fa-save"></i> 设置上限
+                </button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>清空波形队列 (仅郊狼)</label>
+                <div class="btn-group">
+                  <button class="btn btn-secondary" id="btn-clear-a">清空 A 通道</button>
+                  <button class="btn btn-secondary" id="btn-clear-b">清空 B 通道</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 游戏适配页 -->
+      <div class="page" id="page-scripts">
+        <div class="page-header">
+          <h1>游戏适配</h1>
+          <p>管理游戏适配脚本，实现自定义游戏联动反馈</p>
+        </div>
+
+        <!-- 功能说明 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> 功能说明</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-info" style="margin-bottom: 10px;">
+              <i class="fas fa-crosshairs"></i>
+              <div>
+                <p><strong>OCR血量识别</strong> - 内置血条颜色识别功能，可通过API调用 <code>/api/ocr/</code></p>
+                <p>支持血条位置校准、自动检测、手动触发识别等功能</p>
+              </div>
+            </div>
+            <div class="form-info">
+              <i class="fas fa-gamepad"></i>
+              <div>
+                <p><strong>游戏适配脚本</strong> - 使用JavaScript编写自定义游戏联动逻辑</p>
+                <p>可调用设备控制API、事件系统、OCR识别等功能</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 脚本统计 -->
+        <div class="dashboard-grid" style="margin-bottom: 24px;">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-file-code"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-scripts-total">0</span>
+              <span class="stat-label">脚本总数</span>
+            </div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-icon"><i class="fas fa-play-circle"></i></div>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-scripts-running">0</span>
+              <span class="stat-label">运行中</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 脚本操作 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-tools"></i> 快捷操作</h3>
+          </div>
+          <div class="card-body">
+            <div class="btn-group">
+              <button class="btn btn-primary" onclick="showScriptModal(false)">
+                <i class="fas fa-plus"></i> 新建脚本
+              </button>
+              <button class="btn btn-secondary" onclick="uploadScriptFile()">
+                <i class="fas fa-file-import"></i> 从文件导入
+              </button>
+              <button class="btn btn-info" onclick="openScriptDocs()">
+                <i class="fas fa-book"></i> API 文档
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 脚本列表 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> 已上传脚本</h3>
+          </div>
+          <div class="card-body">
+            <div id="script-list" class="script-list">
+              <div class="empty-state">
+                <i class="fas fa-file-code"></i>
+                <p>暂无脚本</p>
+                <p class="text-muted text-sm">点击上方按钮添加游戏适配脚本</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 脚本编辑模态框 -->
+      <div class="modal" id="script-modal">
+        <div class="modal-content modal-large">
+          <div class="modal-header">
+            <h3 id="script-modal-title">添加脚本</h3>
+            <button class="modal-close" onclick="hideScriptModal()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form id="script-form">
+            <input type="hidden" id="script-id">
+            <div class="modal-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>脚本名称 *</label>
+                  <input type="text" id="script-name" class="form-control" placeholder="Minecraft 受伤联动" required>
+                </div>
+                <div class="form-group">
+                  <label>游戏名称</label>
+                  <input type="text" id="script-game" class="form-control" placeholder="Minecraft">
+                </div>
+                <div class="form-group">
+                  <label>版本号</label>
+                  <input type="text" id="script-version" class="form-control" placeholder="1.0.0" value="1.0.0">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>脚本描述</label>
+                <input type="text" id="script-description" class="form-control" placeholder="玩家受伤时触发电击反馈">
+              </div>
+              <div class="form-group">
+                <label>脚本代码 (JavaScript) *</label>
+                <textarea id="script-code" class="form-control code-editor" rows="20" placeholder="// 在此编写脚本代码..." required></textarea>
+              </div>
+              <div class="form-info">
+                <i class="fas fa-lightbulb"></i>
+                <div>
+                  <p><strong>提示：</strong>查看 <a href="/docs/script-api.html" target="_blank">API 文档</a> 了解所有可用接口</p>
+                  <p>可用 API: <code>device.setStrength()</code>, <code>events.on()</code>, <code>storage.get()</code> 等</p>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="hideScriptModal()">取消</button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> 保存脚本
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- OCR 血量识别页 -->
+      <div class="page" id="page-ocr">
+        <div class="page-header">
+          <h1>血量识别</h1>
+          <p>通过OCR或血条颜色识别游戏血量，根据血量变化自动触发设备事件</p>
+        </div>
+
+        <!-- OCR 状态概览 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> 识别状态</h3>
+          </div>
+          <div class="card-body">
+            <div class="ocr-status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+              <div class="stat-item">
+                <span class="stat-label">当前血量</span>
+                <span class="stat-value" id="ocr-current-blood">100</span>
+              </div>
+              <div class="stat-item" id="ocr-armor-status" style="display: none;">
+                <span class="stat-label">当前护甲</span>
+                <span class="stat-value" id="ocr-current-armor">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">识别模式</span>
+                <span class="stat-value" id="ocr-current-mode">血条识别</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">已启用规则</span>
+                <span class="stat-value" id="ocr-enabled-rules">4/6</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">识别状态</span>
+                <span class="stat-value" id="ocr-running-status" style="color: var(--danger);">未运行</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 识别配置 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-cog"></i> 识别配置</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-info" style="margin-bottom: 15px;">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <p><strong>使用说明：</strong>本功能需要外部程序截取游戏画面中的血量区域并发送到服务器</p>
+                <p>您可以使用"血量识别"独立工具进行屏幕截图，或通过 API 接口上传截图/手动上报血量</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>识别模式</label>
+                <select id="ocr-mode" class="form-control" onchange="onOCRModeChange()">
+                  <option value="healthbar">血条识别</option>
+                  <option value="digital">数字OCR</option>
+                  <option value="auto">自动检测</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>初始血量 (最大200)</label>
+                <input type="number" id="ocr-initial-blood" class="form-control" value="100" min="0" max="200">
+              </div>
+              <div class="form-group">
+                <label>识别间隔 (毫秒)</label>
+                <input type="number" id="ocr-interval" class="form-control" value="2000" min="500" max="10000">
+              </div>
+            </div>
+
+            <!-- 血条识别配置 -->
+            <div id="healthbar-config" class="sub-config" style="margin-top: 15px; padding: 15px; background: var(--bg-dark); border-radius: 8px;">
+              <h4 style="margin-bottom: 15px; color: var(--text-secondary);"><i class="fas fa-fill-drip"></i> 血条识别配置</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>血条颜色</label>
+                  <select id="ocr-healthbar-color" class="form-control">
+                    <option value="auto">自动检测</option>
+                    <option value="red">红色</option>
+                    <option value="green">绿色</option>
+                    <option value="yellow">黄色</option>
+                    <option value="blue">蓝色</option>
+                    <option value="orange">橙色</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>颜色容差</label>
+                  <input type="number" id="ocr-tolerance" class="form-control" value="30" min="10" max="50">
+                </div>
+                <div class="form-group">
+                  <label>采样行数</label>
+                  <input type="number" id="ocr-sample-rows" class="form-control" value="3" min="1" max="5">
+                </div>
+              </div>
+            </div>
+
+            <!-- 护甲识别配置 -->
+            <div id="armor-config" class="sub-config" style="margin-top: 15px; padding: 15px; background: var(--bg-dark); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <h4 style="color: var(--text-secondary); margin: 0;"><i class="fas fa-shield-alt"></i> 护甲识别配置</h4>
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="ocr-armor-enabled" class="switch-input" onchange="toggleArmorConfig()">
+                  <span class="switch-slider"></span>
+                  <span style="margin-left: 8px;">启用护甲识别</span>
+                </label>
+              </div>
+              <div id="armor-config-fields" style="display: none;">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>初始护甲值 (最大200)</label>
+                    <input type="number" id="ocr-initial-armor" class="form-control" value="0" min="0" max="200">
+                  </div>
+                  <div class="form-group">
+                    <label>护甲条颜色</label>
+                    <select id="ocr-armor-color" class="form-control">
+                      <option value="auto">自动检测</option>
+                      <option value="blue" selected>蓝色</option>
+                      <option value="yellow">黄色</option>
+                      <option value="white">白色</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="align-self: flex-end;">
+                    <button class="btn btn-sm btn-info" onclick="openArmorAreaPicker()">
+                      <i class="fas fa-crosshairs"></i> 框选护甲区域
+                    </button>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>护甲条区域 X</label>
+                    <input type="number" id="ocr-armor-area-x" class="form-control" value="0" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Y</label>
+                    <input type="number" id="ocr-armor-area-y" class="form-control" value="0" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>宽度</label>
+                    <input type="number" id="ocr-armor-area-width" class="form-control" value="100" min="1">
+                  </div>
+                  <div class="form-group">
+                    <label>高度</label>
+                    <input type="number" id="ocr-armor-area-height" class="form-control" value="20" min="1">
+                  </div>
+                </div>
+                <div id="armor-area-preview" style="margin-top: 10px; display: none;">
+                  <canvas id="ocr-armor-preview-canvas" style="border: 1px solid #333; border-radius: 4px; max-width: 200px; max-height: 40px;"></canvas>
+                </div>
+                <p class="text-muted text-sm" style="margin-top: 10px;">护甲变化将触发 lost-ahp (护甲减少) 和 add-ahp (护甲恢复) 事件</p>
+              </div>
+            </div>
+
+            <div class="btn-group" style="margin-top: 20px;">
+              <button class="btn btn-success" id="ocr-start-btn" onclick="toggleOCRRecognition()">
+                <i class="fas fa-play"></i> 开始识别
+              </button>
+              <button class="btn btn-primary" onclick="openCoordinatePicker()">
+                <i class="fas fa-crosshairs"></i> 框选血量区域
+              </button>
+              <button class="btn btn-secondary" onclick="saveOCRConfig()">
+                <i class="fas fa-save"></i> 保存配置
+              </button>
+              <button class="btn btn-warning" onclick="resetOCRStatus()">
+                <i class="fas fa-undo"></i> 重置状态
+              </button>
+            </div>
+            
+            <!-- 识别区域预览 -->
+            <div id="ocr-area-preview" style="margin-top: 15px; padding: 15px; background: var(--bg-dark); border-radius: 8px; display: none;">
+              <h4 style="margin-bottom: 10px; color: var(--text-secondary);"><i class="fas fa-vector-square"></i> 当前识别区域</h4>
+              <div style="display: flex; gap: 20px; align-items: center;">
+                <div style="font-family: monospace; color: #00ff00;">
+                  X: <span id="ocr-area-x">0</span>, 
+                  Y: <span id="ocr-area-y">0</span> | 
+                  尺寸: <span id="ocr-area-w">0</span> × <span id="ocr-area-h">0</span>
+                </div>
+                <canvas id="ocr-preview-canvas" style="border: 1px solid #333; border-radius: 4px; max-width: 300px; max-height: 60px;"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 手动上报血量 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-hand-pointer"></i> 手动上报血量</h3>
+          </div>
+          <div class="card-body">
+            <p class="text-muted text-sm" style="margin-bottom: 15px;">
+              用于测试规则或在无法自动识别时手动上报血量值
+            </p>
+            <div class="form-row">
+              <div class="form-group flex-grow">
+                <label>血量值 (0-200)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="range" id="ocr-manual-blood-slider" class="form-control" style="flex: 1;" value="100" min="0" max="200" oninput="document.getElementById('ocr-manual-blood').value=this.value">
+                  <input type="number" id="ocr-manual-blood" class="form-control" style="width: 80px;" value="100" min="0" max="200" oninput="document.getElementById('ocr-manual-blood-slider').value=this.value">
+                </div>
+              </div>
+              <div class="form-group" style="align-self: flex-end;">
+                <button class="btn btn-warning" onclick="reportBloodManually()">
+                  <i class="fas fa-paper-plane"></i> 上报血量
+                </button>
+              </div>
+            </div>
+            <div class="quick-blood-btns" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(200)">200</button>
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(150)">150</button>
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(100)">100</button>
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(75)">75</button>
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(50)">50</button>
+              <button class="btn btn-sm btn-secondary" onclick="setQuickBlood(25)">25</button>
+              <button class="btn btn-sm btn-danger" onclick="setQuickBlood(0)">0 (死亡)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 血量变化规则 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-list-alt"></i> 血量变化规则</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" onclick="loadOCRRules()">
+                <i class="fas fa-sync"></i> 刷新
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="resetOCRRulesToDefault()">
+                <i class="fas fa-undo"></i> 恢复默认
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="showAddRuleModal()">
+                <i class="fas fa-plus"></i> 添加规则
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-info" style="margin-bottom: 15px;">
+              <i class="fas fa-lightbulb"></i>
+              <div>
+                <p><strong>规则说明：</strong>当血量变化满足规则条件时，会自动触发对应的设备事件</p>
+                <p>规则按优先级排序，数字越小优先级越高，只会触发第一个匹配的规则</p>
+              </div>
+            </div>
+            <div id="ocr-rules-list" class="rules-list">
+              <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>加载中...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 血量变化日志 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-history"></i> 血量变化日志</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" onclick="clearOCRLogs()">
+                <i class="fas fa-trash"></i> 清空
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="ocr-blood-logs" class="log-container" style="max-height: 300px; overflow-y: auto;">
+              <div class="empty-state">
+                <i class="fas fa-heartbeat"></i>
+                <p>暂无血量变化记录</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 添加/编辑规则模态框 -->
+      <div class="modal-overlay" id="rule-modal">
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3 id="rule-modal-title">添加规则</h3>
+            <button class="modal-close" onclick="closeRuleModal()">&times;</button>
+          </div>
+          <form id="rule-form" onsubmit="saveRule(event)">
+            <div class="modal-body">
+              <div class="form-group">
+                <label>规则名称 *</label>
+                <input type="text" id="rule-name" class="form-control" placeholder="如：大量掉血" required>
+              </div>
+              <div class="form-group">
+                <label>触发条件 *</label>
+                <select id="rule-condition-type" class="form-control" onchange="updateConditionFields()">
+                  <option value="death">角色死亡 (血量归零)</option>
+                  <option value="decrease">血量减少</option>
+                  <option value="increase">血量恢复</option>
+                  <option value="revive">角色复活 (从0恢复)</option>
+                  <option value="threshold">血量阈值</option>
+                </select>
+              </div>
+              <div id="condition-range-fields" class="form-row" style="display: none;">
+                <div class="form-group">
+                  <label>最小变化量 (%)</label>
+                  <input type="number" id="rule-min-change" class="form-control" value="1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                  <label>最大变化量 (%)</label>
+                  <input type="number" id="rule-max-change" class="form-control" value="100" min="0" max="100">
+                </div>
+              </div>
+              <div id="condition-threshold-fields" class="form-row" style="display: none;">
+                <div class="form-group">
+                  <label>阈值 (%)</label>
+                  <input type="number" id="rule-threshold" class="form-control" value="20" min="0" max="100">
+                </div>
+                <div class="form-group">
+                  <label>方向</label>
+                  <select id="rule-threshold-direction" class="form-control">
+                    <option value="below">低于阈值时触发</option>
+                    <option value="above">高于阈值时触发</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>触发事件 ID</label>
+                <select id="rule-event-id" class="form-control">
+                  <option value="lost-hp">lost-hp (血量减少)</option>
+                  <option value="dead">dead (角色死亡)</option>
+                  <option value="add-hp">add-hp (血量恢复)</option>
+                  <option value="lost-ahp">lost-ahp (护甲减少)</option>
+                  <option value="add-ahp">add-ahp (护甲恢复)</option>
+                  <option value="character-debuff">character-debuff (角色Debuff)</option>
+                  <option value="new-credit">new-credit (关卡重置)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>强度 (0-200)</label>
+                  <input type="number" id="rule-strength" class="form-control" value="50" min="0" max="200">
+                </div>
+                <div class="form-group">
+                  <label>持续时间 (毫秒)</label>
+                  <input type="number" id="rule-duration" class="form-control" value="500" min="100" max="10000">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>目标通道</label>
+                  <select id="rule-channel" class="form-control">
+                    <option value="A">A 通道</option>
+                    <option value="B">B 通道</option>
+                    <option value="AB">双通道 (A+B)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>优先级</label>
+                  <input type="number" id="rule-priority" class="form-control" value="5" min="1" max="100">
+                </div>
+              </div>
+              <input type="hidden" id="rule-edit-id">
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeRuleModal()">取消</button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> 保存规则
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 事件配置页 -->
+      <div class="page" id="page-events">
+        <div class="page-header">
+          <h1>电击调节</h1>
+          <p>配置电击规则，定义游戏事件触发时的设备响应</p>
+        </div>
+
+        <!-- 规则状态概览 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> 规则状态</h3>
+          </div>
+          <div class="card-body">
+            <div class="event-status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+              <div class="stat-item">
+                <span class="stat-label">总规则数</span>
+                <span class="stat-value" id="event-total-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">已启用</span>
+                <span class="stat-value" id="event-enabled-count" style="color: var(--success);">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">已禁用</span>
+                <span class="stat-value" id="event-disabled-count" style="color: var(--danger);">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">自定义规则</span>
+                <span class="stat-value" id="event-custom-count">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 事件分类标签 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-tags"></i> 规则分类</h3>
+          </div>
+          <div class="card-body">
+            <div class="event-category-tabs">
+              <button class="tab-btn active" data-category="all">
+                <i class="fas fa-list"></i> 全部规则
+              </button>
+              <button class="tab-btn" data-category="system">
+                <i class="fas fa-cog"></i> 系统规则
+              </button>
+              <button class="tab-btn" data-category="game">
+                <i class="fas fa-gamepad"></i> 游戏规则
+              </button>
+              <button class="tab-btn" data-category="custom">
+                <i class="fas fa-user-edit"></i> 自定义规则
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加自定义规则 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-plus-circle"></i> 添加自定义电击规则</h3>
+          </div>
+          <div class="card-body">
+            <form id="event-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>规则 ID *</label>
+                  <input type="text" name="eventId" class="form-control" placeholder="my_custom_event" required>
+                  <small class="text-muted">唯一标识符，用于脚本触发</small>
+                </div>
+                <div class="form-group">
+                  <label>规则名称 *</label>
+                  <input type="text" name="eventName" class="form-control" placeholder="自定义电击规则" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group flex-grow">
+                  <label>规则描述</label>
+                  <input type="text" name="eventDescription" class="form-control" placeholder="描述触发条件和效果">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>目标通道</label>
+                  <select name="eventChannel" class="form-control">
+                    <option value="A">A 通道</option>
+                    <option value="B">B 通道</option>
+                    <option value="AB">双通道 (A+B)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>动作类型</label>
+                  <select name="eventAction" class="form-control">
+                    <option value="pulse">脉冲 (设置后自动归零)</option>
+                    <option value="set">设置强度</option>
+                    <option value="increase">增加强度</option>
+                    <option value="decrease">减少强度</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>强度值 (0-200)</label>
+                  <input type="number" name="eventValue" class="form-control" value="30" min="0" max="200">
+                </div>
+                <div class="form-group">
+                  <label>持续时间 (毫秒)</label>
+                  <input type="number" name="eventDuration" class="form-control" value="500" min="100" max="10000">
+                  <small class="text-muted">仅脉冲模式生效</small>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="switch-label">
+                    <input type="checkbox" name="eventEnabled" checked>
+                    <span style="margin-left: 8px;">创建后立即启用</span>
+                  </label>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 添加规则
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 已注册电击规则列表 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> 已注册电击规则</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" onclick="refreshEvents()">
+                <i class="fas fa-sync"></i> 刷新
+              </button>
+              <button class="btn btn-sm btn-success" onclick="enableAllEvents()">
+                <i class="fas fa-check-double"></i> 全部启用
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="disableAllEvents()">
+                <i class="fas fa-ban"></i> 全部禁用
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="event-list" class="event-list">
+              <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>加载中...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 事件测试 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-flask"></i> 电击测试</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-info" style="margin-bottom: 15px;">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <p><strong>测试说明：</strong>模拟触发选定的电击规则，向设备发送电击指令</p>
+                <p>请确保目标设备已连接，强度值由规则配置决定</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>选择规则</label>
+                <select id="test-event-select" class="form-control">
+                  <option value="">-- 选择规则 --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>目标设备</label>
+                <select id="test-event-device" class="form-control">
+                  <option value="">全部已连接设备</option>
+                </select>
+              </div>
+              <div class="form-group" style="align-self: flex-end;">
+                <button class="btn btn-warning" id="btn-test-event">
+                  <i class="fas fa-bolt"></i> 触发电击
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 设备动作日志页 -->
+      <div class="page" id="page-logs">
+        <div class="page-header">
+          <h1>设备动作日志</h1>
+          <p>实时查看设备控制指令执行记录，日志自动保存到 logs/shock.log 文件</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-filter"></i> 日志筛选</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>日志类型</label>
+                <select id="log-type-filter" class="form-control">
+                  <option value="">全部类型</option>
+                  <option value="strength">强度设置</option>
+                  <option value="waveform">波形发送</option>
+                  <option value="event">事件触发</option>
+                  <option value="event_rule">规则触发</option>
+                  <option value="queue">队列操作</option>
+                  <option value="limit">上限设置</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>设备筛选</label>
+                <select id="log-device-filter" class="form-control">
+                  <option value="">全部设备</option>
+                </select>
+              </div>
+              <div class="form-group" style="align-self: flex-end;">
+                <button class="btn btn-secondary" onclick="clearShockLogs()">
+                  <i class="fas fa-trash"></i> 清空内存日志
+                </button>
+                <button class="btn btn-info" onclick="refreshShockLogs()">
+                  <i class="fas fa-sync"></i> 刷新
+                </button>
+                <button class="btn btn-primary" onclick="downloadShockLogFile()">
+                  <i class="fas fa-download"></i> 下载日志文件
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 日志统计 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-chart-bar"></i> 日志统计</h3>
+          </div>
+          <div class="card-body">
+            <div class="stats-grid" id="shock-log-stats">
+              <div class="stat-card">
+                <div class="stat-value" id="stat-total-logs">0</div>
+                <div class="stat-label">总日志数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-strength-logs">0</div>
+                <div class="stat-label">强度操作</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-waveform-logs">0</div>
+                <div class="stat-label">波形操作</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-rule-logs">0</div>
+                <div class="stat-label">规则触发</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> 日志记录</h3>
+            <div class="card-actions">
+              <label class="switch-label">
+                <input type="checkbox" id="log-auto-scroll" checked>
+                <span>自动滚动</span>
+              </label>
+              <label class="switch-label">
+                <input type="checkbox" id="log-auto-refresh" checked onchange="toggleAutoRefreshLogs()">
+                <span>自动刷新</span>
+              </label>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="device-action-logs" class="log-container">
+              <div class="empty-state">
+                <i class="fas fa-history"></i>
+                <p>暂无日志记录</p>
+                <p class="text-muted text-sm">设备动作执行后将在此显示</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 日志文件列表 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-folder"></i> 日志文件</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" onclick="loadLogFiles()">
+                <i class="fas fa-sync"></i> 刷新
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="log-files-list" class="log-files-grid">
+              <p class="text-muted">加载中...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 系统设置页 -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <h1>系统设置</h1>
+          <p>配置应用参数和内置服务</p>
+        </div>
+
+        <!-- 内置郊狼 WebSocket 服务器 -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> 内置郊狼 WebSocket 服务器</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-info">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <p><strong>内置服务器</strong> - 无需外部中转服务即可连接郊狼APP</p>
+                <p>启动后，点击"显示二维码"按钮，使用郊狼APP扫描即可绑定设备</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>服务端口</label>
+                <input type="number" id="coyote-port" class="form-control" value="9999" min="1024" max="65535">
+              </div>
+              <div class="form-group">
+                <label>服务器状态</label>
+                <div id="coyote-status" class="form-control" style="background: var(--bg-dark); display: flex; align-items: center; gap: 8px;">
+                  <i class="fas fa-circle" style="font-size: 10px; color: var(--danger);"></i>
+                  <span>未启动</span>
+                </div>
+              </div>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-success" onclick="startCoyoteServer()">
+                <i class="fas fa-play"></i> 启动服务器
+              </button>
+              <button class="btn btn-danger" onclick="stopCoyoteServer()">
+                <i class="fas fa-stop"></i> 停止服务器
+              </button>
+              <button class="btn btn-primary" id="coyote-qr-btn" onclick="showCoyoteQRCode()" disabled style="opacity: 0.5;">
+                <i class="fas fa-qrcode"></i> 显示二维码
+              </button>
+              <button class="btn btn-secondary" onclick="refreshCoyoteStatus()">
+                <i class="fas fa-sync"></i> 刷新状态
+              </button>
+            </div>
+            <div id="coyote-clients" style="margin-top: 15px; display: none;">
+              <label>已连接客户端 <small class="text-muted">(自动刷新)</small></label>
+              <div id="coyote-client-list" class="device-list" style="margin-top: 8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-server"></i> 服务器设置</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group flex-grow">
+                <label>API 服务地址</label>
+                <input type="text" id="settings-api-url" class="form-control" value="http://localhost:3000">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>默认强度上限</label>
+                <input type="number" id="settings-default-limit" class="form-control" value="100" min="0" max="200">
+              </div>
+              <div class="form-group">
+                <label>最大强度</label>
+                <input type="number" id="settings-max-strength" class="form-control" value="200" min="0" max="200">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-shield-alt"></i> 安全设置</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="settings-auto-stop"> 断线自动停止
+                </label>
+              </div>
+              <div class="form-group">
+                <label>
+                  <input type="checkbox" id="settings-confirm-high"> 高强度确认 (>100)
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-database"></i> 数据管理</h3>
+          </div>
+          <div class="card-body">
+            <p class="text-muted" style="margin-bottom: 15px;">
+              <i class="fas fa-info-circle"></i> 
+              所有数据使用 SQLite 数据库存储，支持导出备份和导入恢复
+            </p>
+            <div class="btn-group">
+              <button class="btn btn-secondary" onclick="exportAllData()">
+                <i class="fas fa-download"></i> 导出全部数据
+              </button>
+              <button class="btn btn-secondary" onclick="importDataFile()">
+                <i class="fas fa-upload"></i> 导入数据
+              </button>
+              <button class="btn btn-danger" onclick="resetAllData()">
+                <i class="fas fa-trash"></i> 重置所有数据
+              </button>
+            </div>
+            <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="handleImportFile(event)">
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- QR码弹窗 -->
+  <div class="modal-overlay" id="qrcode-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>扫描二维码绑定</h3>
+        <button class="modal-close" onclick="closeQRModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div id="qrcode-container"></div>
+        <p class="text-muted mt-2">请使用 DG-LAB APP 扫描此二维码</p>
+        <p class="text-sm" id="qrCodeUrl"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 通知容器 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

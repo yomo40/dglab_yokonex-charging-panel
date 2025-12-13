@@ -1,0 +1,26 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "dglab": {
+    "websocketUrl": "ws://localhost:9999",
+    "heartbeatInterval": 10000,
+    "reconnectInterval": 5000,
+    "maxReconnectAttempts": 10
+  },
+  "yokonex": {
+    "apiBase": "https://suo.jiushu1234.com/api.php",
+    "imTimeout": 15000
+  },
+  "waveform": {
+    "defaultFrequency": 50,
+    "defaultStrength": 20,
+    "maxQueueLength": 500
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/app.log"
+  },
+  "savedDevices": []
+}

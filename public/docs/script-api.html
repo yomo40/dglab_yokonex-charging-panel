@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏脚本 API 文档</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <style>
+    .doc-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    .doc-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+    .doc-header h1 {
+      font-size: 36px;
+      margin-bottom: 15px;
+    }
+    .doc-header p {
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+    .doc-section {
+      margin-bottom: 40px;
+    }
+    .doc-section h2 {
+      color: var(--primary);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    .doc-section h3 {
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+    .api-card {
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .api-header {
+      background: var(--bg-input);
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .api-method {
+      background: var(--primary);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .api-name {
+      font-family: monospace;
+      font-size: 16px;
+    }
+    .api-body {
+      padding: 20px;
+    }
+    .api-desc {
+      margin-bottom: 15px;
+      color: var(--text-secondary);
+    }
+    .api-params {
+      margin: 15px 0;
+    }
+    .api-params h4 {
+      margin-bottom: 10px;
+      color: var(--text-muted);
+    }
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .param-table th, .param-table td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .param-table th {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .param-name {
+      font-family: monospace;
+      color: var(--primary);
+    }
+    .param-type {
+      font-family: monospace;
+      color: var(--success);
+      font-size: 12px;
+    }
+    pre {
+      background: #1e1e1e;
+      border-radius: var(--border-radius);
+      padding: 15px;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+    code {
+      font-family: 'Fira Code', 'Consolas', monospace;
+    }
+    .inline-code {
+      background: var(--bg-input);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--primary-light);
+    }
+    .toc {
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      margin-bottom: 40px;
+    }
+    .toc h3 {
+      margin-bottom: 15px;
+    }
+    .toc ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .toc li {
+      padding: 5px 0;
+    }
+    .toc a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .toc a:hover {
+      color: var(--primary);
+    }
+    .example-tag {
+      background: var(--warning);
+      color: black;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-left: 10px;
+    }
+    .warning-box {
+      background: rgba(245, 158, 11, 0.1);
+      border-left: 4px solid var(--warning);
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border-left: 4px solid var(--info);
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-container">
+    <div class="doc-header">
+      <h1><i class="fas fa-book"></i> 游戏脚本 API 文档</h1>
+      <p>设备适配器游戏脚本开发完整指南</p>
+    </div>
+
+    <!-- 目录 -->
+    <div class="toc">
+      <h3><i class="fas fa-list"></i> 目录</h3>
+      <ul>
+        <li><a href="#overview">概述</a></li>
+        <li><a href="#quick-start">快速开始</a></li>
+        <li><a href="#api-device">设备控制 API (device)</a></li>
+        <li><a href="#api-script">脚本工具 API (script)</a></li>
+        <li><a href="#api-events">事件系统 API (events)</a></li>
+        <li><a href="#api-storage">存储 API (storage)</a></li>
+        <li><a href="#constants">常量定义</a></li>
+        <li><a href="#examples">完整示例</a></li>
+        <li><a href="#best-practices">最佳实践</a></li>
+      </ul>
+    </div>
+
+    <!-- 概述 -->
+    <div class="doc-section" id="overview">
+      <h2><i class="fas fa-info-circle"></i> 概述</h2>
+      <p>游戏脚本系统允许开发者编写 JavaScript 脚本来实现游戏与设备的联动控制。脚本可以：</p>
+      <ul>
+        <li>监听游戏事件并触发设备动作</li>
+        <li>控制设备的强度输出</li>
+        <li>发送自定义事件到 YOKONEX 设备</li>
+        <li>存储和读取配置数据</li>
+      </ul>
+      
+      <div class="info-box">
+        <strong>脚本执行环境</strong><br>
+        脚本运行在沙箱环境中，可以访问以下全局对象：
+        <code class="inline-code">device</code>, 
+        <code class="inline-code">script</code>, 
+        <code class="inline-code">events</code>, 
+        <code class="inline-code">storage</code>,
+        <code class="inline-code">Channel</code>,
+        <code class="inline-code">StrengthMode</code>
+      </div>
+    </div>
+
+    <!-- 快速开始 -->
+    <div class="doc-section" id="quick-start">
+      <h2><i class="fas fa-rocket"></i> 快速开始</h2>
+      <p>以下是一个最简单的脚本示例：</p>
+      
+      <pre><code class="language-javascript">// 监听玩家受伤事件
+events.on('player_hurt', async (data) => {
+  script.log('玩家受伤！伤害值: ' + data.damage);
+  
+  // 获取所有已连接的设备
+  const devices = device.getConnectedDevices();
+  
+  // 根据伤害值计算强度
+  const strength = script.clamp(data.damage * 2, 10, 100);
+  
+  // 对所有设备设置 A 通道强度
+  for (const deviceId of devices) {
+    await device.setStrength(deviceId, Channel.A, strength);
+  }
+  
+  // 500ms 后归零
+  await script.sleep(500);
+  for (const deviceId of devices) {
+    await device.setStrength(deviceId, Channel.A, 0);
+  }
+});</code></pre>
+    </div>
+
+    <!-- 设备控制 API -->
+    <div class="doc-section" id="api-device">
+      <h2><i class="fas fa-microchip"></i> 设备控制 API (device)</h2>
+      
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">ASYNC</span>
+          <span class="api-name">device.setStrength(deviceId, channel, value, mode?)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">设置指定设备的通道强度</p>
+          <div class="api-params">
+            <h4>参数</h4>
+            <table class="param-table">
+              <tr>
+                <th>名称</th>
+                <th>类型</th>
+                <th>说明</th>
+              </tr>
+              <tr>
+                <td class="param-name">deviceId</td>
+                <td class="param-type">string</td>
+                <td>设备 ID</td>
+              </tr>
+              <tr>
+                <td class="param-name">channel</td>
+                <td class="param-type">Channel</td>
+                <td>通道，Channel.A 或 Channel.B</td>
+              </tr>
+              <tr>
+                <td class="param-name">value</td>
+                <td class="param-type">number</td>
+                <td>强度值 (0-200)</td>
+              </tr>
+              <tr>
+                <td class="param-name">mode</td>
+                <td class="param-type">StrengthMode</td>
+                <td>可选，强度模式 (Set/Increase/Decrease)</td>
+              </tr>
+            </table>
+          </div>
+          <pre><code class="language-javascript">// 设置 A 通道强度为 50
+await device.setStrength('device-1', Channel.A, 50);
+
+// 增加 B 通道强度 10
+await device.setStrength('device-1', Channel.B, 10, StrengthMode.Increase);
+
+// 减少 A 通道强度 5
+await device.setStrength('device-1', Channel.A, 5, StrengthMode.Decrease);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">ASYNC</span>
+          <span class="api-name">device.sendEvent(deviceId, eventId, payload?)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">向 YOKONEX 设备发送游戏事件 (game_cmd)</p>
+          <div class="api-params">
+            <h4>参数</h4>
+            <table class="param-table">
+              <tr>
+                <th>名称</th>
+                <th>类型</th>
+                <th>说明</th>
+              </tr>
+              <tr>
+                <td class="param-name">deviceId</td>
+                <td class="param-type">string</td>
+                <td>设备 ID</td>
+              </tr>
+              <tr>
+                <td class="param-name">eventId</td>
+                <td class="param-type">string</td>
+                <td>事件 ID (在役次元 APP 中配置)</td>
+              </tr>
+              <tr>
+                <td class="param-name">payload</td>
+                <td class="param-type">object</td>
+                <td>可选，附加数据</td>
+              </tr>
+            </table>
+          </div>
+          <pre><code class="language-javascript">// 发送受伤事件
+await device.sendEvent('yokonex-1', 'hurt');
+
+// 发送带数据的事件
+await device.sendEvent('yokonex-1', 'damage', { level: 3 });</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">ASYNC</span>
+          <span class="api-name">device.clearQueue(deviceId, channel)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">清空指定通道的波形队列 (仅 DG-LAB)</p>
+          <pre><code class="language-javascript">await device.clearQueue('dglab-1', Channel.A);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">ASYNC</span>
+          <span class="api-name">device.stopAll()</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">停止所有设备输出 (紧急停止)</p>
+          <pre><code class="language-javascript">await device.stopAll();</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">device.getDevices()</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">获取所有已注册设备的 ID 列表</p>
+          <p class="param-type">返回: string[]</p>
+          <pre><code class="language-javascript">const allDevices = device.getDevices();
+script.log('设备数量: ' + allDevices.length);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">device.getConnectedDevices()</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">获取所有已连接设备的 ID 列表</p>
+          <p class="param-type">返回: string[]</p>
+          <pre><code class="language-javascript">const connected = device.getConnectedDevices();
+if (connected.length === 0) {
+  script.warn('没有已连接的设备！');
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 脚本工具 API -->
+    <div class="doc-section" id="api-script">
+      <h2><i class="fas fa-tools"></i> 脚本工具 API (script)</h2>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">script.log(message) / script.warn(message) / script.error(message)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">输出日志到控制台</p>
+          <pre><code class="language-javascript">script.log('普通日志');
+script.warn('警告信息');
+script.error('错误信息');</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">ASYNC</span>
+          <span class="api-name">script.sleep(ms)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">暂停执行指定毫秒数</p>
+          <pre><code class="language-javascript">script.log('开始');
+await script.sleep(1000); // 等待 1 秒
+script.log('结束');</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">script.random(min, max)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">生成指定范围内的随机整数 (包含 min 和 max)</p>
+          <pre><code class="language-javascript">const strength = script.random(20, 80);
+script.log('随机强度: ' + strength);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">script.clamp(value, min, max)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">将数值限制在指定范围内</p>
+          <pre><code class="language-javascript">const damage = 150;
+const strength = script.clamp(damage, 0, 100); // 结果: 100</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 事件系统 API -->
+    <div class="doc-section" id="api-events">
+      <h2><i class="fas fa-broadcast-tower"></i> 事件系统 API (events)</h2>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">events.on(eventName, callback)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">监听指定事件</p>
+          <pre><code class="language-javascript">events.on('player_hurt', (data) => {
+  script.log('收到事件数据: ' + JSON.stringify(data));
+});
+
+events.on('player_death', async () => {
+  await device.stopAll();
+});</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">events.off(eventName, callback)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">移除事件监听器</p>
+          <pre><code class="language-javascript">const handler = (data) => { /* ... */ };
+events.on('player_hurt', handler);
+// 稍后移除
+events.off('player_hurt', handler);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">events.emit(eventName, data)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">发射事件 (广播到所有运行中的脚本)</p>
+          <pre><code class="language-javascript">// 发送自定义事件
+events.emit('custom_event', { type: 'test', value: 42 });</code></pre>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <strong>事件触发方式</strong><br>
+        游戏需要通过 HTTP API 触发事件：<br>
+        <code class="inline-code">POST /api/scripts/trigger</code><br>
+        请求体: <code class="inline-code">{ "event": "player_hurt", "data": { "damage": 10 } }</code>
+      </div>
+    </div>
+
+    <!-- 存储 API -->
+    <div class="doc-section" id="api-storage">
+      <h2><i class="fas fa-database"></i> 存储 API (storage)</h2>
+      <p>存储 API 提供脚本专用的键值存储，数据在脚本运行期间持久化。</p>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">storage.get(key) / storage.set(key, value)</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">读取/写入存储数据</p>
+          <pre><code class="language-javascript">// 保存配置
+storage.set('config', { maxStrength: 100, cooldown: 500 });
+
+// 读取配置
+const config = storage.get('config');
+script.log('最大强度: ' + config.maxStrength);</code></pre>
+        </div>
+      </div>
+
+      <div class="api-card">
+        <div class="api-header">
+          <span class="api-method">SYNC</span>
+          <span class="api-name">storage.delete(key) / storage.clear()</span>
+        </div>
+        <div class="api-body">
+          <p class="api-desc">删除指定键或清空所有存储</p>
+          <pre><code class="language-javascript">storage.delete('tempData');
+storage.clear(); // 清空所有</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 常量定义 -->
+    <div class="doc-section" id="constants">
+      <h2><i class="fas fa-code"></i> 常量定义</h2>
+      
+      <h3>Channel - 通道枚举</h3>
+      <pre><code class="language-javascript">Channel.A  // A 通道
+Channel.B  // B 通道</code></pre>
+
+      <h3>StrengthMode - 强度模式枚举</h3>
+      <pre><code class="language-javascript">StrengthMode.Set       // 设置为指定值
+StrengthMode.Increase  // 增加指定值
+StrengthMode.Decrease  // 减少指定值</code></pre>
+    </div>
+
+    <!-- 完整示例 -->
+    <div class="doc-section" id="examples">
+      <h2><i class="fas fa-file-code"></i> 完整示例</h2>
+      
+      <h3>Minecraft 联动脚本 <span class="example-tag">推荐</span></h3>
+      <pre><code class="language-javascript">/**
+ * Minecraft 联动脚本
+ * 功能: 玩家受伤/死亡/击杀时触发设备反馈
+ */
+
+// 配置
+const CONFIG = {
+  hurtStrength: 30,      // 受伤基础强度
+  hurtMultiplier: 2,     // 伤害倍数
+  hurtDuration: 500,     // 受伤持续时间 (ms)
+  deathStrength: 100,    // 死亡强度
+  deathDuration: 2000,   // 死亡持续时间 (ms)
+  killStrength: 20,      // 击杀奖励强度
+  killChannel: 'B',      // 击杀使用 B 通道
+  cooldown: 300,         // 触发冷却时间 (ms)
+};
+
+// 冷却状态
+let lastTriggerTime = 0;
+
+// 检查冷却
+function canTrigger() {
+  const now = Date.now();
+  if (now - lastTriggerTime < CONFIG.cooldown) {
+    return false;
+  }
+  lastTriggerTime = now;
+  return true;
+}
+
+// 触发设备反馈
+async function triggerFeedback(channel, strength, duration) {
+  const devices = device.getConnectedDevices();
+  if (devices.length === 0) {
+    script.warn('没有已连接的设备');
+    return;
+  }
+  
+  const ch = channel === 'A' ? Channel.A : Channel.B;
+  const safeStrength = script.clamp(strength, 0, 200);
+  
+  for (const deviceId of devices) {
+    await device.setStrength(deviceId, ch, safeStrength);
+  }
+  
+  await script.sleep(duration);
+  
+  for (const deviceId of devices) {
+    await device.setStrength(deviceId, ch, 0);
+  }
+}
+
+// 监听玩家受伤
+events.on('player_hurt', async (data) => {
+  if (!canTrigger()) return;
+  
+  const damage = data.damage || 5;
+  const strength = script.clamp(
+    CONFIG.hurtStrength + damage * CONFIG.hurtMultiplier,
+    10,
+    150
+  );
+  
+  script.log(`玩家受伤: ${damage} 点伤害 -> 强度 ${strength}`);
+  await triggerFeedback('A', strength, CONFIG.hurtDuration);
+});
+
+// 监听玩家死亡
+events.on('player_death', async (data) => {
+  script.log('玩家死亡!');
+  await triggerFeedback('A', CONFIG.deathStrength, CONFIG.deathDuration);
+});
+
+// 监听玩家击杀
+events.on('player_kill', async (data) => {
+  script.log('玩家击杀: ' + (data.target || '未知'));
+  await triggerFeedback(CONFIG.killChannel, CONFIG.killStrength, 300);
+});
+
+// 监听环境伤害
+events.on('env_damage', async (data) => {
+  if (!canTrigger()) return;
+  
+  const type = data.type || 'unknown';
+  let strength = 30;
+  
+  switch (type) {
+    case 'fire': strength = 40; break;
+    case 'lava': strength = 80; break;
+    case 'fall': strength = data.damage * 3; break;
+    case 'drown': strength = 50; break;
+  }
+  
+  script.log(`环境伤害: ${type} -> 强度 ${strength}`);
+  await triggerFeedback('A', strength, 400);
+});
+
+script.log('Minecraft 联动脚本已启动!');</code></pre>
+    </div>
+
+    <!-- 最佳实践 -->
+    <div class="doc-section" id="best-practices">
+      <h2><i class="fas fa-star"></i> 最佳实践</h2>
+      
+      <h3>1. 始终检查设备连接状态</h3>
+      <pre><code class="language-javascript">const devices = device.getConnectedDevices();
+if (devices.length === 0) {
+  script.warn('没有已连接的设备，跳过操作');
+  return;
+}</code></pre>
+
+      <h3>2. 使用 clamp 限制强度范围</h3>
+      <pre><code class="language-javascript">// 防止强度超出安全范围
+const strength = script.clamp(calculatedValue, 0, 100);</code></pre>
+
+      <h3>3. 实现冷却机制防止过频触发</h3>
+      <pre><code class="language-javascript">let lastTrigger = 0;
+const COOLDOWN = 500; // 500ms 冷却
+
+events.on('event', async () => {
+  const now = Date.now();
+  if (now - lastTrigger < COOLDOWN) return;
+  lastTrigger = now;
+  // 处理逻辑...
+});</code></pre>
+
+      <h3>4. 使用 try-catch 处理错误</h3>
+      <pre><code class="language-javascript">events.on('event', async (data) => {
+  try {
+    await device.setStrength(deviceId, Channel.A, 50);
+  } catch (error) {
+    script.error('设置强度失败: ' + error.message);
+  }
+});</code></pre>
+
+      <h3>5. 在脚本启动时输出日志</h3>
+      <pre><code class="language-javascript">script.log('=== 脚本名称 v1.0.0 ===');
+script.log('作者: YourName');
+script.log('配置: ' + JSON.stringify(CONFIG));</code></pre>
+    </div>
+
+    <div class="doc-section">
+      <h2><i class="fas fa-link"></i> 相关链接</h2>
+      <ul>
+        <li><a href="/">返回控制台</a></li>
+        <li><a href="https://github.com/example/device-adapter" target="_blank">GitHub 仓库</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+</body>
+</html>

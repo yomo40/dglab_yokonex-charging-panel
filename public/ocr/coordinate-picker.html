@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>坐标拾取工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden;
+            background: transparent !important;
+        }
+        body { 
+            cursor: crosshair; 
+            user-select: none;
+        }
+        
+        /* 四个遮罩区域（选框外部） */
+        .mask {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+        }
+        #mask-top { top: 0; left: 0; right: 0; }
+        #mask-bottom { bottom: 0; left: 0; right: 0; }
+        #mask-left { left: 0; }
+        #mask-right { right: 0; }
+        
+        /* 选择框 */
+        #selection { 
+            position: fixed; 
+            border: 2px solid #00ff00; 
+            background: transparent;
+            display: none;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* 选框四角标记 */
+        #selection::before,
+        #selection::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border: 2px solid #00ff00;
+        }
+        #selection::before {
+            top: -2px;
+            left: -2px;
+            border-right: none;
+            border-bottom: none;
+        }
+        #selection::after {
+            bottom: -2px;
+            right: -2px;
+            border-left: none;
+            border-top: none;
+        }
+        
+        /* 尺寸标签 */
+        #sizeLabel {
+            position: fixed;
+            background: rgba(0, 255, 0, 0.9);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            font-weight: bold;
+            pointer-events: none;
+            display: none;
+            z-index: 200;
+            white-space: nowrap;
+        }
+        
+        /* 鼠标坐标提示 */
+        #coordTip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            pointer-events: none;
+            z-index: 200;
+            border: 1px solid #00ff00;
+        }
+        
+        /* 底部信息栏 */
+        #info { 
+            position: fixed; 
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: rgba(0, 0, 0, 0.9); 
+            color: #fff; 
+            padding: 15px 30px; 
+            border-radius: 10px; 
+            font-size: 14px;
+            font-family: 'Microsoft YaHei', sans-serif;
+            text-align: center;
+            z-index: 300;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        
+        #info .title { 
+            font-size: 16px; 
+            margin-bottom: 5px;
+            color: #00ff00;
+        }
+        #info .hint { 
+            color: #888; 
+            font-size: 12px; 
+            margin-top: 8px; 
+        }
+        #info .coords {
+            font-family: 'Consolas', monospace;
+            color: #00ff00;
+            font-size: 15px;
+        }
+        
+        /* 确认按钮 */
+        #confirmBtn { 
+            position: fixed; 
+            bottom: 110px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: linear-gradient(135deg, #00cc66, #00aa55); 
+            color: #fff; 
+            border: none; 
+            padding: 12px 40px; 
+            border-radius: 25px; 
+            font-size: 15px; 
+            cursor: pointer; 
+            display: none;
+            font-family: 'Microsoft YaHei', sans-serif;
+            z-index: 300;
+            box-shadow: 0 4px 15px rgba(0,200,100,0.4);
+            transition: all 0.2s;
+        }
+        #confirmBtn:hover {
+            background: linear-gradient(135deg, #00dd77, #00bb66);
+            transform: translateX(-50%) scale(1.05);
+        }
+        
+        /* 取消按钮 */
+        #cancelBtn {
+            position: fixed;
+            bottom: 110px;
+            left: calc(50% + 100px);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+            font-family: 'Microsoft YaHei', sans-serif;
+            z-index: 300;
+            transition: all 0.2s;
+        }
+        #cancelBtn:hover {
+            background: rgba(255,100,100,0.3);
+            border-color: #ff6666;
+        }
+
+        /* 十字准星 */
+        #crosshair-h, #crosshair-v {
+            position: fixed;
+            background: rgba(0, 255, 0, 0.5);
+            pointer-events: none;
+            z-index: 50;
+        }
+        #crosshair-h {
+            height: 1px;
+            left: 0;
+            right: 0;
+        }
+        #crosshair-v {
+            width: 1px;
+            top: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+<!-- 四个遮罩区域 -->
+<div id="mask-top" class="mask"></div>
+<div id="mask-bottom" class="mask"></div>
+<div id="mask-left" class="mask"></div>
+<div id="mask-right" class="mask"></div>
+
+<!-- 十字准星 -->
+<div id="crosshair-h"></div>
+<div id="crosshair-v"></div>
+
+<!-- 选择框 -->
+<div id="selection"></div>
+<div id="sizeLabel"></div>
+<div id="coordTip">X: 0, Y: 0</div>
+
+<!-- 信息栏 -->
+<div id="info">
+    <div class="title">🎯 屏幕区域选择</div>
+    <div>按住鼠标左键拖动，框选目标区域</div>
+    <div class="hint">ESC 取消 | 框选后 Enter 确认</div>
+</div>
+
+<!-- 按钮 -->
+<button id="confirmBtn">✓ 确认选择</button>
+<button id="cancelBtn">✕ 取消</button>
+
+<script>
+    const { ipcRenderer } = require('electron');
+
+    // DOM 元素
+    const selection = document.getElementById('selection');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const info = document.getElementById('info');
+    const sizeLabel = document.getElementById('sizeLabel');
+    const coordTip = document.getElementById('coordTip');
+    const crosshairH = document.getElementById('crosshair-h');
+    const crosshairV = document.getElementById('crosshair-v');
+    const maskTop = document.getElementById('mask-top');
+    const maskBottom = document.getElementById('mask-bottom');
+    const maskLeft = document.getElementById('mask-left');
+    const maskRight = document.getElementById('mask-right');
+
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let currentArea = null;
+
+    // 更新遮罩位置（选框外部变暗）
+    function updateMasks(left, top, width, height) {
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const right = left + width;
+        const bottom = top + height;
+
+        // 上方遮罩
+        maskTop.style.height = top + 'px';
+        
+        // 下方遮罩
+        maskBottom.style.height = (sh - bottom) + 'px';
+        
+        // 左侧遮罩
+        maskLeft.style.top = top + 'px';
+        maskLeft.style.width = left + 'px';
+        maskLeft.style.height = height + 'px';
+        
+        // 右侧遮罩
+        maskRight.style.top = top + 'px';
+        maskRight.style.width = (sw - right) + 'px';
+        maskRight.style.height = height + 'px';
+    }
+
+    // 隐藏所有遮罩
+    function hideMasks() {
+        maskTop.style.height = '0';
+        maskBottom.style.height = '0';
+        maskLeft.style.width = '0';
+        maskRight.style.width = '0';
+    }
+
+    // 显示全屏遮罩（未选择时）
+    function showFullMask() {
+        const sh = window.innerHeight;
+        maskTop.style.height = sh + 'px';
+        maskBottom.style.height = '0';
+        maskLeft.style.width = '0';
+        maskRight.style.width = '0';
+    }
+
+    // 初始化显示全屏半透明遮罩
+    showFullMask();
+
+    // 鼠标移动
+    document.addEventListener('mousemove', (e) => {
+        // 更新十字准星
+        crosshairH.style.top = e.clientY + 'px';
+        crosshairV.style.left = e.clientX + 'px';
+
+        if (!isDragging) {
+            // 更新坐标提示
+            coordTip.style.left = (e.clientX + 20) + 'px';
+            coordTip.style.top = (e.clientY + 20) + 'px';
+            coordTip.textContent = `X: ${e.clientX}, Y: ${e.clientY}`;
+        } else {
+            // 计算选框
+            const w = Math.abs(e.clientX - startX);
+            const h = Math.abs(e.clientY - startY);
+            const left = Math.min(startX, e.clientX);
+            const top = Math.min(startY, e.clientY);
+            
+            // 更新选框位置
+            selection.style.left = left + 'px';
+            selection.style.top = top + 'px';
+            selection.style.width = w + 'px';
+            selection.style.height = h + 'px';
+            
+            // 更新遮罩
+            updateMasks(left, top, w, h);
+            
+            // 更新尺寸标签
+            sizeLabel.style.display = 'block';
+            sizeLabel.style.left = (left + w + 8) + 'px';
+            sizeLabel.style.top = (top - 5) + 'px';
+            sizeLabel.textContent = `${w} × ${h}`;
+            
+            // 更新坐标提示（显示选框信息）
+            coordTip.style.left = (e.clientX + 20) + 'px';
+            coordTip.style.top = (e.clientY + 20) + 'px';
+            coordTip.textContent = `${left}, ${top} → ${left + w}, ${top + h}`;
+        }
+    });
+
+    // 鼠标按下
+    document.addEventListener('mousedown', (e) => {
+        if (e.target === confirmBtn || e.target === cancelBtn) return;
+        
+        if (e.button === 0) {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            selection.style.display = 'block';
+            selection.style.left = startX + 'px';
+            selection.style.top = startY + 'px';
+            selection.style.width = '0px';
+            selection.style.height = '0px';
+            
+            confirmBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+            coordTip.style.display = 'block';
+            
+            // 隐藏十字准星
+            crosshairH.style.display = 'none';
+            crosshairV.style.display = 'none';
+        }
+    });
+
+    // 鼠标松开
+    document.addEventListener('mouseup', (e) => {
+        if (e.button === 0 && isDragging) {
+            isDragging = false;
+            sizeLabel.style.display = 'none';
+
+            const w = Math.abs(e.clientX - startX);
+            const h = Math.abs(e.clientY - startY);
+            const left = Math.min(startX, e.clientX);
+            const top = Math.min(startY, e.clientY);
+
+            // 恢复十字准星
+            crosshairH.style.display = 'block';
+            crosshairV.style.display = 'block';
+
+            if (w >= 10 && h >= 5) {
+                currentArea = { x: left, y: top, width: w, height: h };
+                info.innerHTML = `
+                    <div class="title">✅ 区域已选择</div>
+                    <div class="coords">X: ${left}, Y: ${top} | 尺寸: ${w} × ${h}</div>
+                    <div class="hint">Enter 确认 | 重新拖动调整 | ESC 取消</div>
+                `;
+                confirmBtn.style.display = 'block';
+                cancelBtn.style.display = 'block';
+            } else {
+                currentArea = null;
+                info.innerHTML = `
+                    <div class="title">⚠️ 区域太小</div>
+                    <div>需要至少 10×5 像素，当前: ${w}×${h}</div>
+                    <div class="hint">请重新框选</div>
+                `;
+                selection.style.display = 'none';
+                showFullMask();
+            }
+        }
+    });
+
+    // 确认按钮
+    confirmBtn.onclick = () => {
+        if (currentArea) {
+            ipcRenderer.invoke('close-picker-window', currentArea);
+        }
+    };
+
+    // 取消按钮
+    cancelBtn.onclick = () => {
+        ipcRenderer.invoke('close-picker-window', null);
+    };
+
+    // 键盘事件
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && currentArea) {
+            ipcRenderer.invoke('close-picker-window', currentArea);
+        } else if (e.key === 'Escape') {
+            ipcRenderer.invoke('close-picker-window', null);
+        }
+    });
+
+    // 禁用右键菜单
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+</script>
+</body>
+</html>

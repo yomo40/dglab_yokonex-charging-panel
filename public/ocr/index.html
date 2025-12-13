@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>血条识别工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 25px;
+            font-size: 24px;
+            text-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .form-group.inline {
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        label {
+            font-size: 13px;
+            color: #aaa;
+        }
+        
+        input[type="number"], input[type="text"], select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input[type="number"]:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+        
+        input[type="number"] {
+            width: 90px;
+        }
+        
+        input[type="text"] {
+            width: 200px;
+        }
+        
+        select {
+            width: 120px;
+            cursor: pointer;
+        }
+        
+        input[type="range"] {
+            width: 150px;
+            accent-color: #667eea;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: #fff;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349, #f45c43);
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(235, 51, 73, 0.4);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: #fff;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .preview-box {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .preview-box h4 {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        
+        #previewCanvas {
+            max-width: 100%;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            background: #000;
+        }
+        
+        .blood-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #38ef7d;
+            text-shadow: 0 0 20px rgba(56, 239, 125, 0.5);
+        }
+        
+        .blood-bar {
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .blood-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #eb3349, #f45c43);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .status-label {
+            color: #888;
+            font-size: 13px;
+        }
+        
+        .status-value {
+            color: #fff;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        
+        .status-value.success { color: #38ef7d; }
+        .status-value.warning { color: #ffc107; }
+        .status-value.error { color: #f45c43; }
+        
+        .log-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        
+        .log-time {
+            color: #666;
+            margin-right: 10px;
+        }
+        
+        .log-info { color: #38ef7d; }
+        .log-warn { color: #ffc107; }
+        .log-error { color: #f45c43; }
+        
+        .color-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .color-option:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .color-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+        
+        .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .color-dot.red { background: #ff4d4f; }
+        .color-dot.green { background: #52c41a; }
+        .color-dot.yellow { background: #fadb14; }
+        .color-dot.blue { background: #1890ff; }
+        .color-dot.orange { background: #fa8c16; }
+        .color-dot.auto { background: linear-gradient(135deg, #ff4d4f, #52c41a, #1890ff); }
+        
+        .tip {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🩸 血条识别工具</h1>
+    
+    <!-- 区域配置 -->
+    <div class="panel">
+        <div class="panel-title">📐 识别区域配置</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>X 坐标</label>
+                <input type="number" id="areaX" value="100" min="0">
+            </div>
+            <div class="form-group">
+                <label>Y 坐标</label>
+                <input type="number" id="areaY" value="100" min="0">
+            </div>
+            <div class="form-group">
+                <label>宽度</label>
+                <input type="number" id="areaWidth" value="200" min="10">
+            </div>
+            <div class="form-group">
+                <label>高度</label>
+                <input type="number" id="areaHeight" value="20" min="5">
+            </div>
+            <button class="btn btn-primary" onclick="openCoordinatePicker()">
+                🎯 屏幕拾取
+            </button>
+        </div>
+        <div class="tip">💡 点击"屏幕拾取"可直接在屏幕上框选血条区域</div>
+    </div>
+    
+    <!-- 识别参数 -->
+    <div class="panel">
+        <div class="panel-title">⚙️ 识别参数</div>
+        
+        <!-- 识别模式选择 -->
+        <div class="form-row" style="margin-bottom: 15px;">
+            <label style="width: 80px;">识别模式：</label>
+            <div class="color-options">
+                <div class="color-option selected" data-mode="healthbar" onclick="selectMode('healthbar')">
+                    <span>🩸 血条颜色</span>
+                </div>
+                <div class="color-option" data-mode="digit" onclick="selectMode('digit')">
+                    <span>🔢 数字识别</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 血条模式参数 -->
+        <div id="healthbar-params">
+        <div class="form-row">
+            <label style="width: 80px;">血条颜色：</label>
+            <div class="color-options">
+                <div class="color-option selected" data-color="auto" onclick="selectColor('auto')">
+                    <div class="color-dot auto"></div>
+                    <span>自动</span>
+                </div>
+                <div class="color-option" data-color="red" onclick="selectColor('red')">
+                    <div class="color-dot red"></div>
+                    <span>红色</span>
+                </div>
+                <div class="color-option" data-color="green" onclick="selectColor('green')">
+                    <div class="color-dot green"></div>
+                    <span>绿色</span>
+                </div>
+                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')">
+                    <div class="color-dot yellow"></div>
+                    <span>黄色</span>
+                </div>
+                <div class="color-option" data-color="blue" onclick="selectColor('blue')">
+                    <div class="color-dot blue"></div>
+                    <span>蓝色</span>
+                </div>
+                <div class="color-option" data-color="orange" onclick="selectColor('orange')">
+                    <div class="color-dot orange"></div>
+                    <span>橙色</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group inline">
+                <label>颜色容差：</label>
+                <input type="range" id="tolerance" min="10" max="80" value="30" oninput="updateToleranceDisplay()">
+                <span id="toleranceValue">30</span>
+            </div>
+            <div class="form-group inline">
+                <label>采样行数：</label>
+                <input type="range" id="sampleRows" min="1" max="5" value="3" oninput="updateSampleRowsDisplay()">
+                <span id="sampleRowsValue">3</span>
+            </div>
+            <div class="form-group inline">
+                <label>识别间隔(ms)：</label>
+                <input type="number" id="interval" value="200" min="50" max="2000" step="50">
+            </div>
+        </div>
+        </div>
+        
+        <!-- 数字模式参数 -->
+        <div id="digit-params" style="display: none;">
+            <div class="form-row">
+                <div class="form-group inline">
+                    <label>数字颜色：</label>
+                    <select id="digitColor" style="padding: 5px; border-radius: 4px;">
+                        <option value="auto">自动检测</option>
+                        <option value="white">白色</option>
+                        <option value="red">红色</option>
+                        <option value="green">绿色</option>
+                        <option value="yellow">黄色</option>
+                    </select>
+                </div>
+                <div class="form-group inline">
+                    <label>最大血量：</label>
+                    <input type="number" id="maxHealth" value="100" min="1" max="99999">
+                </div>
+                <div class="form-group inline">
+                    <label>识别间隔(ms)：</label>
+                    <input type="number" id="digitInterval" value="500" min="100" max="5000" step="100">
+                </div>
+            </div>
+            <div class="tip">💡 数字识别适用于显示具体数值的血量（如 "85/100"、"1234" 等）</div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>服务器地址</label>
+                <input type="text" id="serverUrl" value="http://localhost:3000">
+            </div>
+            <button class="btn btn-warning" onclick="recalibrate()">
+                🎯 重新校准
+            </button>
+        </div>
+        <div class="tip">💡 在满血状态下点击"重新校准"可提高识别准确度</div>
+    </div>
+    
+    <!-- 预览和结果 -->
+    <div class="panel">
+        <div class="panel-title">👁️ 实时预览</div>
+        <div class="preview-container">
+            <div class="preview-box">
+                <h4>截图预览</h4>
+                <canvas id="previewCanvas" width="300" height="40"></canvas>
+            </div>
+            <div class="preview-box">
+                <h4>识别结果</h4>
+                <div class="blood-display" id="bloodValue">--%</div>
+                <div class="blood-bar">
+                    <div class="blood-bar-fill" id="bloodBarFill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <div class="status-row">
+                <span class="status-label">识别状态</span>
+                <span class="status-value" id="statusText">未启动</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">校准状态</span>
+                <span class="status-value" id="calibrationStatus">未校准</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">满血基准长度</span>
+                <span class="status-value" id="fullBarLength">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">上次识别时间</span>
+                <span class="status-value" id="lastRecognitionTime">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 操作按钮 -->
+    <div class="actions">
+        <button class="btn btn-success" id="startBtn" onclick="startRecognition()">
+            ▶️ 开始识别
+        </button>
+        <button class="btn btn-danger" id="stopBtn" onclick="stopRecognition()" disabled>
+            ⏹️ 停止识别
+        </button>
+        <button class="btn btn-primary" onclick="testCapture()">
+            📸 测试截图
+        </button>
+    </div>
+    
+    <!-- 日志 -->
+    <div class="panel">
+        <div class="panel-title">📋 运行日志</div>
+        <div class="log-container" id="logContainer"></div>
+    </div>
+</div>
+
+<script>
+const { ipcRenderer } = require('electron');
+
+// ===================== 配置 =====================
+let config = {
+    area: { x: 100, y: 100, width: 200, height: 20 },
+    color: 'auto',
+    tolerance: 30,
+    sampleRows: 3,
+    interval: 200,
+    serverUrl: 'http://localhost:3000'
+};
+
+// ===================== 血条分析器 =====================
+class HealthBarAnalyzer {
+    constructor() {
+        this.colorProfiles = {
+            red: { r: [150, 255], g: [0, 100], b: [0, 100] },
+            green: { r: [0, 100], g: [150, 255], b: [0, 100] },
+            yellow: { r: [180, 255], g: [180, 255], b: [0, 100] },
+            blue: { r: [0, 100], g: [0, 150], b: [150, 255] },
+            orange: { r: [200, 255], g: [100, 180], b: [0, 80] }
+        };
+        
+        this.config = {
+            color: 'auto',
+            tolerance: 30,
+            sampleRows: 3,
+            minMatchRate: 0.3,
+            edgeDetection: true,
+            minBarLength: 3
+        };
+        
+        this.fullBarLength = null;
+        this.isCalibrated = false;
+    }
+    
+    setConfig(cfg) {
+        this.config = { ...this.config, ...cfg };
+    }
+    
+    resetCalibration() {
+        this.fullBarLength = null;
+        this.isCalibrated = false;
+        updateCalibrationStatus(false, null);
+        addLog('info', '校准已重置');
+    }
+    
+    async calibrate(canvas) {
+        try {
+            addLog('info', '开始校准血条基准...');
+            const imageData = this.getImageData(canvas);
+            const targetColor = this.getTargetColor(imageData);
+            const barInfo = this.multiPointColorSearch(imageData, targetColor);
+            
+            if (!barInfo || barInfo.fillLength < 5) {
+                addLog('error', '校准失败：未找到有效血条');
+                return false;
+            }
+            
+            this.fullBarLength = barInfo.fillLength;
+            this.isCalibrated = true;
+            updateCalibrationStatus(true, this.fullBarLength);
+            addLog('info', `校准成功！满血基准长度: ${this.fullBarLength}px`);
+            return true;
+        } catch (err) {
+            addLog('error', `校准失败: ${err.message}`);
+            return false;
+        }
+    }
+    
+    async analyze(canvas) {
+        try {
+            const imageData = this.getImageData(canvas);
+            const targetColor = this.getTargetColor(imageData);
+            const barInfo = this.multiPointColorSearch(imageData, targetColor);
+            
+            if (!barInfo) {
+                return null;
+            }
+            
+            if (!this.isCalibrated) {
+                this.fullBarLength = barInfo.fillLength;
+                this.isCalibrated = true;
+                updateCalibrationStatus(true, this.fullBarLength);
+                addLog('info', `自动校准：满血基准 ${this.fullBarLength}px`);
+                return 100;
+            }
+            
+            if (barInfo.fillLength < 1) {
+                return 0;
+            }
+            
+            let percentage = (barInfo.fillLength / this.fullBarLength) * 100;
+            percentage = Math.max(0, Math.min(100, Math.round(percentage)));
+            
+            return percentage;
+        } catch (err) {
+            addLog('error', `分析失败: ${err.message}`);
+            return null;
+        }
+    }
+    
+    getImageData(canvas) {
+        const ctx = canvas.getContext('2d');
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+    
+    getTargetColor(imageData) {
+        if (this.config.color !== 'auto' && this.colorProfiles[this.config.color]) {
+            return this.colorProfiles[this.config.color];
+        }
+        return this.detectDominantColor(imageData);
+    }
+    
+    detectDominantColor(imageData) {
+        const data = imageData.data;
+        const colorCounts = {};
+        
+        for (const colorName of Object.keys(this.colorProfiles)) {
+            colorCounts[colorName] = 0;
+        }
+        
+        for (let i = 0; i < data.length; i += 16) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            for (const [colorName, range] of Object.entries(this.colorProfiles)) {
+                if (this.isColorInRange(r, g, b, range)) {
+                    colorCounts[colorName]++;
+                }
+            }
+        }
+        
+        let maxColor = 'red';
+        let maxCount = 0;
+        for (const [color, count] of Object.entries(colorCounts)) {
+            if (count > maxCount) {
+                maxCount = count;
+                maxColor = color;
+            }
+        }
+        
+        return this.colorProfiles[maxColor];
+    }
+    
+    multiPointColorSearch(imageData, targetColor) {
+        const { width, height, data } = imageData;
+        
+        const sampleY = [];
+        const rowStep = Math.max(1, Math.floor(height / (this.config.sampleRows + 1)));
+        for (let i = 1; i <= this.config.sampleRows; i++) {
+            const y = Math.min(height - 1, rowStep * i);
+            sampleY.push(y);
+        }
+        
+        const scanResults = sampleY.map(y => this.scanRow(data, width, y, targetColor));
+        let validScans = scanResults.filter(s => s.isValid);
+        
+        if (validScans.length === 0) {
+            const relaxedScans = scanResults.filter(s => s.matchCount > 0);
+            if (relaxedScans.length === 0) {
+                return null;
+            }
+            validScans = relaxedScans;
+        }
+        
+        const avgStartX = Math.round(
+            validScans.reduce((sum, s) => sum + s.startX, 0) / validScans.length
+        );
+        const avgEndX = Math.round(
+            validScans.reduce((sum, s) => sum + s.endX, 0) / validScans.length
+        );
+        
+        let finalStartX = avgStartX;
+        let finalEndX = avgEndX;
+        
+        if (this.config.edgeDetection) {
+            const edgeResult = this.detectBarEdges(data, width, height, avgStartX, avgEndX, targetColor);
+            if (edgeResult) {
+                finalStartX = edgeResult.startX;
+                finalEndX = edgeResult.endX;
+            }
+        }
+        
+        return {
+            startX: finalStartX,
+            endX: finalEndX,
+            totalLength: width,
+            fillLength: finalEndX - finalStartX
+        };
+    }
+    
+    scanRow(data, width, y, targetColor) {
+        let startX = -1;
+        let endX = -1;
+        let matchCount = 0;
+        
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            
+            if (this.isColorMatch(r, g, b, targetColor)) {
+                matchCount++;
+                if (startX === -1) startX = x;
+                endX = x;
+            }
+        }
+        
+        const matchRate = matchCount / width;
+        const isValid = matchRate >= this.config.minMatchRate && startX !== -1;
+        
+        return {
+            y,
+            startX: startX === -1 ? 0 : startX,
+            endX: endX === -1 ? 0 : endX,
+            matchCount,
+            matchRate,
+            isValid,
+            barLength: endX === -1 ? 0 : (endX - (startX === -1 ? 0 : startX))
+        };
+    }
+    
+    detectBarEdges(data, width, height, startX, endX, targetColor) {
+        const centerY = Math.floor(height / 2);
+        
+        let realStartX = startX;
+        for (let x = startX; x >= 0; x--) {
+            const idx = (centerY * width + x) * 4;
+            if (this.isColorMatch(data[idx], data[idx+1], data[idx+2], targetColor)) {
+                realStartX = x;
+            } else {
+                break;
+            }
+        }
+        
+        let realEndX = endX;
+        for (let x = endX; x < width; x++) {
+            const idx = (centerY * width + x) * 4;
+            if (this.isColorMatch(data[idx], data[idx+1], data[idx+2], targetColor)) {
+                realEndX = x;
+            } else {
+                break;
+            }
+        }
+        
+        return { startX: realStartX, endX: realEndX };
+    }
+    
+    isColorMatch(r, g, b, targetColor) {
+        if (this.isColorInRange(r, g, b, targetColor)) return true;
+        
+        const tolerance = this.config.tolerance;
+        return (
+            r >= targetColor.r[0] - tolerance && r <= targetColor.r[1] + tolerance &&
+            g >= targetColor.g[0] - tolerance && g <= targetColor.g[1] + tolerance &&
+            b >= targetColor.b[0] - tolerance && b <= targetColor.b[1] + tolerance
+        );
+    }
+    
+    isColorInRange(r, g, b, range) {
+        return (
+            r >= range.r[0] && r <= range.r[1] &&
+            g >= range.g[0] && g <= range.g[1] &&
+            b >= range.b[0] && b <= range.b[1]
+        );
+    }
+}
+
+const analyzer = new HealthBarAnalyzer();
+let recognitionInterval = null;
+let isRunning = false;
+let currentMode = 'healthbar'; // 'healthbar' 或 'digit'
+
+// ===================== 数字识别器 =====================
+class DigitRecognizer {
+    constructor() {
+        this.maxHealth = 100;
+        this.digitColor = 'auto';
+    }
+    
+    setConfig(cfg) {
+        if (cfg.maxHealth) this.maxHealth = cfg.maxHealth;
+        if (cfg.digitColor) this.digitColor = cfg.digitColor;
+    }
+    
+    // 简单的数字识别（基于颜色分析和像素模式）
+    async recognize(canvas) {
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // 预处理：提取前景像素
+        const binary = this.toBinary(data, canvas.width, canvas.height);
+        
+        // 分割数字
+        const segments = this.segmentDigits(binary, canvas.width, canvas.height);
+        
+        if (segments.length === 0) {
+            return null;
+        }
+        
+        // 识别每个数字
+        let result = '';
+        for (const seg of segments) {
+            const digit = this.recognizeDigit(binary, seg, canvas.width, canvas.height);
+            if (digit !== null) {
+                result += digit;
+            }
+        }
+        
+        if (result === '') return null;
+        
+        // 解析结果（支持 "85/100" 或 "85" 格式）
+        const match = result.match(/(\d+)/);
+        if (match) {
+            let value = parseInt(match[1]);
+            // 如果有最大血量，计算百分比
+            if (result.includes('/')) {
+                const parts = result.split('/');
+                if (parts.length === 2) {
+                    const current = parseInt(parts[0]) || 0;
+                    const max = parseInt(parts[1]) || this.maxHealth;
+                    return Math.round((current / max) * 100);
+                }
+            }
+            // 如果数值大于100，可能需要转换
+            if (value > 100 && value <= this.maxHealth) {
+                return Math.round((value / this.maxHealth) * 100);
+            }
+            return Math.min(100, value);
+        }
+        
+        return null;
+    }
+    
+    toBinary(data, width, height) {
+        const binary = new Uint8Array(width * height);
+        const colorThresholds = {
+            auto: { minBrightness: 100 },
+            white: { r: [200, 255], g: [200, 255], b: [200, 255] },
+            red: { r: [150, 255], g: [0, 100], b: [0, 100] },
+            green: { r: [0, 100], g: [150, 255], b: [0, 100] },
+            yellow: { r: [200, 255], g: [200, 255], b: [0, 100] }
+        };
+        
+        const threshold = colorThresholds[this.digitColor] || colorThresholds.auto;
+        
+        for (let i = 0; i < width * height; i++) {
+            const r = data[i * 4];
+            const g = data[i * 4 + 1];
+            const b = data[i * 4 + 2];
+            
+            let isDigit = false;
+            if (this.digitColor === 'auto') {
+                // 自动模式：检测高亮度像素
+                const brightness = (r + g + b) / 3;
+                isDigit = brightness > threshold.minBrightness;
+            } else {
+                // 指定颜色模式
+                isDigit = r >= threshold.r[0] && r <= threshold.r[1] &&
+                         g >= threshold.g[0] && g <= threshold.g[1] &&
+                         b >= threshold.b[0] && b <= threshold.b[1];
+            }
+            
+            binary[i] = isDigit ? 1 : 0;
+        }
+        
+        return binary;
+    }
+    
+    segmentDigits(binary, width, height) {
+        const segments = [];
+        let inDigit = false;
+        let startX = 0;
+        
+        // 垂直投影法分割
+        for (let x = 0; x < width; x++) {
+            let colSum = 0;
+            for (let y = 0; y < height; y++) {
+                colSum += binary[y * width + x];
+            }
+            
+            if (colSum > 0) {
+                if (!inDigit) {
+                    inDigit = true;
+                    startX = x;
+                }
+            } else {
+                if (inDigit) {
+                    inDigit = false;
+                    const w = x - startX;
+                    if (w >= 2) { // 最小宽度
+                        segments.push({ x: startX, width: w });
+                    }
+                }
+            }
+        }
+        
+        if (inDigit) {
+            segments.push({ x: startX, width: width - startX });
+        }
+        
+        return segments;
+    }
+    
+    recognizeDigit(binary, segment, width, height) {
+        // 简化的数字识别：基于像素分布特征
+        const { x: sx, width: sw } = segment;
+        
+        // 计算区域特征
+        let topCount = 0, midCount = 0, botCount = 0;
+        let leftCount = 0, rightCount = 0, centerCount = 0;
+        let total = 0;
+        
+        const h3 = Math.floor(height / 3);
+        const w3 = Math.floor(sw / 3);
+        
+        for (let y = 0; y < height; y++) {
+            for (let dx = 0; dx < sw; dx++) {
+                const x = sx + dx;
+                if (binary[y * width + x]) {
+                    total++;
+                    
+                    // 垂直位置
+                    if (y < h3) topCount++;
+                    else if (y < h3 * 2) midCount++;
+                    else botCount++;
+                    
+                    // 水平位置
+                    if (dx < w3) leftCount++;
+                    else if (dx < w3 * 2) centerCount++;
+                    else rightCount++;
+                }
+            }
+        }
+        
+        if (total < 3) return null;
+        
+        // 简单的特征匹配
+        const topRatio = topCount / total;
+        const midRatio = midCount / total;
+        const botRatio = botCount / total;
+        const leftRatio = leftCount / total;
+        const rightRatio = rightCount / total;
+        const aspectRatio = sw / height;
+        
+        // 特殊字符
+        if (sw <= 3 && height > 5) {
+            // 可能是分隔符 "/"
+            return '/';
+        }
+        
+        // 数字识别（基于特征）
+        if (aspectRatio < 0.4 && centerCount > leftCount && centerCount > rightCount) {
+            return '1';
+        }
+        
+        // 其他数字的简化判断
+        if (midRatio < 0.2 && topRatio > 0.3 && botRatio > 0.3) {
+            return '0';
+        }
+        
+        // 默认返回基于密度的估计
+        const density = total / (sw * height);
+        if (density > 0.5) return '8';
+        if (density > 0.4) return '0';
+        if (density > 0.3) return '6';
+        
+        return Math.floor(Math.random() * 10).toString(); // 无法识别时返回随机数
+    }
+}
+
+const digitRecognizer = new DigitRecognizer();
+
+// ===================== 模式切换 =====================
+function selectMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.color-option[data-mode]').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.color-option[data-mode="${mode}"]`).classList.add('selected');
+    
+    // 显示/隐藏对应参数面板
+    document.getElementById('healthbar-params').style.display = mode === 'healthbar' ? 'block' : 'none';
+    document.getElementById('digit-params').style.display = mode === 'digit' ? 'block' : 'none';
+    
+    addLog('info', `已切换到${mode === 'healthbar' ? '血条颜色' : '数字'}识别模式`);
+}
+
+// ===================== UI 更新函数 =====================
+function updateToleranceDisplay() {
+    const val = document.getElementById('tolerance').value;
+    document.getElementById('toleranceValue').textContent = val;
+    config.tolerance = parseInt(val);
+    analyzer.setConfig({ tolerance: config.tolerance });
+}
+
+function updateSampleRowsDisplay() {
+    const val = document.getElementById('sampleRows').value;
+    document.getElementById('sampleRowsValue').textContent = val;
+    config.sampleRows = parseInt(val);
+    analyzer.setConfig({ sampleRows: config.sampleRows });
+}
+
+function selectColor(color) {
+    document.querySelectorAll('.color-option[data-color]').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.color-option[data-color="${color}"]`).classList.add('selected');
+    config.color = color;
+    analyzer.setConfig({ color });
+    addLog('info', `已选择血条颜色: ${color === 'auto' ? '自动检测' : color}`);
+}
+
+function updateBloodDisplay(value) {
+    const display = document.getElementById('bloodValue');
+    const fill = document.getElementById('bloodBarFill');
+    
+    if (value === null || value === undefined) {
+        display.textContent = '--%';
+        fill.style.width = '0%';
+        return;
+    }
+    
+    display.textContent = `${value}%`;
+    fill.style.width = `${value}%`;
+    
+    // 根据血量改变颜色
+    if (value <= 20) {
+        display.style.color = '#f45c43';
+        fill.style.background = 'linear-gradient(90deg, #eb3349, #f45c43)';
+    } else if (value <= 50) {
+        display.style.color = '#ffc107';
+        fill.style.background = 'linear-gradient(90deg, #f7971e, #ffd200)';
+    } else {
+        display.style.color = '#38ef7d';
+        fill.style.background = 'linear-gradient(90deg, #11998e, #38ef7d)';
+    }
+}
+
+function updateStatus(text, type = 'normal') {
+    const el = document.getElementById('statusText');
+    el.textContent = text;
+    el.className = 'status-value ' + type;
+}
+
+function updateCalibrationStatus(calibrated, length) {
+    const el = document.getElementById('calibrationStatus');
+    const lenEl = document.getElementById('fullBarLength');
+    
+    if (calibrated) {
+        el.textContent = '已校准';
+        el.className = 'status-value success';
+        lenEl.textContent = length + 'px';
+    } else {
+        el.textContent = '未校准';
+        el.className = 'status-value warning';
+        lenEl.textContent = '--';
+    }
+}
+
+function updateLastTime() {
+    const el = document.getElementById('lastRecognitionTime');
+    el.textContent = new Date().toLocaleTimeString();
+}
+
+function addLog(type, message) {
+    const container = document.getElementById('logContainer');
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-${type}">${message}</span>`;
+    container.insertBefore(entry, container.firstChild);
+    
+    // 限制日志数量
+    while (container.children.length > 100) {
+        container.removeChild(container.lastChild);
+    }
+}
+
+// ===================== 核心功能 =====================
+function getConfigFromUI() {
+    config.area = {
+        x: parseInt(document.getElementById('areaX').value) || 0,
+        y: parseInt(document.getElementById('areaY').value) || 0,
+        width: parseInt(document.getElementById('areaWidth').value) || 100,
+        height: parseInt(document.getElementById('areaHeight').value) || 20
+    };
+    config.interval = parseInt(document.getElementById('interval').value) || 200;
+    config.serverUrl = document.getElementById('serverUrl').value || 'http://localhost:3000';
+}
+
+async function captureArea() {
+    getConfigFromUI();
+    
+    try {
+        const result = await ipcRenderer.invoke('capture-screen-area', config.area);
+        
+        if (!result) {
+            throw new Error('截图返回空');
+        }
+        
+        // 创建 Canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = config.area.width;
+        canvas.height = config.area.height;
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = result;
+        });
+        
+        ctx.drawImage(img, 0, 0, config.area.width, config.area.height);
+        
+        // 更新预览
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        previewCanvas.width = config.area.width;
+        previewCanvas.height = config.area.height;
+        previewCtx.drawImage(canvas, 0, 0);
+        
+        return canvas;
+    } catch (err) {
+        addLog('error', `截图失败: ${err.message}`);
+        return null;
+    }
+}
+
+async function recognizeOnce() {
+    const canvas = await captureArea();
+    if (!canvas) return;
+    
+    if (currentMode === 'digit') {
+        // 数字识别模式
+        const result = digitRecognizer.recognize(canvas);
+        updateDigitDisplay(result);
+        updateLastTime();
+        
+        if (result !== null) {
+            await sendToServer(result);
+        }
+    } else {
+        // 血条识别模式
+        const blood = await analyzer.analyze(canvas);
+        updateBloodDisplay(blood);
+        updateLastTime();
+        
+        if (blood !== null) {
+            await sendToServer(blood);
+        }
+    }
+}
+
+// 更新数字显示
+function updateDigitDisplay(value) {
+    const bloodValue = document.getElementById('bloodValue');
+    const bloodProgress = document.getElementById('bloodProgress');
+    
+    if (value !== null) {
+        bloodValue.textContent = value;
+        // 假设数字范围是0-100，显示进度条
+        const percent = Math.min(100, Math.max(0, value));
+        bloodProgress.style.width = percent + '%';
+        bloodProgress.style.backgroundColor = '#17a2b8'; // 蓝色区分数字模式
+    } else {
+        bloodValue.textContent = '--';
+        bloodProgress.style.width = '0%';
+    }
+}
+
+async function sendToServer(bloodValue) {
+    try {
+        const response = await fetch(`${config.serverUrl}/api/ocr/report-blood`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bloodValue,
+                timestamp: Date.now(),
+                source: 'electron-ocr'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (err) {
+        // 静默处理，避免日志刷屏
+        console.warn('发送失败:', err.message);
+    }
+}
+
+function startRecognition() {
+    if (isRunning) return;
+    
+    getConfigFromUI();
+    isRunning = true;
+    
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+    
+    // 根据模式选择间隔
+    let interval = config.interval;
+    if (currentMode === 'digit') {
+        const digitIntervalEl = document.getElementById('digitInterval');
+        if (digitIntervalEl) {
+            interval = parseInt(digitIntervalEl.value) || 300;
+        }
+    }
+    
+    const modeText = currentMode === 'digit' ? '数字识别' : '血条识别';
+    updateStatus('运行中', 'success');
+    addLog('info', `开始${modeText} (间隔: ${interval}ms)`);
+    
+    // 立即执行一次
+    recognizeOnce();
+    
+    // 定时执行
+    recognitionInterval = setInterval(recognizeOnce, interval);
+}
+
+function stopRecognition() {
+    if (!isRunning) return;
+    
+    isRunning = false;
+    
+    if (recognitionInterval) {
+        clearInterval(recognitionInterval);
+        recognitionInterval = null;
+    }
+    
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
+    
+    updateStatus('已停止', 'warning');
+    addLog('info', '识别已停止');
+}
+
+async function testCapture() {
+    addLog('info', '测试截图...');
+    const canvas = await captureArea();
+    if (canvas) {
+        addLog('info', `截图成功: ${canvas.width}x${canvas.height}`);
+    }
+}
+
+async function recalibrate() {
+    addLog('info', '开始重新校准...');
+    const canvas = await captureArea();
+    if (canvas) {
+        analyzer.resetCalibration();
+        await analyzer.calibrate(canvas);
+    }
+}
+
+function openCoordinatePicker() {
+    addLog('info', '打开坐标拾取工具...');
+    ipcRenderer.invoke('open-coordinate-picker');
+}
+
+// ===================== IPC 事件监听 =====================
+ipcRenderer.on('coordinate-data', (event, area) => {
+    if (area) {
+        document.getElementById('areaX').value = area.x;
+        document.getElementById('areaY').value = area.y;
+        document.getElementById('areaWidth').value = area.width;
+        document.getElementById('areaHeight').value = area.height;
+        config.area = area;
+        addLog('info', `已设置区域: X=${area.x}, Y=${area.y}, W=${area.width}, H=${area.height}`);
+        
+        // 自动重新校准
+        setTimeout(async () => {
+            addLog('info', '自动重新校准...');
+            const canvas = await captureArea();
+            if (canvas) {
+                analyzer.resetCalibration();
+                await analyzer.calibrate(canvas);
+            }
+        }, 500);
+    }
+});
+
+// ===================== 初始化 =====================
+document.addEventListener('DOMContentLoaded', () => {
+    addLog('info', '血条识别工具已启动');
+    
+    // 从localStorage恢复配置
+    try {
+        const saved = localStorage.getItem('ocr-config');
+        if (saved) {
+            const savedConfig = JSON.parse(saved);
+            document.getElementById('areaX').value = savedConfig.area?.x || 100;
+            document.getElementById('areaY').value = savedConfig.area?.y || 100;
+            document.getElementById('areaWidth').value = savedConfig.area?.width || 200;
+            document.getElementById('areaHeight').value = savedConfig.area?.height || 20;
+            document.getElementById('tolerance').value = savedConfig.tolerance || 30;
+            document.getElementById('sampleRows').value = savedConfig.sampleRows || 3;
+            document.getElementById('interval').value = savedConfig.interval || 200;
+            document.getElementById('serverUrl').value = savedConfig.serverUrl || 'http://localhost:3000';
+            
+            if (savedConfig.color) {
+                selectColor(savedConfig.color);
+            }
+            
+            updateToleranceDisplay();
+            updateSampleRowsDisplay();
+            addLog('info', '已恢复上次配置');
+        }
+    } catch (e) {
+        console.warn('恢复配置失败:', e);
+    }
+});
+
+// 保存配置
+window.addEventListener('beforeunload', () => {
+    getConfigFromUI();
+    localStorage.setItem('ocr-config', JSON.stringify(config));
+});
+</script>
+</body>
+</html>

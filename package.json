@@ -1,0 +1,45 @@
+{
+  "name": "charging-tool-2in1",
+  "version": "0.95.0",
+  "description": "充电宝2合1工具 - 支持 DG-LAB(郊狼) 和 役次元 设备，内置血量OCR识别和郊狼WebSocket服务",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "tsc -w",
+    "electron": "electron .",
+    "electron:dev": "npm run build && electron .",
+    "rebuild": "npx @electron/rebuild",
+    "package": "npm run build && npm run rebuild && npx @electron/packager . \"充电宝2合1工具\" --platform=win32 --arch=x64 --out=release --overwrite --asar --asar-unpack=\"**/node_modules/better-sqlite3/**\" --ignore=\"^/src\" --ignore=\"^/electron\" --ignore=\"^/\\.\" --ignore=\"tsconfig.json\" --ignore=\"README.md\" --ignore=\"copilot.md\" --ignore=\"^/logs\" --ignore=\"^/release\" --ignore=\"^/ocr-tool\""
+  },
+  "keywords": [
+    "device-adapter",
+    "dg-lab",
+    "yokonex",
+    "websocket",
+    "im"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@tencentcloud/chat": "^3.4.0",
+    "better-sqlite3": "^12.5.0",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0",
+    "winston": "^3.11.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.1",
+    "@electron/rebuild": "^4.0.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.5.10",
+    "electron": "^33.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.2"
+  }
+}
