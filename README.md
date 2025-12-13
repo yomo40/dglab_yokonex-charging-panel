@@ -1,4 +1,4 @@
-# Device Adapter App
+# 肌肉电刺激技术设备适配面板
 
 ⚡ 充电宝面板 - 支持 DG-LAB(郊狼) 和 役次元 设备的控制与管理。
 ![Version](https://img.shields.io/badge/version-0.95.0-blue)
