@@ -1,0 +1,12 @@
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.csproj.AssemblyReference.cache
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.GeneratedMSBuildEditorConfig.editorconfig
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.AssemblyInfoInputs.cache
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.AssemblyInfo.cs
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.csproj.CoreCompileInputs.cache
+F:\dev\dglab_yokonex-charging-panel\src\Core\bin\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.deps.json
+F:\dev\dglab_yokonex-charging-panel\src\Core\bin\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.dll
+F:\dev\dglab_yokonex-charging-panel\src\Core\bin\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.pdb
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.dll
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\refint\ChargingPanel.Core.dll
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ChargingPanel.Core.pdb
+F:\dev\dglab_yokonex-charging-panel\src\Core\obj\Debug\net8.0-windows10.0.19041.0\ref\ChargingPanel.Core.dll

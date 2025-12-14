@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>ChargingPanel.Core</RootNamespace>
+    <AssemblyName>ChargingPanel.Core</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>dglab_yokonex</Authors>
+    <Description>郊狼&amp;役次元游戏适配面板 - 核心库</Description>
+    
+    <!-- 启用 Windows Runtime 支持 - 这是关键！ -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WebSocket 支持 -->
+    <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
+    
+    <!-- HTTP 客户端 -->
+    <PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
+    
+    <!-- JSON 序列化 -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    
+    <!-- 图像处理 -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    
+    <!-- OCR 引擎 (ONNX Runtime) -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.19.2" />
+    
+    <!-- SQLite 数据库 -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    
+    <!-- 日志 -->
+    <PackageReference Include="Serilog" Version="4.1.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
+    
+    <!-- 依赖注入 -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    
+    <!-- 事件总线 -->
+    <PackageReference Include="System.Reactive" Version="6.0.1" />
+    
+    <!-- QR 码生成 -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+</Project>

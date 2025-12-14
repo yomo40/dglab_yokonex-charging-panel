@@ -1,0 +1,6 @@
+F:\dev\dglab_yokonex-charging-panel\release\test-build\郊狼役次元游戏适配面板.pdb
+F:\dev\dglab_yokonex-charging-panel\release\test-build\docs\使用说明.html
+F:\dev\dglab_yokonex-charging-panel\release\test-build\onnxruntime.lib
+F:\dev\dglab_yokonex-charging-panel\release\test-build\onnxruntime_providers_shared.lib
+F:\dev\dglab_yokonex-charging-panel\release\test-build\ChargingPanel.Core.pdb
+F:\dev\dglab_yokonex-charging-panel\release\test-build\郊狼役次元游戏适配面板.exe

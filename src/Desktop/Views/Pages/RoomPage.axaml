@@ -1,0 +1,426 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.RoomPage">
+    
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,20,20" Spacing="20">
+            
+            <!-- 房间状态卡片 -->
+            <Border x:Name="RoomStatusCard" Background="#313244" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+                <StackPanel>
+                    <!-- 标题区域 -->
+                    <Border CornerRadius="16,16,0,0" Padding="24,20">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Border Background="#3B82F620" CornerRadius="12" Padding="12" Margin="0,0,16,0">
+                                <TextBlock Text="🏠" FontSize="24" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock x:Name="RoomTitle" Text="多人房间" FontWeight="Bold" Foreground="White" FontSize="18" />
+                                <TextBlock x:Name="RoomSubtitle" Text="创建或加入房间与他人互动" Foreground="#A6ADC8" FontSize="12" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <Border x:Name="RoomCodeBadge" Grid.Column="2" Background="#10B981" CornerRadius="8" Padding="20,8" IsVisible="False">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="房间码:" Foreground="White" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="RoomCodeText" Text="ABC123" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" FontFamily="Consolas" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- 未加入房间时的操作区 -->
+                    <StackPanel x:Name="NoRoomPanel" Margin="24" Spacing="20">
+                        <!-- 创建房间 -->
+                        <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border Background="#10B98120" CornerRadius="8" Padding="8">
+                                        <TextBlock Text="➕" FontSize="16" />
+                                    </Border>
+                                    <TextBlock Text="创建房间" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
+                                </StackPanel>
+                                
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock Text="房间名称" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBox x:Name="CreateRoomName" Text="我的房间" 
+                                                 Background="#313244" Foreground="White"
+                                                 BorderBrush="#45475A" CornerRadius="8" Padding="12,10" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                        <TextBlock Text="密码 (可选)" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBox x:Name="CreateRoomPassword" Watermark="留空则无密码"
+                                                 PasswordChar="●"
+                                                 Background="#313244" Foreground="White"
+                                                 BorderBrush="#45475A" CornerRadius="8" Padding="12,10" />
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <Button Content="🚀 创建房间" 
+                                        HorizontalAlignment="Stretch" Height="48" CornerRadius="10" FontWeight="Bold"
+                                        Click="OnCreateRoomClick">
+                                    <Button.Background>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                            <GradientStop Offset="0" Color="#10B981" />
+                                            <GradientStop Offset="1" Color="#059669" />
+                                        </LinearGradientBrush>
+                                    </Button.Background>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 分隔线 -->
+                        <Grid ColumnDefinitions="*,Auto,*">
+                            <Border Grid.Column="0" Background="#45475A" Height="1" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="或者" Foreground="#6B7280" Margin="16,0" />
+                            <Border Grid.Column="2" Background="#45475A" Height="1" VerticalAlignment="Center" />
+                        </Grid>
+                        
+                        <!-- 加入房间 -->
+                        <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border Background="#3B82F620" CornerRadius="8" Padding="8">
+                                        <TextBlock Text="🔗" FontSize="16" />
+                                    </Border>
+                                    <TextBlock Text="加入房间" Foreground="White" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
+                                </StackPanel>
+                                
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock Text="主机地址" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBox x:Name="JoinHostAddress" Watermark="192.168.1.100"
+                                                 Background="#313244" Foreground="White"
+                                                 BorderBrush="#45475A" CornerRadius="8" Padding="12,10" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                        <TextBlock Text="端口 (必填)" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                        <TextBox x:Name="JoinHostPort" Watermark="例如: 12345"
+                                                 Background="#313244" Foreground="White"
+                                                 BorderBrush="#45475A" CornerRadius="8" Padding="12,10" />
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <StackPanel>
+                                    <TextBlock Text="密码 (如需要)" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                    <TextBox x:Name="JoinRoomPassword" Watermark="无密码留空"
+                                             PasswordChar="●"
+                                             Background="#313244" Foreground="White"
+                                             BorderBrush="#45475A" CornerRadius="8" Padding="12,10" />
+                                </StackPanel>
+                                
+                                <!-- 防火墙提示 -->
+                                <Border Background="#F59E0B10" CornerRadius="8" Padding="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="⚠️" FontSize="14" />
+                                        <TextBlock Text="如果无法连接，请检查 Windows Defender 高级防火墙是否已放行该端口，或暂时关闭防火墙进行测试。" 
+                                                   Foreground="#F59E0B" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                                
+                                <Button Content="🔗 加入房间" 
+                                        HorizontalAlignment="Stretch" Height="48" CornerRadius="10" FontWeight="Bold"
+                                        Click="OnJoinRoomClick">
+                                    <Button.Background>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                            <GradientStop Offset="0" Color="#3B82F6" />
+                                            <GradientStop Offset="1" Color="#2563EB" />
+                                        </LinearGradientBrush>
+                                    </Button.Background>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    
+                    <!-- 已加入房间时的信息区 -->
+                    <StackPanel x:Name="InRoomPanel" IsVisible="False" Margin="24" Spacing="20">
+                        <!-- 房间信息 -->
+                        <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock x:Name="RoomNameText" Text="我的房间" Foreground="White" FontWeight="Bold" FontSize="16" />
+                                    <TextBlock x:Name="RoomHostText" Text="主机: 192.168.1.100:12345" Foreground="#A6ADC8" FontSize="12" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="🚪 离开房间" 
+                                        Background="#EF4444" Foreground="White" 
+                                        Padding="16,10" CornerRadius="8"
+                                        Click="OnLeaveRoomClick" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 成员列表 -->
+            <Border x:Name="MembersCard" IsVisible="False" Background="#313244" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="24,20" Background="#1E1E2E">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="👥" FontSize="18" VerticalAlignment="Center" />
+                            <TextBlock Text="房间成员" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            <Border Background="#8b5cf6" CornerRadius="10" Padding="8,4" Margin="8,0,0,0">
+                                <TextBlock x:Name="MemberCountText" Text="0" Foreground="White" FontSize="12" FontWeight="Bold" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    
+                    <StackPanel x:Name="MembersList" Margin="20" Spacing="10">
+                        <!-- 成员卡片动态添加 -->
+                        <TextBlock Text="暂无成员" Foreground="#6B7280" FontStyle="Italic" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 控制面板 (仅在房间中显示) -->
+            <Border x:Name="RemoteControlCard" IsVisible="False" Background="#313244" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="24,20" Background="#1E1E2E">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🎮" FontSize="18" VerticalAlignment="Center" />
+                            <TextBlock Text="远程控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    
+                    <StackPanel Margin="20" Spacing="16">
+                        <!-- 目标选择 -->
+                        <StackPanel>
+                            <TextBlock Text="选择控制目标" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,8" />
+                            <ComboBox x:Name="ControlTargetSelector" 
+                                      Background="#1E1E2E" Foreground="White" 
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="-- 选择成员 --" IsSelected="True" />
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <!-- 强度控制 -->
+                        <Grid ColumnDefinitions="*,*,Auto">
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="A 通道强度" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                <TextBox x:Name="RemoteStrengthA" Text="50"
+                                         Background="#1E1E2E" Foreground="White"
+                                         BorderBrush="#45475A" CornerRadius="6" Padding="12,8" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                <TextBlock Text="B 通道强度" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                <TextBox x:Name="RemoteStrengthB" Text="50"
+                                         Background="#1E1E2E" Foreground="White"
+                                         BorderBrush="#45475A" CornerRadius="6" Padding="12,8" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Content="📤 发送" 
+                                    Background="#8b5cf6" Foreground="White" 
+                                    Padding="20,10" CornerRadius="6" VerticalAlignment="Bottom"
+                                    Click="OnSendRemoteControlClick" />
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- PVP 对战面板 -->
+            <Border x:Name="PvpCard" IsVisible="False" Background="#313244" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="24,20">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#3E1E2E" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="⚔️" FontSize="18" VerticalAlignment="Center" />
+                            <TextBlock Text="PVP 对战模式" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            <Border x:Name="PvpStatusBadge" Background="#6B7280" CornerRadius="10" Padding="10,4" Margin="8,0,0,0">
+                                <TextBlock x:Name="PvpStatusText" Text="未开始" Foreground="White" FontSize="11" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    
+                    <StackPanel Margin="20" Spacing="16">
+                        <!-- PVP 说明 -->
+                        <Border Background="#EF444410" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="⚡ 对战规则" Foreground="#EF4444" FontWeight="Bold" FontSize="13" />
+                                <TextBlock Text="双方玩家在同一游戏中使用相同规则进行对战。当 OCR 检测到一方玩家死亡时，该玩家将接受电击惩罚！" 
+                                           Foreground="#A6ADC8" FontSize="12" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 对手选择 -->
+                        <StackPanel>
+                            <TextBlock Text="选择对手" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,8" />
+                            <ComboBox x:Name="PvpOpponentSelector" 
+                                      Background="#1E1E2E" Foreground="White" 
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="-- 选择对手 --" IsSelected="True" />
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <!-- 惩罚设置 -->
+                        <Grid ColumnDefinitions="*,*">
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="惩罚强度" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                <TextBox x:Name="PvpPunishStrength" Text="80"
+                                         Background="#1E1E2E" Foreground="White"
+                                         BorderBrush="#45475A" CornerRadius="6" Padding="12,8" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="惩罚时长 (秒)" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,6" />
+                                <TextBox x:Name="PvpPunishDuration" Text="3"
+                                         Background="#1E1E2E" Foreground="White"
+                                         BorderBrush="#45475A" CornerRadius="6" Padding="12,8" />
+                            </StackPanel>
+                        </Grid>
+                        
+                        <!-- 对战控制按钮 -->
+                        <Grid ColumnDefinitions="*,*">
+                            <Button x:Name="BtnStartPvp" Grid.Column="0" Content="⚔️ 开始对战" 
+                                    HorizontalAlignment="Stretch" Height="44" CornerRadius="8" FontWeight="Bold" Margin="0,0,8,0"
+                                    Click="OnStartPvpClick">
+                                <Button.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                        <GradientStop Offset="0" Color="#EF4444" />
+                                        <GradientStop Offset="1" Color="#DC2626" />
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                            </Button>
+                            <Button x:Name="BtnStopPvp" Grid.Column="1" Content="🛑 结束对战" 
+                                    Background="#6B7280" Foreground="White"
+                                    HorizontalAlignment="Stretch" Height="44" CornerRadius="8" FontWeight="Bold" Margin="8,0,0,0"
+                                    IsEnabled="False"
+                                    Click="OnStopPvpClick" />
+                        </Grid>
+                        
+                        <!-- 对战状态 -->
+                        <Border x:Name="PvpStatusPanel" IsVisible="False" Background="#1E1E2E" CornerRadius="8" Padding="16">
+                            <Grid ColumnDefinitions="*,Auto,*">
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="👤" FontSize="24" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="PvpPlayer1Name" Text="我" Foreground="White" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="PvpPlayer1Status" Text="等待中" Foreground="#10B981" FontSize="11" HorizontalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="VS" Foreground="#EF4444" FontWeight="Bold" FontSize="20" VerticalAlignment="Center" Margin="20,0" />
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="👤" FontSize="24" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="PvpPlayer2Name" Text="对手" Foreground="White" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="PvpPlayer2Status" Text="等待中" Foreground="#10B981" FontSize="11" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 权限管理面板 -->
+            <Border x:Name="PermissionCard" IsVisible="False" Background="#313244" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="24,20">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#2E1E3E" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🔐" FontSize="18" VerticalAlignment="Center" />
+                            <TextBlock Text="权限管理" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    
+                    <StackPanel Margin="20" Spacing="20">
+                        <!-- 我的角色选择 -->
+                        <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="我的角色" Foreground="White" FontWeight="Bold" FontSize="14" />
+                                <TextBlock Text="选择你在房间中的角色，决定你的权限和功能" Foreground="#A6ADC8" FontSize="12" />
+                                
+                                <WrapPanel Margin="0,8,0,0">
+                                    <RadioButton x:Name="RoleController" GroupName="MyRole" 
+                                                 Content="🎮 控制者" Margin="0,0,20,10"
+                                                 Foreground="White" FontSize="13"
+                                                 IsChecked="True"
+                                                 Click="OnRoleChanged" />
+                                    <RadioButton x:Name="RoleControlled" GroupName="MyRole" 
+                                                 Content="🎯 被控者" Margin="0,0,20,10"
+                                                 Foreground="White" FontSize="13"
+                                                 Click="OnRoleChanged" />
+                                    <RadioButton x:Name="RoleObserver" GroupName="MyRole" 
+                                                 Content="👁 观察者" Margin="0,0,0,10"
+                                                 Foreground="White" FontSize="13"
+                                                 Click="OnRoleChanged" />
+                                </WrapPanel>
+                                
+                                <!-- 角色说明 -->
+                                <Border x:Name="RoleDescriptionCard" Background="#313244" CornerRadius="8" Padding="16">
+                                    <TextBlock x:Name="RoleDescriptionText" 
+                                               Text="控制者可以向被控者发送控制指令，包括设置强度和发送波形"
+                                               Foreground="#A6ADC8" FontSize="12" TextWrapping="Wrap" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 控制权限请求/管理 -->
+                        <Border Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="控制权限" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                    <Border x:Name="PermissionStatusBadge" Background="#10B981" CornerRadius="10" Padding="10,4">
+                                        <TextBlock x:Name="PermissionStatusText" Text="控制者模式" Foreground="White" FontSize="11" />
+                                    </Border>
+                                </StackPanel>
+                                
+                                <!-- 控制者视图: 请求控制权限 -->
+                                <StackPanel x:Name="ControllerPermissionPanel" Spacing="12">
+                                    <TextBlock Text="选择要请求控制的被控者" Foreground="#A6ADC8" FontSize="12" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <ComboBox x:Name="ControlTargetForPermission" 
+                                                  Background="#313244" Foreground="White" 
+                                                  HorizontalAlignment="Stretch">
+                                            <ComboBoxItem Content="-- 选择被控者 --" IsSelected="True" />
+                                        </ComboBox>
+                                        <Button Grid.Column="1" Content="🔗 请求控制权" 
+                                                Background="#3B82F6" Foreground="White" 
+                                                Margin="10,0,0,0" Padding="16,10" CornerRadius="8"
+                                                Click="OnRequestPermissionClick" />
+                                    </Grid>
+                                    
+                                    <!-- 已获得控制权的用户列表 -->
+                                    <TextBlock Text="已授权控制的用户:" Foreground="#A6ADC8" FontSize="12" Margin="0,8,0,0" />
+                                    <StackPanel x:Name="MyControlledUsersList" Spacing="6">
+                                        <TextBlock Text="暂无" Foreground="#6B7280" FontStyle="Italic" FontSize="12" />
+                                    </StackPanel>
+                                </StackPanel>
+                                
+                                <!-- 被控者视图: 管理谁可以控制我 -->
+                                <StackPanel x:Name="ControlledPermissionPanel" IsVisible="False" Spacing="12">
+                                    <TextBlock Text="当前授权给以下用户控制:" Foreground="#A6ADC8" FontSize="12" />
+                                    <StackPanel x:Name="MyControllersList" Spacing="6">
+                                        <TextBlock Text="暂无" Foreground="#6B7280" FontStyle="Italic" FontSize="12" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 待处理的权限请求 -->
+                        <Border x:Name="PendingRequestsCard" IsVisible="False" Background="#1E1E2E" CornerRadius="12" Padding="20">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="⏳" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="待处理的控制请求" Foreground="#FBBF24" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel x:Name="PendingRequestsList" Spacing="8">
+                                    <!-- 动态添加请求卡片 -->
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+        </StackPanel>
+    </ScrollViewer>
+    
+</UserControl>

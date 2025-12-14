@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>郊狼&役次元游戏适配面板 - 使用说明</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1E1E2E 0%, #181825 100%);
+            color: #CDD6F4;
+            min-height: 100vh;
+            padding: 40px;
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #8b5cf6;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #A6ADC8;
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: #8b5cf6;
+            border-bottom: 2px solid #45475A;
+            padding-bottom: 10px;
+            margin: 40px 0 20px;
+        }
+        h3 {
+            color: #06b6d4;
+            margin: 25px 0 15px;
+        }
+        p { margin: 15px 0; }
+        .card {
+            background: #313244;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .card-header .icon { font-size: 1.5em; }
+        .card-header .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+        }
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+        li { margin: 8px 0; }
+        code {
+            background: #45475A;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #F9E2AF;
+        }
+        .warning {
+            background: #F59E0B22;
+            border-left: 4px solid #F59E0B;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+        .tip {
+            background: #10B98122;
+            border-left: 4px solid #10B981;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+        .danger {
+            background: #EF444422;
+            border-left: 4px solid #EF4444;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #45475A;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #45475A;
+            color: white;
+        }
+        a {
+            color: #89B4FA;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #45475A;
+            color: #6C7086;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ 郊狼&役次元游戏适配面板</h1>
+        <p class="subtitle">版本 1.0.0 | 使用说明文档</p>
+
+        <h2>📖 目录</h2>
+        <ol>
+            <li><a href="#intro">软件介绍</a></li>
+            <li><a href="#devices">设备连接</a></li>
+            <li><a href="#control">设备控制</a></li>
+            <li><a href="#ocr">血量识别</a></li>
+            <li><a href="#events">电击调节</a></li>
+            <li><a href="#faq">常见问题</a></li>
+        </ol>
+
+        <h2 id="intro">1. 软件介绍</h2>
+        <p>本软件用于将郊狼(DG-LAB)和役次元设备与游戏进行联动，实现根据游戏内血量变化自动触发设备的功能。</p>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🎮</span>
+                <span class="title">支持的设备</span>
+            </div>
+            <table>
+                <tr>
+                    <th>设备类型</th>
+                    <th>型号</th>
+                    <th>连接方式</th>
+                </tr>
+                <tr>
+                    <td>DG-LAB 郊狼</td>
+                    <td>V2蓝牙版、V3蓝牙版、按钮版</td>
+                    <td>WebSocket中转、蓝牙直连</td>
+                </tr>
+                <tr>
+                    <td>役次元</td>
+                    <td>电击器、灌肠器、跳蛋、飞机杯</td>
+                    <td>腾讯IM、蓝牙直连</td>
+                </tr>
+            </table>
+        </div>
+
+        <h2 id="devices">2. 设备连接</h2>
+        
+        <h3>2.1 DG-LAB 郊狼连接</h3>
+        <div class="card">
+            <p><strong>方式一：WebSocket 中转（推荐）</strong></p>
+            <ol>
+                <li>在"设备管理"页面选择 DG-LAB 选项卡</li>
+                <li>确保连接方式为"WebSocket 中转"</li>
+                <li>点击"添加 WebSocket 设备"</li>
+                <li>使用郊狼官方 APP 扫描生成的二维码</li>
+                <li>等待连接完成</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <p><strong>方式二：蓝牙直连</strong></p>
+            <ol>
+                <li>确保电脑蓝牙已开启</li>
+                <li>打开郊狼设备电源</li>
+                <li>点击"扫描"按钮搜索附近设备</li>
+                <li>在列表中选择你的设备并点击"连接"</li>
+            </ol>
+        </div>
+
+        <h3>2.2 役次元设备连接</h3>
+        <div class="card">
+            <p><strong>方式一：腾讯IM 远程</strong></p>
+            <ol>
+                <li>在役次元 APP 中创建游戏</li>
+                <li>获取 UID、Token 和目标用户 ID</li>
+                <li>在本软件中填写这些信息</li>
+                <li>点击"添加 IM 设备"</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <p><strong>方式二：蓝牙直连</strong></p>
+            <ol>
+                <li>选择设备类型（电击器/灌肠器/跳蛋/飞机杯）</li>
+                <li>点击"扫描"搜索附近设备</li>
+                <li>选择设备并连接</li>
+            </ol>
+        </div>
+
+        <h2 id="control">3. 设备控制</h2>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🎚</span>
+                <span class="title">强度控制</span>
+            </div>
+            <ul>
+                <li><strong>通道 A/B</strong>：郊狼设备有两个独立通道，可分别控制</li>
+                <li><strong>强度滑块</strong>：拖动滑块调整强度值（0-200）</li>
+                <li><strong>应用按钮</strong>：调整完毕后点击"应用"生效</li>
+                <li><strong>紧急停止</strong>：立即将所有设备强度归零</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 安全提示</strong><br>
+            首次使用请从低强度开始测试，逐步调高。紧急情况下请立即点击"紧急停止"按钮。
+        </div>
+
+        <h2 id="ocr">4. 血量识别</h2>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">👁</span>
+                <span class="title">配置步骤</span>
+            </div>
+            <ol>
+                <li>进入"血量识别"页面</li>
+                <li>点击"🎯 拾取坐标"按钮</li>
+                <li>在屏幕上框选游戏血条所在区域</li>
+                <li>按 Enter 确认或 ESC 取消</li>
+                <li>选择识别模式（血条/数字/AI模型）</li>
+                <li>点击"开始识别"</li>
+            </ol>
+        </div>
+
+        <div class="tip">
+            <strong>💡 提示</strong><br>
+            建议使用"血条识别"模式，它通过颜色识别血条长度，适用于大多数游戏。
+        </div>
+
+        <h2 id="events">5. 电击调节</h2>
+        
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">⚡</span>
+                <span class="title">事件配置</span>
+            </div>
+            <p>事件定义了当游戏状态变化时设备的响应方式。</p>
+            <table>
+                <tr>
+                    <th>触发条件</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>血量减少</td>
+                    <td>当检测到血量下降时触发</td>
+                </tr>
+                <tr>
+                    <td>血量增加</td>
+                    <td>当检测到血量恢复时触发</td>
+                </tr>
+                <tr>
+                    <td>角色死亡</td>
+                    <td>当血量归零时触发</td>
+                </tr>
+                <tr>
+                    <td>阈值触发</td>
+                    <td>当血量低于设定值时触发</td>
+                </tr>
+            </table>
+        </div>
+
+        <h2 id="faq">6. 常见问题</h2>
+        
+        <div class="card">
+            <h3>Q: 蓝牙扫描找不到设备？</h3>
+            <p>A: 请确保：1. 电脑蓝牙已开启 2. 设备已开机且未被其他设备连接 3. 设备在电脑附近（3米内）</p>
+        </div>
+
+        <div class="card">
+            <h3>Q: WebSocket 连接失败？</h3>
+            <p>A: 请检查网络连接是否正常，或尝试使用蓝牙直连方式。</p>
+        </div>
+
+        <div class="card">
+            <h3>Q: 血量识别不准确？</h3>
+            <p>A: 尝试调整颜色容差和采样行数参数，或重新框选血条区域。</p>
+        </div>
+
+        <div class="danger">
+            <strong>🚨 安全警告</strong><br>
+            <ul>
+                <li>禁止在心脏部位使用电刺激设备</li>
+                <li>禁止心脏病患者或佩戴心脏起搏器者使用</li>
+                <li>禁止儿童、孕妇使用</li>
+                <li>请勿在不安全的环境下使用</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Made with ❤️ by <a href="https://github.com/yomo40">yomo40</a></p>
+            <p>项目主页：<a href="https://github.com/yomo40/dglab_yokonex-charging-panel">GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[20:24:41 INF] Ωº¿«&“€¥Œ‘™”Œœ∑  ≈‰√Ê∞Â ∆Ù∂Ø÷–...
+[20:24:42 INF] Application starting...
+[20:24:42 INF] Database tables initialized
+[20:24:42 INF] Database migration completed
+[20:24:42 INF] Database initialized at C:\Users\¡Ë”Íƒ´\AppData\Roaming\ChargingPanel\data\device_adapter.db
+[20:24:42 INF] Event cache refreshed, 8 events loaded
+[20:24:42 INF] Services initialized
+[20:24:42 INF] Loaded 0 devices from database
+[20:24:42 INF] Services started
+[20:24:42 INF] App services initialized
+[20:24:42 DBG] Switched to page: Overview
+[20:24:42 INF] MainWindow initialized
+[20:24:54 DBG] Switched to page: Devices
+[20:24:55 DBG] Switched to page: Control
+[20:24:56 DBG] Switched to page: OCR
+[20:24:57 INF] Opening coordinate picker...
+[20:24:58 INF] Selected: X=816 Y=827 W=934 H=342
+[20:24:59 INF] Coordinate selection cancelled
+[20:25:00 DBG] Switched to page: Events
+[20:25:00 DBG] Switched to page: Plugins
+[20:25:02 WRN] Failed to refresh log info
+System.InvalidOperationException: LogManager not initialized
+   at ChargingPanel.Core.Logging.LogManager.get_Instance() in F:\dev\dglab_yokonex-charging-panel\src\Core\Logging\LogManager.cs:line 36
+   at ChargingPanel.Desktop.Views.Pages.SettingsPage.RefreshLogInfo() in F:\dev\dglab_yokonex-charging-panel\src\Desktop\Views\Pages\SettingsPage.axaml.cs:line 229
+[20:25:02 DBG] Switched to page: Settings
+[20:25:02 DBG] Switched to page: Logs
+[20:25:09 WRN] Emergency stop triggered for all devices
+[20:25:09 INF] Services stopped

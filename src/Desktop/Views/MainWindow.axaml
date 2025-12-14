@@ -1,0 +1,149 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ChargingPanel.Desktop.Views.MainWindow"
+        Title="郊狼&amp;役次元游戏适配面板"
+        Width="1200" Height="800"
+        MinWidth="1000" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#11111B">
+    
+    <Window.Styles>
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#6C7086" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,2" />
+        </Style>
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E1E2E" />
+        </Style>
+        <Style Selector="Button.nav-active">
+            <Setter Property="Background" Value="#313244" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,2" />
+        </Style>
+    </Window.Styles>
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        
+        <!-- 侧边栏 -->
+        <Border Grid.Column="0" Background="#181825">
+            <DockPanel Margin="12">
+                <!-- Logo -->
+                <Border DockPanel.Dock="Top" Margin="0,8,0,24">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Background="#8b5cf6" CornerRadius="16" Width="56" Height="56" 
+                                HorizontalAlignment="Center">
+                            <TextBlock Text="⚡" FontSize="28" 
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="游戏适配面板" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="White" HorizontalAlignment="Center" Margin="0,12,0,0" />
+                        <TextBlock Text="v1.0.0" FontSize="11" Foreground="#45475A" 
+                                   HorizontalAlignment="Center" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- 导航菜单 -->
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="主要功能" FontSize="11" Foreground="#45475A" 
+                               Margin="14,0,0,8" FontWeight="SemiBold" />
+                    
+                    <Button x:Name="NavOverview" Content="🏠  概览" Classes="nav-active"
+                            Click="OnNavClick" Tag="Overview" />
+                    <Button x:Name="NavDevices" Content="📱  设备管理" Classes="nav"
+                            Click="OnNavClick" Tag="Devices" />
+                    <Button x:Name="NavControl" Content="🎚  设备控制" Classes="nav"
+                            Click="OnNavClick" Tag="Control" />
+                    
+                    <TextBlock Text="游戏联动" FontSize="11" Foreground="#45475A" 
+                               Margin="14,20,0,8" FontWeight="SemiBold" />
+                    
+                    <Button x:Name="NavOCR" Content="👁  血量识别" Classes="nav"
+                            Click="OnNavClick" Tag="OCR" />
+                    <Button x:Name="NavEvents" Content="⚡  电击调节" Classes="nav"
+                            Click="OnNavClick" Tag="Events" />
+                    <Button x:Name="NavPlugins" Content="🎮  游戏适配" Classes="nav"
+                            Click="OnNavClick" Tag="Plugins" />
+                    <Button x:Name="NavRoom" Content="🏠  多人房间" Classes="nav"
+                            Click="OnNavClick" Tag="Room" />
+                    
+                    <TextBlock Text="系统" FontSize="11" Foreground="#45475A" 
+                               Margin="14,20,0,8" FontWeight="SemiBold" />
+                    
+                    <Button x:Name="NavLogs" Content="📋  动作日志" Classes="nav"
+                            Click="OnNavClick" Tag="Logs" />
+                    <Button x:Name="NavSettings" Content="⚙  系统设置" Classes="nav"
+                            Click="OnNavClick" Tag="Settings" />
+                </StackPanel>
+                
+                <!-- 底部状态 -->
+                <Border DockPanel.Dock="Bottom" Background="#1E1E2E" CornerRadius="12" Padding="14">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="#6B7280" />
+                            <TextBlock x:Name="StatusText" Text="未连接设备" 
+                                       Foreground="#A6ADC8" FontSize="12" TextWrapping="Wrap" />
+                        </StackPanel>
+                        
+                        <Button Content="🛑 紧急停止" Background="#DC2626" Foreground="White"
+                                HorizontalAlignment="Stretch" Padding="0,10" CornerRadius="8"
+                                FontWeight="SemiBold" Click="OnEmergencyStopClick" />
+                        
+                        <TextBlock Text="Made with ❤️ by yomo40" Foreground="#45475A" 
+                                   FontSize="10" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- 主内容区 -->
+        <Border Grid.Column="1" Background="#1E1E2E" CornerRadius="24,0,0,0" Margin="0">
+            <Grid Margin="28,24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                
+                <!-- 页面标题栏 -->
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="PageTitle" Text="概览" FontSize="26" 
+                                   FontWeight="Bold" Foreground="White" />
+                        <TextBlock x:Name="PageDescription" Text="设备状态总览与快捷控制" 
+                                   FontSize="13" Foreground="#6C7086" Margin="0,6,0,0" />
+                    </StackPanel>
+                    
+                    <!-- 全局保存按钮 (仅在设置/OCR/Events页面可见) -->
+                    <Button x:Name="GlobalSaveButton" Grid.Column="1" 
+                            Content="💾 保存设置" 
+                            Background="#10B981" Foreground="White"
+                            Padding="16,10" CornerRadius="8"
+                            FontWeight="SemiBold"
+                            VerticalAlignment="Center"
+                            IsVisible="False"
+                            Click="OnGlobalSaveClick" />
+                </Grid>
+                
+                <!-- 页面容器 -->
+                <Border Grid.Row="1" x:Name="PageContainer" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

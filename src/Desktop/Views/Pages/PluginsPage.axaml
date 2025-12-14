@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.PluginsPage">
+    
+    <Grid ColumnDefinitions="300,*">
+        <!-- 左侧：脚本列表 -->
+        <Border Grid.Column="0" Background="#313244" CornerRadius="12" Padding="20" Margin="0,0,16,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                    <TextBlock Text="游戏适配脚本" FontWeight="Bold" Foreground="White" FontSize="16" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                        <Button Content="+ 新建" 
+                                Background="#10B981" 
+                                Foreground="White"
+                                Padding="12,6"
+                                Click="OnNewScriptClick" />
+                        <Button Content="导入" 
+                                Background="#6366F1" 
+                                Foreground="White"
+                                Padding="12,6"
+                                Click="OnImportScriptClick" />
+                    </StackPanel>
+                </StackPanel>
+                
+                <ListBox x:Name="ScriptList" 
+                         Background="Transparent"
+                         SelectionChanged="OnScriptSelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#45475A" CornerRadius="8" Padding="12" Margin="0,4">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <CheckBox Grid.Column="0" 
+                                              IsChecked="{Binding Enabled}" 
+                                              Margin="0,0,12,0"
+                                              Click="OnScriptToggleClick" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Game}" Foreground="#A6ADC8" FontSize="12" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" 
+                                            Content="×" 
+                                            Background="#EF4444" 
+                                            Foreground="White"
+                                            Width="24" Height="24"
+                                            Padding="0"
+                                            Click="OnDeleteScriptClick"
+                                            Tag="{Binding Id}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+        
+        <!-- 右侧：脚本编辑器 -->
+        <Border Grid.Column="1" Background="#313244" CornerRadius="12" Padding="20">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="脚本编辑器" FontWeight="Bold" Foreground="White" FontSize="16" />
+                        <TextBlock x:Name="ScriptFileName" Text="未选择脚本" Foreground="#A6ADC8" FontSize="12" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Content="保存" 
+                                Classes="primary"
+                                Padding="16,6"
+                                Click="OnSaveScriptClick" />
+                        <Button Content="导出" 
+                                Background="#45475A" 
+                                Foreground="White"
+                                Padding="16,6"
+                                Click="OnExportScriptClick" />
+                    </StackPanel>
+                </Grid>
+                
+                <!-- 脚本元信息 -->
+                <Border DockPanel.Dock="Top" Background="#45475A" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <Grid ColumnDefinitions="*,*,*">
+                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                            <TextBlock Text="脚本名称" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="ScriptName" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                            <TextBlock Text="适配游戏" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="ScriptGame" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="版本" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="ScriptVersion" Text="1.0.0" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 代码编辑器 -->
+                <TextBox x:Name="CodeEditor"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         FontFamily="Consolas, Monaco, monospace"
+                         FontSize="13"
+                         Background="#1E1E2E"
+                         Foreground="#CDD6F4"
+                         Padding="16"
+                         CornerRadius="8" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

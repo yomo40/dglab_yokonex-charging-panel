@@ -1,0 +1,151 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.OverviewPage">
+    
+    <ScrollViewer>
+        <StackPanel Spacing="20" Margin="0,0,0,20">
+            
+            <!-- 统计卡片区域 -->
+            <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto">
+                <!-- 已注册设备 -->
+                <Border Grid.Column="0" Background="#313244" CornerRadius="12" Padding="20" Margin="0,0,10,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" Background="#8b5cf6" 
+                                CornerRadius="12" Width="50" Height="50" Margin="0,0,15,0">
+                            <TextBlock Text="🖥️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatDevices" Text="0" FontSize="28" FontWeight="Bold" Foreground="White" />
+                            <TextBlock Text="已注册设备" Foreground="#A6ADC8" FontSize="14" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 已连接 -->
+                <Border Grid.Column="1" Background="#313244" CornerRadius="12" Padding="20" Margin="5,0,5,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" Background="#10B981" 
+                                CornerRadius="12" Width="50" Height="50" Margin="0,0,15,0">
+                            <TextBlock Text="🔗" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatConnected" Text="0" FontSize="28" FontWeight="Bold" Foreground="#10B981" />
+                            <TextBlock Text="已连接" Foreground="#A6ADC8" FontSize="14" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 运行中脚本 -->
+                <Border Grid.Column="2" Background="#313244" CornerRadius="12" Padding="20" Margin="5,0,5,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" Background="#F59E0B" 
+                                CornerRadius="12" Width="50" Height="50" Margin="0,0,15,0">
+                            <TextBlock Text="📜" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatScripts" Text="0" FontSize="28" FontWeight="Bold" Foreground="#F59E0B" />
+                            <TextBlock Text="运行中脚本" Foreground="#A6ADC8" FontSize="14" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 激活的电击规则 -->
+                <Border Grid.Column="3" Background="#313244" CornerRadius="12" Padding="20" Margin="10,0,0,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" Background="#8b5cf6" 
+                                CornerRadius="12" Width="50" Height="50" Margin="0,0,15,0">
+                            <TextBlock Text="⚡" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatEvents" Text="0" FontSize="28" FontWeight="Bold" Foreground="#8b5cf6" />
+                            <TextBlock Text="激活的电击规则" Foreground="#A6ADC8" FontSize="14" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+            
+            <!-- 设备通道状态 -->
+            <Border Background="#313244" CornerRadius="12" Padding="0">
+                <StackPanel>
+                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="⚡" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                                <TextBlock Text="设备通道状态" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="刷新" Classes="btn-secondary btn-sm" Click="OnRefreshDeviceStrength" />
+                        </Grid>
+                    </Border>
+                    <StackPanel x:Name="DeviceStrengthList" Margin="20">
+                        <TextBlock x:Name="NoDevicesHint" Text="暂无已连接设备" Foreground="#6B7280" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 血量识别概览 -->
+            <Border Background="#313244" CornerRadius="12" Padding="0">
+                <StackPanel>
+                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="👁️" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                            <TextBlock Text="血量识别概览" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Grid ColumnDefinitions="*,*,*,*" Margin="20">
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="当前血量" Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="OcrBlood" Text="100" FontSize="24" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="识别状态" Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="OcrStatus" Text="未运行" FontSize="14" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="启用规则" Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="OcrRules" Text="0" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                            <TextBlock Text="最近触发" Foreground="#A6ADC8" FontSize="12" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="OcrLastTrigger" Text="-" FontSize="14" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <!-- 快捷控制 -->
+            <Border Background="#313244" CornerRadius="12" Padding="0">
+                <StackPanel>
+                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="🎚️" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                            <TextBlock Text="快捷控制" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="QuickControlList" Margin="20">
+                        <TextBlock x:Name="NoQuickControlHint" Text="暂无已连接设备" Foreground="#6B7280" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 最近电击动作 -->
+            <Border Background="#313244" CornerRadius="12" Padding="0">
+                <StackPanel>
+                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="📋" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                            <TextBlock Text="最近电击动作" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="RecentEventsList" Margin="20" MaxHeight="200">
+                        <TextBlock x:Name="NoEventsHint" Text="暂无事件记录" Foreground="#6B7280" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 开发者信息 -->
+            <TextBlock Text="Developed by yomo40" Foreground="#6B7280" FontSize="13" HorizontalAlignment="Center" Margin="0,10,0,0" />
+            
+        </StackPanel>
+    </ScrollViewer>
+    
+</UserControl>

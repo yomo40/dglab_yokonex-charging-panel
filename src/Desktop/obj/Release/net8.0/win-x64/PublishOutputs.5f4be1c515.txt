@@ -1,0 +1,6 @@
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\郊狼役次元游戏适配面板.pdb
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\docs\使用说明.html
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\onnxruntime.lib
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\onnxruntime_providers_shared.lib
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\ChargingPanel.Core.pdb
+F:\dev\dglab_yokonex-charging-panel\release\device-adapter-v0.96\郊狼役次元游戏适配面板.exe

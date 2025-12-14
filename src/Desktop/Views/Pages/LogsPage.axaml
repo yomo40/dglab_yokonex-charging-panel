@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.LogsPage">
+    
+    <Grid RowDefinitions="Auto,*">
+        <!-- 工具栏 -->
+        <Border Grid.Row="0" Background="#313244" CornerRadius="12" Padding="15" Margin="0,0,0,20">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock Text="设备动作日志" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                </StackPanel>
+                
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="筛选:" Foreground="#A6ADC8" VerticalAlignment="Center" />
+                    <ComboBox x:Name="FilterType" SelectedIndex="0" Width="120">
+                        <ComboBoxItem Content="全部" />
+                        <ComboBoxItem Content="强度变化" />
+                        <ComboBoxItem Content="波形发送" />
+                        <ComboBoxItem Content="设备连接" />
+                        <ComboBoxItem Content="OCR触发" />
+                    </ComboBox>
+                </StackPanel>
+                
+                <Button Grid.Column="3" Content="刷新" Margin="15,0,0,0" Click="OnRefreshClick" />
+                <Button Grid.Column="4" Content="清空日志" Margin="10,0,0,0" Background="#EF4444" Foreground="White" Click="OnClearClick" />
+            </Grid>
+        </Border>
+        
+        <!-- 日志列表 -->
+        <Border Grid.Row="1" Background="#313244" CornerRadius="12" Padding="0">
+            <Grid RowDefinitions="Auto,*">
+                <!-- 表头 -->
+                <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="15,12">
+                    <Grid ColumnDefinitions="150,150,*,100">
+                        <TextBlock Grid.Column="0" Text="时间" Foreground="#A6ADC8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="1" Text="设备" Foreground="#A6ADC8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="2" Text="动作" Foreground="#A6ADC8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="3" Text="来源" Foreground="#A6ADC8" FontWeight="SemiBold" FontSize="12" />
+                    </Grid>
+                </Border>
+                
+                <!-- 日志内容 -->
+                <ScrollViewer Grid.Row="1">
+                    <StackPanel x:Name="LogList" Margin="0,5,0,10">
+                        <TextBlock x:Name="NoLogsHint" Text="暂无日志记录" Foreground="#6B7280" 
+                                   HorizontalAlignment="Center" Margin="0,50,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+    
+</UserControl>

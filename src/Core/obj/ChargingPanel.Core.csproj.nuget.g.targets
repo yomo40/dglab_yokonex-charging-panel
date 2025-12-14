@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)system.text.json\8.0.5\buildTransitive\net6.0\System.Text.Json.targets" Condition="Exists('$(NuGetPackageRoot)system.text.json\8.0.5\buildTransitive\net6.0\System.Text.Json.targets')" />
+    <Import Project="$(NuGetPackageRoot)sqlitepclraw.lib.e_sqlite3\2.1.6\buildTransitive\net8.0\SQLitePCLRaw.lib.e_sqlite3.targets" Condition="Exists('$(NuGetPackageRoot)sqlitepclraw.lib.e_sqlite3\2.1.6\buildTransitive\net8.0\SQLitePCLRaw.lib.e_sqlite3.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed\1.19.2\build\netstandard2.0\Microsoft.ML.OnnxRuntime.Managed.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed\1.19.2\build\netstandard2.0\Microsoft.ML.OnnxRuntime.Managed.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.ml.onnxruntime\1.19.2\build\netstandard2.1\Microsoft.ML.OnnxRuntime.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.ml.onnxruntime\1.19.2\build\netstandard2.1\Microsoft.ML.OnnxRuntime.targets')" />
+  </ImportGroup>
+</Project>

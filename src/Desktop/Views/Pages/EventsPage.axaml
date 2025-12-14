@@ -1,0 +1,167 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.EventsPage">
+    
+    <Grid ColumnDefinitions="*,*">
+        <!-- 左侧：事件列表 -->
+        <Border Grid.Column="0" Background="#313244" CornerRadius="12" Padding="0" Margin="0,0,8,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="⚡" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                            <TextBlock Text="事件列表" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="+ 新建" 
+                                Background="#10B981" 
+                                Foreground="White" 
+                                Padding="12,6"
+                                Click="OnAddEventClick" />
+                    </Grid>
+                </Border>
+                
+                <ListBox x:Name="EventList" 
+                         Background="Transparent"
+                         Margin="10"
+                         SelectionChanged="OnEventSelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#45475A" CornerRadius="8" Padding="12" Margin="0,4">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <CheckBox Grid.Column="0" 
+                                              IsChecked="{Binding Enabled}" 
+                                              Margin="0,0,12,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}" Foreground="#A6ADC8" FontSize="12" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" 
+                                            Content="×" 
+                                            Background="#EF4444" 
+                                            Foreground="White"
+                                            Width="24" Height="24"
+                                            Padding="0"
+                                            Click="OnDeleteEventClick"
+                                            Tag="{Binding Id}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+        
+        <!-- 右侧：事件详情 -->
+        <Border Grid.Column="1" Background="#313244" CornerRadius="12" Padding="0" Margin="8,0,0,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="📝" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
+                        <TextBlock Text="事件详情" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <ScrollViewer Margin="20">
+                    <StackPanel x:Name="EventDetailPanel">
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="事件ID" Foreground="#A6ADC8" FontSize="12" />
+                        <TextBox x:Name="EventId" IsReadOnly="True" Margin="0,4,0,0" />
+                    </StackPanel>
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="事件名称" Foreground="#A6ADC8" FontSize="12" />
+                        <TextBox x:Name="EventName" Margin="0,4,0,0" />
+                    </StackPanel>
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="触发条件" Foreground="#A6ADC8" FontSize="12" />
+                        <ComboBox x:Name="TriggerType" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="血量减少" Tag="decrease" />
+                            <ComboBoxItem Content="血量增加" Tag="increase" />
+                            <ComboBoxItem Content="角色死亡" Tag="death" />
+                            <ComboBoxItem Content="角色复活" Tag="revive" />
+                            <ComboBoxItem Content="阈值触发" Tag="threshold" />
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <!-- 目标设备类型 -->
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="目标设备类型" Foreground="#A6ADC8" FontSize="12" />
+                        <ComboBox x:Name="TargetDeviceType" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="⚡ DG-LAB (郊狼)" Tag="DGLab" />
+                            <ComboBoxItem Content="🔌 役次元 - 电击器" Tag="Yokonex_Estim" />
+                            <ComboBoxItem Content="💉 役次元 - 灌肠器" Tag="Yokonex_Enema" />
+                            <ComboBoxItem Content="💗 役次元 - 跳蛋" Tag="Yokonex_Vibrator" />
+                            <ComboBoxItem Content="🍆 役次元 - 飞机杯" Tag="Yokonex_Cup" />
+                            <ComboBoxItem Content="📱 所有设备" Tag="All" />
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <Grid ColumnDefinitions="*,*" Margin="0,0,0,16">
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="最小变化量 (%)" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="MinChange" Text="1" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <TextBlock Text="最大变化量 (%)" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="MaxChange" Text="100" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                    
+                    <TextBlock Text="触发动作" FontWeight="Bold" Foreground="White" FontSize="14" Margin="0,16,0,12" />
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="动作类型" Foreground="#A6ADC8" FontSize="12" />
+                        <ComboBox x:Name="ActionType" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="设置强度" Tag="set" />
+                            <ComboBoxItem Content="增加强度" Tag="increase" />
+                            <ComboBoxItem Content="减少强度" Tag="decrease" />
+                            <ComboBoxItem Content="发送波形" Tag="waveform" />
+                            <ComboBoxItem Content="发送脉冲" Tag="pulse" />
+                            <ComboBoxItem Content="灌肠操作 (役次元)" Tag="enema" />
+                            <ComboBoxItem Content="震动模式 (役次元)" Tag="vibrate" />
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <Grid ColumnDefinitions="*,*" Margin="0,0,0,16">
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="强度值 (0-200)" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="ActionStrength" Text="50" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <TextBlock Text="持续时间 (毫秒)" Foreground="#A6ADC8" FontSize="12" />
+                            <TextBox x:Name="ActionDuration" Text="1000" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="目标通道" Foreground="#A6ADC8" FontSize="12" />
+                        <ComboBox x:Name="ActionChannel" SelectedIndex="2" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="A 通道" Tag="A" />
+                            <ComboBoxItem Content="B 通道" Tag="B" />
+                            <ComboBoxItem Content="双通道" Tag="AB" />
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="优先级 (数字越小优先级越高)" Foreground="#A6ADC8" FontSize="12" />
+                        <TextBox x:Name="Priority" Text="10" Margin="0,4,0,0" />
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                        <Button Content="保存" 
+                                Classes="primary" 
+                                Padding="24,8"
+                                Click="OnSaveEventClick" />
+                        <Button Content="测试触发" 
+                                Background="#F59E0B" 
+                                Foreground="White" 
+                                Padding="24,8"
+                                Click="OnTestEventClick" />
+                    </StackPanel>
+                </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>
