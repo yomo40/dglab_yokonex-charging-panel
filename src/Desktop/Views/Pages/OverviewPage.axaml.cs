@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Devices;
+using ChargingPanel.Core.Devices.Yokonex;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -38,24 +39,74 @@ public partial class OverviewPage : UserControl
     {
         try
         {
-            if (!AppServices.IsInitialized) return;
+            // 检查 AppServices 是否已初始化
+            if (!AppServices.IsInitialized)
+            {
+                Logger.Warning("AppServices not initialized, skipping stats refresh");
+                return;
+            }
             
-            var deviceManager = AppServices.Instance.DeviceManager;
-            var devices = deviceManager.GetAllDevices();
+            // 分别获取数据，捕获每个操作的异常
+            int deviceCount = 0;
+            int enabledEventsCount = 0;
+            int enabledScriptsCount = 0;
+            int connectedCount = 0;
             
-            StatDevices.Text = devices.Count().ToString();
-            StatConnected.Text = devices.Count(d => d.Status == DeviceStatus.Connected).ToString();
+            try
+            {
+                var registeredDevices = Database.Instance.GetAllDevices();
+                deviceCount = registeredDevices.Count;
+                Logger.Information("Loaded {Count} registered devices", deviceCount);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to get devices: {Message}", ex.Message);
+            }
             
-            // 获取脚本和事件数量
-            var scripts = Database.Instance.GetAllScripts();
-            var events = Database.Instance.GetAllEvents();
+            try
+            {
+                var events = Database.Instance.GetAllEvents();
+                enabledEventsCount = events.Count(e => e.Enabled);
+                Logger.Information("Loaded {Count} events, {Enabled} enabled", events.Count, enabledEventsCount);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to get events: {Message}", ex.Message);
+            }
             
-            StatScripts.Text = scripts.Count(s => s.Enabled).ToString();
-            StatEvents.Text = events.Count(e => e.Enabled).ToString();
+            try
+            {
+                var scripts = Database.Instance.GetAllScripts();
+                enabledScriptsCount = scripts.Count(s => s.Enabled);
+                Logger.Information("Loaded {Count} scripts, {Enabled} enabled", scripts.Count, enabledScriptsCount);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to get scripts: {Message}", ex.Message);
+            }
+            
+            try
+            {
+                connectedCount = AppServices.Instance.DeviceManager.GetAllDevices()
+                    .Count(d => d.Status == DeviceStatus.Connected);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to get connected devices: {Message}", ex.Message);
+            }
+            
+            // 更新 UI
+            StatDevices.Text = deviceCount.ToString();
+            StatEvents.Text = enabledEventsCount.ToString();
+            StatScripts.Text = enabledScriptsCount.ToString();
+            StatConnected.Text = connectedCount.ToString();
+            
+            Logger.Information("Stats updated: devices={Devices}, events={Events}, scripts={Scripts}, connected={Connected}", 
+                deviceCount, enabledEventsCount, enabledScriptsCount, connectedCount);
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "Failed to refresh stats");
+            Logger.Error(ex, "Failed to refresh stats: {Message}", ex.Message);
         }
     }
 
@@ -84,8 +135,8 @@ public partial class OverviewPage : UserControl
 
             foreach (var device in devices)
             {
-                var info = AppServices.Instance.DeviceManager.GetDeviceInfo(device.Id);
-                var deviceCard = CreateDeviceStrengthCard(device.Name, device.Type, info.State.Strength);
+                var actualDevice = AppServices.Instance.DeviceManager.GetDevice(device.Id);
+                var deviceCard = CreateDeviceStrengthCard(device.Name, device.Type, device.State.Strength, actualDevice);
                 DeviceStrengthList.Children.Add(deviceCard);
             }
         }
@@ -95,7 +146,7 @@ public partial class OverviewPage : UserControl
         }
     }
 
-    private Border CreateDeviceStrengthCard(string name, DeviceType type, StrengthInfo strength)
+    private Border CreateDeviceStrengthCard(string name, DeviceType type, StrengthInfo strength, IDevice? device = null)
     {
         var card = new Border
         {
@@ -105,6 +156,9 @@ public partial class OverviewPage : UserControl
             Margin = new Avalonia.Thickness(0, 0, 0, 10)
         };
 
+        var mainStack = new StackPanel { Spacing = 8 };
+        
+        // 第一行：设备信息
         var grid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto")
@@ -142,9 +196,107 @@ public partial class OverviewPage : UserControl
         grid.Children.Add(nameBlock);
         grid.Children.Add(channelA);
         grid.Children.Add(channelB);
+        
+        mainStack.Children.Add(grid);
+        
+        // 第二行：设备模式信息
+        var modePanel = new StackPanel 
+        { 
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 12,
+            Margin = new Avalonia.Thickness(30, 0, 0, 0)
+        };
+        
+        // 根据设备类型显示不同的模式信息
+        if (type == DeviceType.DGLab)
+        {
+            modePanel.Children.Add(CreateModeBadge("🌊 波形模式", "#8b5cf6"));
+            modePanel.Children.Add(CreateModeBadge($"上限: {strength.LimitA}/{strength.LimitB}", "#45475A"));
+        }
+        else
+        {
+            modePanel.Children.Add(CreateModeBadge("📳 震动模式", "#06b6d4"));
+            modePanel.Children.Add(CreateModeBadge("🔌 电击模式", "#F59E0B"));
+        }
+        
+        mainStack.Children.Add(modePanel);
+        
+        // 第三行：役次元设备特有信息 (通道连接状态、计步器、角度)
+        if (type == DeviceType.Yokonex && device is Core.Devices.Yokonex.IYokonexEmsDevice emsDevice)
+        {
+            var yokonexPanel = new StackPanel 
+            { 
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 12,
+                Margin = new Avalonia.Thickness(30, 4, 0, 0)
+            };
+            
+            // 通道连接状态
+            var connState = emsDevice.ChannelConnectionState;
+            var connAColor = connState.ChannelA ? "#10B981" : "#EF4444";
+            var connBColor = connState.ChannelB ? "#10B981" : "#EF4444";
+            yokonexPanel.Children.Add(CreateConnectionIndicator("A", connState.ChannelA, connAColor));
+            yokonexPanel.Children.Add(CreateConnectionIndicator("B", connState.ChannelB, connBColor));
+            
+            // 计步器
+            yokonexPanel.Children.Add(CreateModeBadge($"🚶 {emsDevice.StepCount} 步", "#45475A"));
+            
+            // 角度
+            var angle = emsDevice.CurrentAngle;
+            yokonexPanel.Children.Add(CreateModeBadge($"📐 X:{angle.X:F0}° Y:{angle.Y:F0}° Z:{angle.Z:F0}°", "#45475A"));
+            
+            mainStack.Children.Add(yokonexPanel);
+        }
 
-        card.Child = grid;
+        card.Child = mainStack;
         return card;
+    }
+    
+    private StackPanel CreateConnectionIndicator(string channel, bool connected, string color)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 4
+        };
+        
+        // 连接状态指示灯
+        var indicator = new Avalonia.Controls.Shapes.Ellipse
+        {
+            Width = 8,
+            Height = 8,
+            Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(color)),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        };
+        
+        var label = new TextBlock
+        {
+            Text = $"{channel}:{(connected ? "接入" : "断开")}",
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#A6ADC8")),
+            FontSize = 11,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        };
+        
+        panel.Children.Add(indicator);
+        panel.Children.Add(label);
+        return panel;
+    }
+    
+    private Border CreateModeBadge(string text, string bgColor)
+    {
+        return new Border
+        {
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(bgColor)),
+            CornerRadius = new Avalonia.CornerRadius(4),
+            Padding = new Avalonia.Thickness(8, 4),
+            Child = new TextBlock
+            {
+                Text = text,
+                Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.White),
+                FontSize = 11,
+                FontWeight = Avalonia.Media.FontWeight.SemiBold
+            }
+        };
     }
 
     private StackPanel CreateChannelIndicator(string channel, int value, string color)
@@ -198,8 +350,8 @@ public partial class OverviewPage : UserControl
                     _ => Avalonia.Media.Color.Parse("#EF4444")
                 });
             
-            var enabledEvents = Database.Instance.GetAllEvents().Count(e => e.Enabled);
-            OcrRules.Text = enabledEvents.ToString();
+            // OcrCount 显示识别次数
+            OcrCount.Text = ocrService.RecognitionCount.ToString();
         }
         catch (Exception ex)
         {
@@ -236,6 +388,12 @@ public partial class OverviewPage : UserControl
                 });
             
             OcrLastTrigger.Text = DateTime.Now.ToString("HH:mm:ss");
+            
+            // 更新识别次数
+            if (AppServices.IsInitialized)
+            {
+                OcrCount.Text = AppServices.Instance.OCRService.RecognitionCount.ToString();
+            }
         });
     }
 }

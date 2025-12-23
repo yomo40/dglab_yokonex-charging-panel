@@ -29,10 +29,10 @@
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     
     <!-- 图像处理 -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     
-    <!-- OCR 引擎 (ONNX Runtime) -->
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.19.2" />
+    <!-- OCR 引擎 (ONNX Runtime with DirectML for AMD/Intel/NVIDIA GPU) -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.19.2" />
     
     <!-- SQLite 数据库 -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
@@ -51,6 +51,9 @@
     
     <!-- QR 码生成 -->
     <PackageReference Include="QRCoder" Version="1.6.0" />
+    
+    <!-- JavaScript 脚本引擎 -->
+    <PackageReference Include="Jint" Version="3.1.6" />
   </ItemGroup>
 
 </Project>

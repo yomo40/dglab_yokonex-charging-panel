@@ -20,6 +20,7 @@ public partial class OCRPage : UserControl
     private static readonly ILogger Logger = Log.ForContext<OCRPage>();
     private int _recognitionCount = 0;
     private List<GpuInfo> _gpuList = new();
+    private Avalonia.Threading.DispatcherTimer? _updateTimer;
 
     public OCRPage()
     {
@@ -50,6 +51,20 @@ public partial class OCRPage : UserControl
         {
             AppServices.Instance.OCRService.BloodChanged += OnBloodChanged;
             LoadConfig();
+            
+            // 启动定时器定期更新识别次数
+            _updateTimer = new Avalonia.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _updateTimer.Tick += (s, e) =>
+            {
+                if (AppServices.IsInitialized && AppServices.Instance.OCRService.IsRunning)
+                {
+                    RecognitionCount.Text = AppServices.Instance.OCRService.RecognitionCount.ToString();
+                }
+            };
+            _updateTimer.Start();
         }
         
         // 绑定护甲启用复选框
@@ -66,12 +81,13 @@ public partial class OCRPage : UserControl
 
     /// <summary>
     /// 异步加载 GPU 列表（避免阻塞 UI 线程）
+    /// 使用 DXGI 获取真实的专用显存大小
     /// </summary>
     private async Task LoadGpuListAsync()
     {
         try
         {
-            // 在后台线程执行 WMI 查询
+            // 在后台线程执行查询
             var gpuInfoList = await Task.Run(() =>
             {
                 var list = new List<GpuInfo>();
@@ -80,15 +96,23 @@ public partial class OCRPage : UserControl
                 {
                     try
                     {
-                        // 只查询真正的显卡，排除 USB 设备和其他非 GPU 设备
+                        // 首先尝试使用 DXGI 获取真实显存
+                        var dxgiGpus = GetGpuInfoFromDXGI();
+                        if (dxgiGpus.Count > 0)
+                        {
+                            return dxgiGpus;
+                        }
+                        
+                        // 如果 DXGI 失败，回退到 WMI
+                        Logger.Information("DXGI query returned no results, falling back to WMI");
                         using var searcher = new ManagementObjectSearcher(
-                            "SELECT * FROM Win32_VideoController WHERE AdapterCompatibility IS NOT NULL");
+                            "SELECT Name, AdapterRAM FROM Win32_VideoController");
                         int index = 0;
                         foreach (ManagementObject obj in searcher.Get())
                         {
                             var name = obj["Name"]?.ToString() ?? $"GPU {index}";
                             
-                            // 排除 USB 显示适配器和虚拟适配器
+                            // 排除虚拟适配器
                             if (name.Contains("USB", StringComparison.OrdinalIgnoreCase) ||
                                 name.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
                                 name.Contains("Remote", StringComparison.OrdinalIgnoreCase) ||
@@ -97,11 +121,21 @@ public partial class OCRPage : UserControl
                                 continue;
                             }
                             
+                            // WMI AdapterRAM 是 32 位，超过 4GB 会溢出，只作为备用
+                            long vramMB = 0;
                             var adapterRam = obj["AdapterRAM"];
-                            var vramMB = adapterRam != null ? Convert.ToInt64(adapterRam) / (1024 * 1024) : 0;
+                            if (adapterRam != null)
+                            {
+                                try
+                                {
+                                    var rawValue = Convert.ToUInt64(adapterRam);
+                                    vramMB = (long)(rawValue / (1024 * 1024));
+                                }
+                                catch { }
+                            }
                             
-                            // 只添加有显存的 GPU（真正的显卡通常有显存）
-                            if (vramMB < 128) continue; // 小于 128MB 可能不是真正的 GPU
+                            // 只添加真正的 GPU
+                            if (vramMB < 128 && !GpuInfo.IsLikelyRealGpu(name)) continue;
                             
                             list.Add(new GpuInfo
                             {
@@ -115,7 +149,7 @@ public partial class OCRPage : UserControl
                     }
                     catch (Exception ex)
                     {
-                        Logger.Warning(ex, "WMI query failed");
+                        Logger.Warning(ex, "GPU enumeration failed");
                     }
                 }
                 
@@ -134,9 +168,19 @@ public partial class OCRPage : UserControl
                     {
                         _gpuList.Add(gpuInfo);
                         
+                        // 识别厂商
+                        var vendor = GpuInfo.GetVendor(gpuInfo.Name);
+                        var vendorIcon = vendor switch
+                        {
+                            "NVIDIA" => "🟢",
+                            "AMD" => "🔴",
+                            "Intel" => "🔵",
+                            _ => "⚪"
+                        };
+                        
                         var displayName = gpuInfo.VramMB > 0 
-                            ? $"{gpuInfo.Name} ({gpuInfo.VramMB / 1024.0:F1} GB)"
-                            : gpuInfo.Name;
+                            ? $"{vendorIcon} {gpuInfo.Name} ({gpuInfo.VramMB / 1024.0:F0} GB)"
+                            : $"{vendorIcon} {gpuInfo.Name}";
                         
                         GPUDevice.Items.Add(new ComboBoxItem { Content = displayName, Tag = gpuInfo.Index });
                     }
@@ -164,6 +208,109 @@ public partial class OCRPage : UserControl
                 GPUDevice.SelectedIndex = 0;
             });
         }
+    }
+    
+    /// <summary>
+    /// 使用 DXGI P/Invoke 获取真实的 GPU 专用显存大小
+    /// 这是获取显存的正确方法，不会有 4GB 溢出问题
+    /// </summary>
+    private static List<GpuInfo> GetGpuInfoFromDXGI()
+    {
+        var list = new List<GpuInfo>();
+        var seenGpus = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // 用于去重
+        
+        try
+        {
+            // 创建 DXGI Factory
+            var hr = DxgiNative.CreateDXGIFactory1(DxgiNative.IID_IDXGIFactory1, out var factoryPtr);
+            if (hr != 0 || factoryPtr == IntPtr.Zero)
+            {
+                Log.Warning("Failed to create DXGI Factory, HRESULT: {HR}", hr);
+                return list;
+            }
+            
+            try
+            {
+                int adapterIndex = 0;
+                int gpuIndex = 0;
+                
+                while (true)
+                {
+                    // 枚举适配器
+                    hr = DxgiNative.EnumAdapters1(factoryPtr, adapterIndex, out var adapterPtr);
+                    if (hr != 0 || adapterPtr == IntPtr.Zero)
+                        break;
+                    
+                    try
+                    {
+                        // 获取适配器描述
+                        var desc = new DxgiNative.DXGI_ADAPTER_DESC1();
+                        hr = DxgiNative.GetDesc1(adapterPtr, ref desc);
+                        
+                        if (hr == 0)
+                        {
+                            var name = desc.Description?.Trim() ?? "";
+                            
+                            // 排除软件渲染器和虚拟适配器
+                            if ((desc.Flags & 2) != 0 || // DXGI_ADAPTER_FLAG_SOFTWARE = 2
+                                string.IsNullOrEmpty(name) ||
+                                name.Contains("Microsoft Basic", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
+                                name.Contains("Remote", StringComparison.OrdinalIgnoreCase))
+                            {
+                                adapterIndex++;
+                                continue;
+                            }
+                            
+                            // DedicatedVideoMemory 是真正的专用显存大小 (64位)
+                            var dedicatedVramMB = (long)(desc.DedicatedVideoMemory / (1024 * 1024));
+                            
+                            // 生成唯一标识符 (名称 + VendorId + DeviceId)
+                            var uniqueKey = $"{name}_{desc.VendorId}_{desc.DeviceId}";
+                            
+                            // 跳过已经添加过的 GPU (去重)
+                            if (seenGpus.Contains(uniqueKey))
+                            {
+                                adapterIndex++;
+                                continue;
+                            }
+                            
+                            // 只添加有专用显存的 GPU 或已知的独立显卡品牌
+                            if (dedicatedVramMB >= 512 || GpuInfo.IsLikelyRealGpu(name))
+                            {
+                                seenGpus.Add(uniqueKey);
+                                list.Add(new GpuInfo
+                                {
+                                    Index = gpuIndex,
+                                    Name = name,
+                                    VramMB = dedicatedVramMB
+                                });
+                                gpuIndex++;
+                                
+                                Log.Information("DXGI: Found GPU {Name} with {VramMB} MB dedicated VRAM", 
+                                    name, dedicatedVramMB);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.Release(adapterPtr);
+                    }
+                    
+                    adapterIndex++;
+                }
+            }
+            finally
+            {
+                Marshal.Release(factoryPtr);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "DXGI enumeration failed");
+        }
+        
+        return list;
     }
 
     private void LoadConfig()
@@ -325,8 +472,11 @@ public partial class OCRPage : UserControl
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            _recognitionCount++;
-            RecognitionCount.Text = _recognitionCount.ToString();
+            // 从 OCRService 获取识别次数
+            if (AppServices.IsInitialized)
+            {
+                RecognitionCount.Text = AppServices.Instance.OCRService.RecognitionCount.ToString();
+            }
             CurrentBlood.Text = e.CurrentBlood.ToString();
             
             // 根据血量值设置颜色
@@ -555,42 +705,55 @@ public partial class OCRPage : UserControl
     
     private async void OnPickArmorCoordinatesClick(object? sender, RoutedEventArgs e)
     {
+        Logger.Information("Opening armor coordinate picker...");
+        
         try
         {
-            ShowStatus("请在屏幕上框选护甲条区域...");
-            
-            var picker = new CoordinatePickerWindow();
-            
+            // 获取主窗口
             var parent = this.Parent;
-            while (parent != null && parent is not Window)
+            while (parent != null && parent is not MainWindow)
                 parent = (parent as Control)?.Parent;
             
-            if (parent is Window parentWindow)
+            if (parent is MainWindow mainWindow)
             {
-                await picker.ShowDialog(parentWindow);
-            }
-            else
-            {
-                picker.Show();
-            }
-            
-            if (picker.Result != null)
-            {
-                var region = picker.Result;
-                ArmorAreaX.Text = region.X.ToString();
-                ArmorAreaY.Text = region.Y.ToString();
-                ArmorAreaWidth.Text = region.Width.ToString();
-                ArmorAreaHeight.Text = region.Height.ToString();
+                // 最小化主窗口
+                mainWindow.WindowState = WindowState.Minimized;
                 
-                Logger.Information("Armor region selected: X={X}, Y={Y}, W={W}, H={H}", 
-                    region.X, region.Y, region.Width, region.Height);
-                ShowStatus($"护甲区域已选择: ({region.X}, {region.Y}) {region.Width}x{region.Height}");
+                // 等待窗口最小化
+                await System.Threading.Tasks.Task.Delay(300);
+                
+                // 显示坐标拾取窗口（全屏覆盖，和血量拾取一样）
+                var result = await CoordinatePickerWindow.ShowPickerAsync(mainWindow);
+                
+                // 恢复主窗口
+                mainWindow.WindowState = WindowState.Normal;
+                mainWindow.Activate();
+                
+                if (result != null)
+                {
+                    // 应用选择的区域
+                    ArmorAreaX.Text = result.X.ToString();
+                    ArmorAreaY.Text = result.Y.ToString();
+                    ArmorAreaWidth.Text = result.Width.ToString();
+                    ArmorAreaHeight.Text = result.Height.ToString();
+                    
+                    Logger.Information("Armor coordinates selected: X={X}, Y={Y}, W={Width}, H={Height}", 
+                        result.X, result.Y, result.Width, result.Height);
+                    
+                    // 保存配置
+                    SaveConfig();
+                    ShowStatus($"护甲区域已选择: ({result.X}, {result.Y}) - {result.Width}×{result.Height}");
+                }
+                else
+                {
+                    Logger.Information("Armor coordinate selection cancelled");
+                }
             }
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "Failed to pick armor coordinates");
-            ShowStatus($"拾取失败: {ex.Message}");
+            ShowStatus($"护甲坐标拾取失败: {ex.Message}");
         }
     }
     
@@ -651,4 +814,211 @@ public class GpuInfo
     public int Index { get; set; }
     public string Name { get; set; } = "";
     public long VramMB { get; set; }
+    
+    /// <summary>
+    /// 根据显卡名称估算显存 (MB)
+    /// Win32_VideoController.AdapterRAM 是 32 位的，超过 4GB 会溢出
+    /// </summary>
+    public static long EstimateVramFromName(string name)
+    {
+        var upperName = name.ToUpperInvariant();
+        
+        // NVIDIA RTX 40 系列
+        if (upperName.Contains("4090")) return 24 * 1024;
+        if (upperName.Contains("4080")) return 16 * 1024;
+        if (upperName.Contains("4070 TI SUPER")) return 16 * 1024;
+        if (upperName.Contains("4070 TI")) return 12 * 1024;
+        if (upperName.Contains("4070 SUPER")) return 12 * 1024;
+        if (upperName.Contains("4070 LAPTOP")) return 8 * 1024;  // 笔记本版本
+        if (upperName.Contains("4070")) return 12 * 1024;
+        if (upperName.Contains("4060 LAPTOP")) return 8 * 1024;  // 笔记本版本
+        if (upperName.Contains("4060 TI")) return 8 * 1024;
+        if (upperName.Contains("4060")) return 8 * 1024;
+        if (upperName.Contains("4050 LAPTOP")) return 6 * 1024;  // 笔记本版本
+        if (upperName.Contains("4050")) return 6 * 1024;
+        
+        // NVIDIA RTX 30 系列
+        if (upperName.Contains("3090")) return 24 * 1024;
+        if (upperName.Contains("3080 TI")) return 12 * 1024;
+        if (upperName.Contains("3080 LAPTOP")) return 8 * 1024;  // 笔记本版本 8GB/16GB
+        if (upperName.Contains("3080")) return 10 * 1024;
+        if (upperName.Contains("3070 TI LAPTOP")) return 8 * 1024;
+        if (upperName.Contains("3070 TI")) return 8 * 1024;
+        if (upperName.Contains("3070 LAPTOP")) return 8 * 1024;
+        if (upperName.Contains("3070")) return 8 * 1024;
+        if (upperName.Contains("3060 TI")) return 8 * 1024;
+        if (upperName.Contains("3060 LAPTOP")) return 6 * 1024;
+        if (upperName.Contains("3060")) return 12 * 1024;
+        if (upperName.Contains("3050 TI LAPTOP")) return 4 * 1024;
+        if (upperName.Contains("3050 LAPTOP")) return 4 * 1024;
+        if (upperName.Contains("3050")) return 8 * 1024;
+        
+        // NVIDIA RTX 20 系列
+        if (upperName.Contains("2080 TI")) return 11 * 1024;
+        if (upperName.Contains("2080 SUPER")) return 8 * 1024;
+        if (upperName.Contains("2080")) return 8 * 1024;
+        if (upperName.Contains("2070 SUPER")) return 8 * 1024;
+        if (upperName.Contains("2070")) return 8 * 1024;
+        if (upperName.Contains("2060 SUPER")) return 8 * 1024;
+        if (upperName.Contains("2060")) return 6 * 1024;
+        
+        // NVIDIA GTX 16 系列
+        if (upperName.Contains("1660")) return 6 * 1024;
+        if (upperName.Contains("1650")) return 4 * 1024;
+        
+        // NVIDIA GTX 10 系列
+        if (upperName.Contains("1080 TI")) return 11 * 1024;
+        if (upperName.Contains("1080")) return 8 * 1024;
+        if (upperName.Contains("1070 TI")) return 8 * 1024;
+        if (upperName.Contains("1070")) return 8 * 1024;
+        if (upperName.Contains("1060")) return 6 * 1024;
+        if (upperName.Contains("1050 TI")) return 4 * 1024;
+        if (upperName.Contains("1050")) return 2 * 1024;
+        
+        // AMD RX 7000 系列
+        if (upperName.Contains("7900 XTX")) return 24 * 1024;
+        if (upperName.Contains("7900 XT")) return 20 * 1024;
+        if (upperName.Contains("7800 XT")) return 16 * 1024;
+        if (upperName.Contains("7700 XT")) return 12 * 1024;
+        if (upperName.Contains("7600")) return 8 * 1024;
+        
+        // AMD RX 6000 系列
+        if (upperName.Contains("6950 XT")) return 16 * 1024;
+        if (upperName.Contains("6900 XT")) return 16 * 1024;
+        if (upperName.Contains("6800 XT")) return 16 * 1024;
+        if (upperName.Contains("6800")) return 16 * 1024;
+        if (upperName.Contains("6700 XT")) return 12 * 1024;
+        if (upperName.Contains("6600 XT")) return 8 * 1024;
+        if (upperName.Contains("6600")) return 8 * 1024;
+        if (upperName.Contains("6500 XT")) return 4 * 1024;
+        
+        // Intel Arc
+        if (upperName.Contains("A770")) return 16 * 1024;
+        if (upperName.Contains("A750")) return 8 * 1024;
+        if (upperName.Contains("A580")) return 8 * 1024;
+        if (upperName.Contains("A380")) return 6 * 1024;
+        if (upperName.Contains("A310")) return 4 * 1024;
+        
+        // Intel 集成显卡
+        if (upperName.Contains("INTEL") && upperName.Contains("UHD")) return 0;
+        if (upperName.Contains("INTEL") && upperName.Contains("IRIS")) return 0;
+        
+        return 0;
+    }
+    
+    /// <summary>
+    /// 判断是否可能是真正的独立显卡
+    /// </summary>
+    public static bool IsLikelyRealGpu(string name)
+    {
+        var upperName = name.ToUpperInvariant();
+        
+        // NVIDIA
+        if (upperName.Contains("NVIDIA") || upperName.Contains("GEFORCE") || 
+            upperName.Contains("RTX") || upperName.Contains("GTX") ||
+            upperName.Contains("QUADRO") || upperName.Contains("TESLA"))
+            return true;
+        
+        // AMD
+        if (upperName.Contains("AMD") || upperName.Contains("RADEON") || 
+            upperName.Contains("RX "))
+            return true;
+        
+        // Intel Arc (独立显卡)
+        if (upperName.Contains("INTEL") && upperName.Contains("ARC"))
+            return true;
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// 获取显卡厂商
+    /// </summary>
+    public static string GetVendor(string name)
+    {
+        var upperName = name.ToUpperInvariant();
+        
+        if (upperName.Contains("NVIDIA") || upperName.Contains("GEFORCE") || 
+            upperName.Contains("RTX") || upperName.Contains("GTX") ||
+            upperName.Contains("QUADRO") || upperName.Contains("TESLA"))
+            return "NVIDIA";
+        
+        if (upperName.Contains("AMD") || upperName.Contains("RADEON") || 
+            upperName.Contains("RX "))
+            return "AMD";
+        
+        if (upperName.Contains("INTEL"))
+            return "Intel";
+        
+        return "Unknown";
+    }
+}
+
+/// <summary>
+/// DXGI P/Invoke 声明 - 用于获取真实的 GPU 显存大小
+/// </summary>
+internal static class DxgiNative
+{
+    public static readonly Guid IID_IDXGIFactory1 = new("770aae78-f26f-4dba-a829-253c83d1b387");
+    
+    [DllImport("dxgi.dll", CallingConvention = CallingConvention.StdCall)]
+    public static extern int CreateDXGIFactory1(
+        [In] ref Guid riid,
+        [Out] out IntPtr ppFactory);
+    
+    public static int CreateDXGIFactory1(Guid riid, out IntPtr ppFactory)
+    {
+        return CreateDXGIFactory1(ref riid, out ppFactory);
+    }
+    
+    // IDXGIFactory1::EnumAdapters1 通过 vtable 调用
+    public static int EnumAdapters1(IntPtr factory, int index, out IntPtr adapter)
+    {
+        // IDXGIFactory1 vtable:
+        // 0: QueryInterface, 1: AddRef, 2: Release
+        // 3: SetPrivateData, 4: SetPrivateDataInterface, 5: GetPrivateData, 6: GetParent
+        // 7: EnumAdapters, 8: MakeWindowAssociation, 9: GetWindowAssociation
+        // 10: CreateSwapChain, 11: CreateSoftwareAdapter
+        // 12: EnumAdapters1, 13: IsCurrent
+        var vtable = Marshal.ReadIntPtr(factory);
+        var enumAdapters1Ptr = Marshal.ReadIntPtr(vtable, 12 * IntPtr.Size);
+        var enumAdapters1 = Marshal.GetDelegateForFunctionPointer<EnumAdapters1Delegate>(enumAdapters1Ptr);
+        return enumAdapters1(factory, index, out adapter);
+    }
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int EnumAdapters1Delegate(IntPtr factory, int index, out IntPtr adapter);
+    
+    // IDXGIAdapter1::GetDesc1 通过 vtable 调用
+    public static int GetDesc1(IntPtr adapter, ref DXGI_ADAPTER_DESC1 desc)
+    {
+        // IDXGIAdapter1 vtable:
+        // 0: QueryInterface, 1: AddRef, 2: Release
+        // 3: SetPrivateData, 4: SetPrivateDataInterface, 5: GetPrivateData, 6: GetParent
+        // 7: EnumOutputs, 8: GetDesc, 9: CheckInterfaceSupport
+        // 10: GetDesc1
+        var vtable = Marshal.ReadIntPtr(adapter);
+        var getDesc1Ptr = Marshal.ReadIntPtr(vtable, 10 * IntPtr.Size);
+        var getDesc1 = Marshal.GetDelegateForFunctionPointer<GetDesc1Delegate>(getDesc1Ptr);
+        return getDesc1(adapter, ref desc);
+    }
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int GetDesc1Delegate(IntPtr adapter, ref DXGI_ADAPTER_DESC1 desc);
+    
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct DXGI_ADAPTER_DESC1
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string Description;
+        public uint VendorId;
+        public uint DeviceId;
+        public uint SubSysId;
+        public uint Revision;
+        public ulong DedicatedVideoMemory;    // 专用显存 (64位，不会溢出)
+        public ulong DedicatedSystemMemory;
+        public ulong SharedSystemMemory;
+        public long AdapterLuid;
+        public uint Flags;
+    }
 }

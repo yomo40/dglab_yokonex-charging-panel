@@ -46,6 +46,11 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
     private bool _isBound;
     private int _reconnectAttempts;
     private const int MaxReconnectAttempts = 10;
+    
+    // 官方协议心跳间隔为 20 秒
+    private const int HeartbeatIntervalSeconds = 20;
+    // 绑定超时时间
+    private const int BindTimeoutSeconds = 20;
 
     private int _strengthA;
     private int _strengthB;
@@ -102,8 +107,8 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
             // 启动消息接收
             _receiveTask = ReceiveLoopAsync(_cts.Token);
 
-            // 等待获取 clientId (最多 10 秒)
-            var timeout = DateTime.UtcNow.AddSeconds(10);
+            // 等待获取 clientId (最多 BindTimeoutSeconds 秒)
+            var timeout = DateTime.UtcNow.AddSeconds(BindTimeoutSeconds);
             while (string.IsNullOrEmpty(_clientId) && DateTime.UtcNow < timeout && !_cts.Token.IsCancellationRequested)
             {
                 await Task.Delay(100, _cts.Token);
@@ -111,7 +116,7 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
             if (string.IsNullOrEmpty(_clientId))
             {
-                throw new TimeoutException("未能从服务器获取 ClientId");
+                throw new TimeoutException($"未能从服务器获取 ClientId (超时 {BindTimeoutSeconds} 秒)");
             }
 
             // 启动心跳
@@ -175,7 +180,8 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
         var hexArray = WaveformGenerator.GenerateHexArray(data);
 
-        // 分批发送，每批最多 100 条
+        // 官方协议: 数组最大长度为 100，每条波形数据代表 100ms
+        // 建议波形数据的发送间隔略微小于波形数据的时间长度
         const int batchSize = 100;
         for (int i = 0; i < hexArray.Count; i += batchSize)
         {
@@ -183,9 +189,11 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
             var message = BuildWaveformMessage(channel, batch);
             await SendAsync(message);
 
+            // 如果还有更多数据，等待一段时间再发送
+            // 每批 100 条 = 10 秒数据，发送间隔应小于 10 秒
             if (i + batchSize < hexArray.Count)
             {
-                await Task.Delay(50);
+                await Task.Delay(100); // 100ms 间隔
             }
         }
 
@@ -196,9 +204,19 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
     {
         EnsureConnected();
 
-        var message = BuildClearQueueMessage(channel);
-        await SendAsync(message);
-        Logger.Debug("清空波形队列: channel={Channel}", channel);
+        // 协议只支持单通道清空 (1=A, 2=B)，AB 双通道需要分别清空
+        if (channel == Channel.AB)
+        {
+            await SendAsync(BuildClearQueueMessage(Channel.A));
+            await SendAsync(BuildClearQueueMessage(Channel.B));
+            Logger.Debug("清空波形队列: channel=AB (both)");
+        }
+        else
+        {
+            var message = BuildClearQueueMessage(channel);
+            await SendAsync(message);
+            Logger.Debug("清空波形队列: channel={Channel}", channel);
+        }
     }
 
     public Task SetLimitsAsync(int limitA, int limitB)
@@ -283,13 +301,33 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
                     HandleDataMessage(msg);
                     break;
                 case "heartbeat":
-                    // 心跳响应
+                    // 心跳响应，官方协议 message 为 "DGLAB" 表示成功
+                    if (msg.Message == "DGLAB")
+                    {
+                        Logger.Debug("心跳响应正常");
+                    }
+                    else
+                    {
+                        Logger.Warning("心跳响应异常: {Message}", msg.Message);
+                    }
                     break;
                 case "break":
-                    Logger.Warning("连接断开: {Message}", msg.Message);
+                    // 官方协议: 209 表示对方客户端已断开
+                    var breakReason = msg.Message switch
+                    {
+                        "209" => "对方客户端已断开",
+                        "1" => "主动断开",
+                        _ => $"断开原因: {msg.Message}"
+                    };
+                    Logger.Warning("连接断开: {Reason}", breakReason);
                     _isBound = false;
                     _targetId = null;
                     UpdateStatus(DeviceStatus.WaitingForBind);
+                    // 触发 QR 码变化事件，让用户重新扫码
+                    if (!string.IsNullOrEmpty(_clientId))
+                    {
+                        QRCodeChanged?.Invoke(this, GetQRCodeContent());
+                    }
                     break;
                 case "error":
                     Logger.Error("服务器错误: {Message}", msg.Message);
@@ -305,18 +343,40 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
     private void HandleBindMessage(DGLabMessage msg)
     {
+        // 服务器返回 clientId
         if (msg.Message == "targetId" && !string.IsNullOrEmpty(msg.ClientId))
         {
             _clientId = msg.ClientId;
             Logger.Information("收到 ClientId: {ClientId}", _clientId);
             QRCodeChanged?.Invoke(this, GetQRCodeContent());
         }
+        // 绑定成功 (200)
         else if (msg.Message == "200")
         {
             _isBound = true;
             _targetId = msg.TargetId;
             Logger.Information("已绑定到 APP: TargetId={TargetId}", _targetId);
             UpdateStatus(DeviceStatus.Connected);
+        }
+        // 处理绑定错误码
+        else if (int.TryParse(msg.Message, out int errorCode))
+        {
+            var errorMsg = errorCode switch
+            {
+                209 => "对方客户端已断开",
+                210 => "二维码中没有有效的 clientID",
+                211 => "服务器未下发 APP ID",
+                400 => "此 ID 已被其他客户端绑定",
+                401 => "要绑定的目标客户端不存在",
+                402 => "收信方和寄信方不是绑定关系",
+                403 => "发送的内容不是标准 JSON",
+                404 => "未找到收信人（离线）",
+                405 => "消息长度超过 1950",
+                500 => "服务器内部异常",
+                _ => $"未知错误码: {errorCode}"
+            };
+            Logger.Error("绑定失败: {ErrorCode} - {ErrorMsg}", errorCode, errorMsg);
+            ErrorOccurred?.Invoke(this, new Exception($"绑定失败: {errorMsg}"));
         }
     }
 
@@ -385,10 +445,17 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
     private string BuildWaveformMessage(Channel channel, List<string> hexArray)
     {
-        // pulse-channel:[hex1,hex2,...] 
-        // 官方协议: 通道使用 A/B 而不是 1/2
-        string channelChar = channel == Channel.A ? "A" : (channel == Channel.B ? "B" : "A");
-        string arrayStr = "[" + string.Join(",", hexArray.ConvertAll(h => $"\"{h}\"")) + "]";
+        // 官方协议: pulse-通道:[波形数据,波形数据,...,波形数据]
+        // 通道: A - A 通道；B - B 通道
+        // 波形数据必须是 8 字节的 HEX(16 进制)形式
+        // 数组最大长度为 100，超出则 APP 会丢弃全部数据
+        string channelChar = channel == Channel.A ? "A" : "B";
+        
+        // 确保不超过 100 条
+        var limitedArray = hexArray.Count > 100 ? hexArray.GetRange(0, 100) : hexArray;
+        
+        // 构建 JSON 数组字符串
+        string arrayStr = "[" + string.Join(",", limitedArray.ConvertAll(h => $"\"{h}\"")) + "]";
         string message = $"pulse-{channelChar}:{arrayStr}";
 
         return JsonSerializer.Serialize(new
@@ -402,7 +469,9 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
     private string BuildClearQueueMessage(Channel channel)
     {
-        int channelNum = channel == Channel.A ? 1 : (channel == Channel.B ? 2 : 0);
+        // 协议: clear-通道，通道: 1 - A 通道；2 - B 通道
+        // 注意: 协议没有定义通道 0，AB 双通道需要分别清空
+        int channelNum = channel == Channel.A ? 1 : 2;  // 默认 B 通道
         return JsonSerializer.Serialize(new
         {
             type = "msg",
@@ -414,11 +483,15 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
     private string BuildHeartbeatMessage()
     {
+        // 协议要求: 除初始绑定外，所有消息必须包含 type, clientId, targetId, message 四个字段
+        // 心跳消息只在绑定后发送，此时 _targetId 已有值
+        // 官方协议: message 应为 "200" 或 "DGLAB"
         return JsonSerializer.Serialize(new
         {
             type = "heartbeat",
             clientId = _clientId,
-            message = "ping"
+            targetId = _targetId ?? "",  // 绑定前为空字符串，绑定后为 APP ID
+            message = "200"
         });
     }
 
@@ -426,11 +499,21 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
     #region Helpers
 
+    // 官方协议: json 数据的字符最大长度为 1950
+    private const int MaxMessageLength = 1950;
+    
     private async Task SendAsync(string message)
     {
         if (_ws?.State != WebSocketState.Open)
         {
             throw new InvalidOperationException("WebSocket 未连接");
+        }
+
+        // 检查消息长度
+        if (message.Length > MaxMessageLength)
+        {
+            Logger.Warning("消息长度 {Length} 超过限制 {Max}，APP 可能丢弃此消息", 
+                message.Length, MaxMessageLength);
         }
 
         var buffer = Encoding.UTF8.GetBytes(message);
@@ -444,16 +527,19 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         {
             try
             {
-                if (_ws?.State == WebSocketState.Open)
+                // 只在已绑定且连接正常时发送心跳
+                // 协议要求心跳消息必须包含 targetId，绑定前无法发送有效心跳
+                if (_ws?.State == WebSocketState.Open && _isBound && !string.IsNullOrEmpty(_targetId))
                 {
                     await SendAsync(BuildHeartbeatMessage());
+                    Logger.Debug("心跳已发送");
                 }
             }
             catch (Exception ex)
             {
                 Logger.Warning(ex, "心跳发送失败");
             }
-        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }, null, TimeSpan.FromSeconds(HeartbeatIntervalSeconds), TimeSpan.FromSeconds(HeartbeatIntervalSeconds));
     }
 
     private void StopHeartbeat()
@@ -539,17 +625,17 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 /// <summary>
 /// DG-LAB WebSocket 消息
 /// </summary>
-internal class DGLabMessage
+public class DGLabMessage
 {
     [JsonPropertyName("type")]
-    public string? Type { get; set; }
+    public string Type { get; set; } = "";
 
     [JsonPropertyName("clientId")]
-    public string? ClientId { get; set; }
+    public string ClientId { get; set; } = "";
 
     [JsonPropertyName("targetId")]
-    public string? TargetId { get; set; }
+    public string TargetId { get; set; } = "";
 
     [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    public string Message { get; set; } = "";
 }

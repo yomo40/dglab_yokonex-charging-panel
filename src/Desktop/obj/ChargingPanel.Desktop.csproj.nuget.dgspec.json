@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "F:\\test\\github\\src\\Desktop\\ChargingPanel.Desktop.csproj": {}
+    "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Desktop\\ChargingPanel.Desktop.csproj": {}
   },
   "projects": {
-    "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj": {
+    "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
+        "projectUniqueName": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj",
         "projectName": "ChargingPanel.Core",
-        "projectPath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
+        "projectPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj",
         "packagesPath": "C:\\Users\\凌雨墨\\.nuget\\packages\\",
-        "outputPath": "F:\\test\\github\\src\\Core\\obj\\",
+        "outputPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -50,6 +50,10 @@
         "net8.0-windows10.0.19041": {
           "targetAlias": "net8.0-windows10.0.19041.0",
           "dependencies": {
+            "Jint": {
+              "target": "Package",
+              "version": "[3.1.6, )"
+            },
             "Microsoft.Data.Sqlite": {
               "target": "Package",
               "version": "[8.0.11, )"
@@ -58,7 +62,7 @@
               "target": "Package",
               "version": "[8.0.1, )"
             },
-            "Microsoft.ML.OnnxRuntime": {
+            "Microsoft.ML.OnnxRuntime.DirectML": {
               "target": "Package",
               "version": "[1.19.2, )"
             },
@@ -84,7 +88,7 @@
             },
             "SixLabors.ImageSharp": {
               "target": "Package",
-              "version": "[3.1.5, )"
+              "version": "[3.1.12, )"
             },
             "System.Net.Http.Json": {
               "target": "Package",
@@ -184,14 +188,14 @@
         }
       }
     },
-    "F:\\test\\github\\src\\Desktop\\ChargingPanel.Desktop.csproj": {
-      "version": "0.9.6",
+    "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Desktop\\ChargingPanel.Desktop.csproj": {
+      "version": "0.9.7.3",
       "restore": {
-        "projectUniqueName": "F:\\test\\github\\src\\Desktop\\ChargingPanel.Desktop.csproj",
+        "projectUniqueName": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Desktop\\ChargingPanel.Desktop.csproj",
         "projectName": "郊狼役次元游戏适配面板",
-        "projectPath": "F:\\test\\github\\src\\Desktop\\ChargingPanel.Desktop.csproj",
+        "projectPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Desktop\\ChargingPanel.Desktop.csproj",
         "packagesPath": "C:\\Users\\凌雨墨\\.nuget\\packages\\",
-        "outputPath": "F:\\test\\github\\src\\Desktop\\obj\\",
+        "outputPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Desktop\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -212,8 +216,8 @@
           "net8.0-windows10.0.19041": {
             "targetAlias": "net8.0-windows10.0.19041.0",
             "projectReferences": {
-              "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj": {
-                "projectPath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj"
+              "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj": {
+                "projectPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj"
               }
             }
           }

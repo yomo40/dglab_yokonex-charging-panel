@@ -22,15 +22,26 @@ public enum GameEventType
     
     // 状态相关
     Death,              // 死亡
+    Knocked,            // 倒地/击倒 (可被队友救起)
     Respawn,            // 重生
     Debuff,             // 负面效果
     Buff,               // 增益效果
+    
+    // 回合相关
+    NewRound,           // 新回合/新关卡
+    GameOver,           // 游戏结束
     
     // 游戏事件
     Kill,               // 击杀
     Assist,             // 助攻
     Victory,            // 胜利
     Defeat,             // 失败
+    
+    // 役次元设备特有事件
+    StepCountChanged,   // 计步器步数变化
+    AngleChanged,       // 角度传感器变化
+    ChannelDisconnected,// 通道断开 (电极片脱落)
+    ChannelConnected,   // 通道连接 (电极片接入)
     
     // 自定义
     Custom              // 自定义事件
@@ -199,6 +210,26 @@ public class EventBus : IDisposable
     {
         _logger.Debug("Publishing remote sync: {Type} from {SenderId}", evt.Type, evt.SenderId);
         _remoteSyncEvents.OnNext(evt);
+    }
+    
+    /// <summary>
+    /// 订阅所有游戏事件
+    /// </summary>
+    public IDisposable Subscribe<T>(Action<T> handler) where T : class
+    {
+        if (typeof(T) == typeof(GameEvent))
+        {
+            return _gameEvents.Subscribe(e => handler(e as T));
+        }
+        if (typeof(T) == typeof(DeviceControlEvent))
+        {
+            return _deviceControlEvents.Subscribe(e => handler(e as T));
+        }
+        if (typeof(T) == typeof(RemoteSyncEvent))
+        {
+            return _remoteSyncEvents.Subscribe(e => handler(e as T));
+        }
+        throw new ArgumentException($"Unsupported event type: {typeof(T).Name}");
     }
     
     /// <summary>

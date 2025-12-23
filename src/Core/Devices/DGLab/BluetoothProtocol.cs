@@ -19,7 +19,6 @@ public class DGLabBluetoothProtocol
 
     // 蓝牙设备名称前缀
     public const string DEVICE_NAME_PREFIX_V3 = "47L121000";  // 脉冲主机 3.0
-    public const string DEVICE_NAME_PREFIX_SENSOR = "47L120100";  // 无线传感器
 
     private int _sequenceNo = 0;
 
@@ -71,27 +70,31 @@ public class DGLabBluetoothProtocol
         buffer[3] = (byte)Math.Clamp(data.StrengthValueB, 0, 200);
 
         // A通道波形频率 (4字节)
+        // 注意: 频率值不在有效范围(10-240)会使该通道放弃全部4组数据
         for (int i = 0; i < 4; i++)
         {
-            buffer[4 + i] = (byte)Math.Clamp(data.WaveformA.Frequency[i], 10, 240);
+            buffer[4 + i] = (byte)Math.Clamp(data.WaveformA.Frequency[i], 0, 255);
         }
 
         // A通道波形强度 (4字节)
+        // 注意: 强度值 > 100 会使该通道放弃全部4组数据，用于禁用单通道
         for (int i = 0; i < 4; i++)
         {
-            buffer[8 + i] = (byte)Math.Clamp(data.WaveformA.Strength[i], 0, 100);
+            buffer[8 + i] = (byte)Math.Clamp(data.WaveformA.Strength[i], 0, 255);
         }
 
         // B通道波形频率 (4字节)
+        // 注意: 频率值不在有效范围(10-240)会使该通道放弃全部4组数据
         for (int i = 0; i < 4; i++)
         {
-            buffer[12 + i] = (byte)Math.Clamp(data.WaveformB.Frequency[i], 10, 240);
+            buffer[12 + i] = (byte)Math.Clamp(data.WaveformB.Frequency[i], 0, 255);
         }
 
         // B通道波形强度 (4字节)
+        // 注意: 强度值 > 100 会使该通道放弃全部4组数据，用于禁用单通道
         for (int i = 0; i < 4; i++)
         {
-            buffer[16 + i] = (byte)Math.Clamp(data.WaveformB.Strength[i], 0, 100);
+            buffer[16 + i] = (byte)Math.Clamp(data.WaveformB.Strength[i], 0, 255);
         }
 
         return buffer;
@@ -136,7 +139,8 @@ public class DGLabBluetoothProtocol
             _ => StrengthParsingMode.Absolute
         };
 
-        // 对于不使用的通道，设置无效数据 (强度值 > 100)
+        // 对于不使用的通道，设置无效数据
+        // 官方示例: 频率{0,0,0,0} + 强度{0,0,0,101} 使该通道放弃全部4组数据
         var invalidWaveform = new ChannelWaveform
         {
             Frequency = new[] { 0, 0, 0, 0 },
@@ -162,6 +166,8 @@ public class DGLabBluetoothProtocol
     /// </summary>
     public byte[] BuildWaveformCommand(Channel channel, ChannelWaveform waveform)
     {
+        // 对于不使用的通道，设置无效数据
+        // 官方示例: 频率{0,0,0,0} + 强度{0,0,0,101} 使该通道放弃全部4组数据
         var invalidWaveform = new ChannelWaveform
         {
             Frequency = new[] { 0, 0, 0, 0 },

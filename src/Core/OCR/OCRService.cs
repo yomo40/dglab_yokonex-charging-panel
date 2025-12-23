@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Events;
+using ChargingPanel.Core.Services;
 using Serilog;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -37,6 +39,9 @@ public class OCRService : IDisposable
     private int _lastArmor = 100;
     private int _maxArmor = 100;
     
+    // 识别次数
+    private int _recognitionCount = 0;
+    
     private DateTime _lastTriggered = DateTime.MinValue;
 
     /// <summary>
@@ -53,6 +58,16 @@ public class OCRService : IDisposable
     /// 识别完成事件
     /// </summary>
     public event EventHandler<OCRResultEventArgs>? RecognitionCompleted;
+    
+    /// <summary>
+    /// 死亡检测事件
+    /// </summary>
+    public event EventHandler? DeathDetected;
+    
+    /// <summary>
+    /// 回合状态变化事件
+    /// </summary>
+    public event EventHandler<Services.RoundStateChangedEventArgs>? RoundStateChanged;
 
     public OCRService(EventService eventService)
     {
@@ -74,6 +89,11 @@ public class OCRService : IDisposable
     /// 当前护甲
     /// </summary>
     public int CurrentArmor => _currentArmor;
+    
+    /// <summary>
+    /// 识别次数
+    /// </summary>
+    public int RecognitionCount => _recognitionCount;
 
     /// <summary>
     /// 获取配置
@@ -271,10 +291,15 @@ public class OCRService : IDisposable
                 }
                 
                 Image<Rgba32>? screenshot = null;
+                Image<Rgba32>? armorScreenshot = null;
                 try
                 {
+                    // 血量识别
                     screenshot = CaptureRegion(_config.RegionX, _config.RegionY, _config.RegionWidth, _config.RegionHeight);
                     var result = AnalyzeHealthBar(screenshot);
+                    
+                    // 每次识别都增加计数
+                    _recognitionCount++;
 
                     if (result.Success)
                     {
@@ -296,9 +321,40 @@ public class OCRService : IDisposable
                             // 检查冷却时间
                             if ((DateTime.UtcNow - _lastTriggered).TotalMilliseconds >= _config.CooldownMs)
                             {
-                                await TriggerEventsAsync(bloodChange);
+                                await TriggerBloodEventsAsync(bloodChange);
                                 _lastTriggered = DateTime.UtcNow;
                             }
+                        }
+                    }
+                    
+                    // 护甲识别 (如果启用)
+                    if (_config.ArmorEnabled && IsValidArmorRegion())
+                    {
+                        armorScreenshot = CaptureRegion(_config.ArmorRegionX, _config.ArmorRegionY, 
+                            _config.ArmorRegionWidth, _config.ArmorRegionHeight);
+                        var armorResult = AnalyzeArmorBar(armorScreenshot);
+                        
+                        if (armorResult.Success)
+                        {
+                            var newArmor = armorResult.Armor;
+                            var armorChange = newArmor - _currentArmor;
+                            
+                            if (Math.Abs(armorChange) >= _config.TriggerThreshold)
+                            {
+                                _lastArmor = _currentArmor;
+                                _currentArmor = newArmor;
+                                
+                                ArmorChanged?.Invoke(this, new ArmorChangedEventArgs
+                                {
+                                    CurrentArmor = _currentArmor,
+                                    PreviousArmor = _lastArmor,
+                                    Change = armorChange
+                                });
+                                
+                                await TriggerArmorEventsAsync(armorChange);
+                            }
+                            
+                            result.Armor = newArmor;
                         }
                     }
 
@@ -308,6 +364,7 @@ public class OCRService : IDisposable
                 {
                     // 确保释放截图资源
                     screenshot?.Dispose();
+                    armorScreenshot?.Dispose();
                 }
 
                 await Task.Delay(_config.Interval, _cts.Token);
@@ -325,25 +382,158 @@ public class OCRService : IDisposable
         
         _logger.Information("OCR capture loop ended");
     }
+    
+    /// <summary>
+    /// 验证护甲 OCR 区域是否有效
+    /// </summary>
+    private bool IsValidArmorRegion()
+    {
+        return _config.ArmorRegionWidth >= 10 && _config.ArmorRegionHeight >= 5 &&
+               _config.ArmorRegionX >= 0 && _config.ArmorRegionY >= 0;
+    }
 
-    private async Task TriggerEventsAsync(int bloodChange)
+    private async Task TriggerBloodEventsAsync(int bloodChange)
     {
         if (bloodChange < 0)
         {
-            // 血量损失
-            await _eventService.TriggerEventAsync("lost-hp", multiplier: Math.Abs(bloodChange) / 10.0);
+            // 血量损失 - 传递实际变化量
+            var absChange = Math.Abs(bloodChange);
+            await _eventService.TriggerEventAsync("lost-hp", multiplier: absChange / 10.0);
+            
+            // 发布游戏事件到事件总线
+            EventBus.Instance.PublishGameEvent(new GameEvent
+            {
+                Type = GameEventType.HealthLost,
+                EventId = "lost-hp",
+                Source = "OCR",
+                OldValue = _lastBlood,
+                NewValue = _currentBlood,
+                Data = new Dictionary<string, object> { ["change"] = absChange }
+            });
         }
         else if (bloodChange > 0)
         {
             // 血量恢复
             await _eventService.TriggerEventAsync("add-hp", multiplier: bloodChange / 10.0);
+            
+            EventBus.Instance.PublishGameEvent(new GameEvent
+            {
+                Type = GameEventType.HealthGained,
+                EventId = "add-hp",
+                Source = "OCR",
+                OldValue = _lastBlood,
+                NewValue = _currentBlood,
+                Data = new Dictionary<string, object> { ["change"] = bloodChange }
+            });
         }
 
         // 检查死亡
-        if (_currentBlood <= 0)
+        if (_currentBlood <= 0 && _lastBlood > 0)
         {
             await _eventService.TriggerEventAsync("dead");
+            DeathDetected?.Invoke(this, EventArgs.Empty);
+            
+            EventBus.Instance.PublishGameEvent(new GameEvent
+            {
+                Type = GameEventType.Death,
+                EventId = "dead",
+                Source = "OCR"
+            });
         }
+    }
+    
+    private async Task TriggerArmorEventsAsync(int armorChange)
+    {
+        if (armorChange < 0)
+        {
+            // 护甲损失
+            var absChange = Math.Abs(armorChange);
+            await _eventService.TriggerEventAsync("lost-ahp", multiplier: absChange / 10.0);
+            
+            EventBus.Instance.PublishGameEvent(new GameEvent
+            {
+                Type = GameEventType.ArmorLost,
+                EventId = "lost-ahp",
+                Source = "OCR",
+                OldValue = _lastArmor,
+                NewValue = _currentArmor,
+                Data = new Dictionary<string, object> { ["change"] = absChange }
+            });
+            
+            // 护甲破碎检测
+            if (_currentArmor <= 0 && _lastArmor > 0)
+            {
+                EventBus.Instance.PublishGameEvent(new GameEvent
+                {
+                    Type = GameEventType.ArmorBroken,
+                    EventId = "armor-broken",
+                    Source = "OCR"
+                });
+            }
+        }
+        else if (armorChange > 0)
+        {
+            // 护甲恢复
+            await _eventService.TriggerEventAsync("add-ahp", multiplier: armorChange / 10.0);
+            
+            EventBus.Instance.PublishGameEvent(new GameEvent
+            {
+                Type = GameEventType.ArmorGained,
+                EventId = "add-ahp",
+                Source = "OCR",
+                OldValue = _lastArmor,
+                NewValue = _currentArmor,
+                Data = new Dictionary<string, object> { ["change"] = armorChange }
+            });
+        }
+    }
+    
+    /// <summary>
+    /// 分析护甲条
+    /// </summary>
+    private OCRResult AnalyzeArmorBar(Image<Rgba32> image)
+    {
+        var armorColor = ParseColorRange(_config.ArmorColorMin, _config.ArmorColorMax);
+        var bgColor = ParseColorRange(_config.BackgroundColorMin, _config.BackgroundColorMax);
+
+        int armorPixels = 0;
+        int bgPixels = 0;
+
+        image.ProcessPixelRows(accessor =>
+        {
+            for (int y = 0; y < accessor.Height; y++)
+            {
+                var row = accessor.GetRowSpan(y);
+                for (int x = 0; x < row.Length; x++)
+                {
+                    var pixel = row[x];
+                    
+                    if (IsInColorRange(pixel, armorColor.min, armorColor.max))
+                    {
+                        armorPixels++;
+                    }
+                    else if (IsInColorRange(pixel, bgColor.min, bgColor.max))
+                    {
+                        bgPixels++;
+                    }
+                }
+            }
+        });
+
+        int totalRelevantPixels = armorPixels + bgPixels;
+        if (totalRelevantPixels < 10)
+        {
+            return new OCRResult { Success = false, Error = "No armor bar detected" };
+        }
+
+        int armorPercent = (int)Math.Round(100.0 * armorPixels / totalRelevantPixels);
+
+        return new OCRResult
+        {
+            Success = true,
+            Armor = armorPercent,
+            TotalPixels = image.Width * image.Height
+        };
     }
 
     /// <summary>

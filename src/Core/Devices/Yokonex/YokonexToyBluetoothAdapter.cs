@@ -96,7 +96,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
     /// 役次元跳蛋/飞机杯蓝牙适配器
     /// 支持最多3个马达的独立控制
     /// </summary>
-    public class YokonexToyBluetoothAdapter : IDevice
+    public class YokonexToyBluetoothAdapter : IDevice, IYokonexToyDevice
     {
         private readonly IBluetoothTransport _transport;
         private bool _isConnected;
@@ -112,6 +112,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         private int _batteryLevel = 100;
         private int _limitA = 100;
         private int _limitB = 100;
+        
+        // 重连和电量轮询
+        private Timer? _reconnectTimer;
+        private int _reconnectAttempts;
+        private const int MaxReconnectAttempts = 5;
+        private const int ReconnectDelayMs = 3000;
 
         // IDevice 属性
         public string Id { get; }
@@ -134,6 +140,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         // 额外事件
         public event EventHandler<ToyDeviceInfo>? DeviceInfoReceived;
         public event EventHandler<(int a, int b, int c)>? PowerLevelChanged;
+        
+        // IYokonexToyDevice 事件
+        public event EventHandler<(int Motor1, int Motor2, int Motor3)>? MotorStrengthChanged;
+        
+        // IYokonexDevice 属性
+        public YokonexDeviceType YokonexType => YokonexDeviceType.Vibrator;
 
         public YokonexToyBluetoothAdapter(IBluetoothTransport transport, string? id = null, string? name = null)
         {
@@ -171,6 +183,9 @@ namespace ChargingPanel.Core.Devices.Yokonex
                 // 连接后查询设备信息
                 await QueryDeviceInfoAsync();
                 UpdateStatus(DeviceStatus.Connected);
+                
+                // 重置重连计数
+                _reconnectAttempts = 0;
             }
             catch (Exception ex)
             {
@@ -185,7 +200,23 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// </summary>
         public async Task DisconnectAsync()
         {
+            StopReconnectTimer();
             await _transport.DisconnectAsync();
+        }
+        
+        /// <summary>
+        /// 手动触发重连
+        /// </summary>
+        public async Task ReconnectAsync()
+        {
+            if (Config == null)
+            {
+                throw new InvalidOperationException("没有保存的连接配置");
+            }
+            
+            Console.WriteLine("[YokonexToy] 手动触发重连");
+            _reconnectAttempts = 0;
+            await TryReconnectAsync();
         }
 
         /// <summary>
@@ -311,25 +342,104 @@ namespace ChargingPanel.Core.Devices.Yokonex
             return (_motorA, _motorB, _motorC);
         }
 
+        #region IYokonexToyDevice 实现
+        
+        /// <summary>
+        /// 当前各马达强度 (0-20)
+        /// </summary>
+        public (int Motor1, int Motor2, int Motor3) MotorStrengths => 
+            (_motorA.PowerLevel, _motorB.PowerLevel, _motorC.PowerLevel);
+        
+        /// <summary>
+        /// 设置单个马达强度
+        /// </summary>
+        public async Task SetMotorStrengthAsync(int motor, int strength)
+        {
+            strength = Math.Clamp(strength, 0, YokonexToyProtocol.MaxPowerLevel);
+            
+            int powerA = _motorA.PowerLevel;
+            int powerB = _motorB.PowerLevel;
+            int powerC = _motorC.PowerLevel;
+            
+            switch (motor)
+            {
+                case 1: powerA = strength; break;
+                case 2: powerB = strength; break;
+                case 3: powerC = strength; break;
+            }
+            
+            await SetSpeedAsync(powerA, powerB, powerC);
+            MotorStrengthChanged?.Invoke(this, (powerA, powerB, powerC));
+        }
+        
+        /// <summary>
+        /// 设置所有马达强度
+        /// </summary>
+        public async Task SetAllMotorsAsync(int strength1, int strength2, int strength3)
+        {
+            await SetSpeedAsync(
+                Math.Clamp(strength1, 0, YokonexToyProtocol.MaxPowerLevel),
+                Math.Clamp(strength2, 0, YokonexToyProtocol.MaxPowerLevel),
+                Math.Clamp(strength3, 0, YokonexToyProtocol.MaxPowerLevel)
+            );
+            MotorStrengthChanged?.Invoke(this, (_motorA.PowerLevel, _motorB.PowerLevel, _motorC.PowerLevel));
+        }
+        
+        /// <summary>
+        /// 设置固定模式 (IYokonexToyDevice)
+        /// </summary>
+        async Task IYokonexToyDevice.SetFixedModeAsync(int mode)
+        {
+            await SetFixedModeAsync(YokonexToyProtocol.MotorABC, mode);
+        }
+        
+        /// <summary>
+        /// 停止所有马达 (IYokonexToyDevice)
+        /// </summary>
+        public async Task StopAllMotorsAsync()
+        {
+            await StopAllAsync();
+            MotorStrengthChanged?.Invoke(this, (0, 0, 0));
+        }
+        
+        #endregion
+
         #region IDevice 实现
 
         public async Task SetStrengthAsync(Channel channel, int value, StrengthMode mode = StrengthMode.Set)
         {
-            // 将强度映射到力度等级 (0-100 -> 0-20)
-            int power = (int)Math.Round(value / 5.0);
+            // 根据模式计算目标强度 (0-100 范围)
+            int targetA = _motorA.PowerLevel * 5;  // 当前值转换为 0-100
+            int targetB = _motorB.PowerLevel * 5;
             
-            switch (channel)
+            switch (mode)
             {
-                case Channel.A:
-                    await SetSpeedAsync(power, _motorB.PowerLevel, _motorC.PowerLevel);
+                case StrengthMode.Increase:
+                    if (channel == Channel.A || channel == Channel.AB)
+                        targetA = Math.Clamp(targetA + value, 0, 100);
+                    if (channel == Channel.B || channel == Channel.AB)
+                        targetB = Math.Clamp(targetB + value, 0, 100);
                     break;
-                case Channel.B:
-                    await SetSpeedAsync(_motorA.PowerLevel, power, _motorC.PowerLevel);
+                case StrengthMode.Decrease:
+                    if (channel == Channel.A || channel == Channel.AB)
+                        targetA = Math.Clamp(targetA - value, 0, 100);
+                    if (channel == Channel.B || channel == Channel.AB)
+                        targetB = Math.Clamp(targetB - value, 0, 100);
                     break;
-                case Channel.AB:
-                    await SetSpeedAsync(power, power, _motorC.PowerLevel);
+                case StrengthMode.Set:
+                default:
+                    if (channel == Channel.A || channel == Channel.AB)
+                        targetA = Math.Clamp(value, 0, 100);
+                    if (channel == Channel.B || channel == Channel.AB)
+                        targetB = Math.Clamp(value, 0, 100);
                     break;
             }
+            
+            // 将强度映射到力度等级 (0-100 -> 0-20)
+            int powerA = (int)Math.Round(targetA / 5.0);
+            int powerB = (int)Math.Round(targetB / 5.0);
+            
+            await SetSpeedAsync(powerA, powerB, _motorC.PowerLevel);
         }
 
         public Task SendWaveformAsync(Channel channel, WaveformData data)
@@ -409,10 +519,83 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             _isConnected = state == BleConnectionState.Connected;
             if (state == BleConnectionState.Connected)
+            {
                 UpdateStatus(DeviceStatus.Connected);
+            }
             else if (state == BleConnectionState.Disconnected)
+            {
                 UpdateStatus(DeviceStatus.Disconnected);
+                // 触发自动重连
+                StartReconnectTimer();
+            }
         }
+        
+        #region 自动重连
+        
+        /// <summary>
+        /// 启动重连定时器
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            if (_reconnectAttempts >= MaxReconnectAttempts)
+            {
+                Console.WriteLine($"[YokonexToy] 已达到最大重连次数 ({MaxReconnectAttempts})，停止重连");
+                return;
+            }
+            
+            StopReconnectTimer();
+            
+            _reconnectTimer = new Timer(async _ =>
+            {
+                await TryReconnectAsync();
+            }, null, TimeSpan.FromMilliseconds(ReconnectDelayMs), Timeout.InfiniteTimeSpan);
+        }
+        
+        /// <summary>
+        /// 停止重连定时器
+        /// </summary>
+        private void StopReconnectTimer()
+        {
+            _reconnectTimer?.Dispose();
+            _reconnectTimer = null;
+        }
+        
+        /// <summary>
+        /// 尝试重连
+        /// </summary>
+        private async Task TryReconnectAsync()
+        {
+            if (Config == null || Status == DeviceStatus.Connected)
+            {
+                return;
+            }
+            
+            _reconnectAttempts++;
+            Console.WriteLine($"[YokonexToy] 尝试重连 (第 {_reconnectAttempts}/{MaxReconnectAttempts} 次)");
+            
+            try
+            {
+                await ConnectAsync(Config, CancellationToken.None);
+                Console.WriteLine("[YokonexToy] 重连成功");
+                _reconnectAttempts = 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[YokonexToy] 重连失败: {ex.Message}");
+                
+                if (_reconnectAttempts < MaxReconnectAttempts)
+                {
+                    StartReconnectTimer();
+                }
+                else
+                {
+                    Console.WriteLine("[YokonexToy] 重连失败，已达到最大重连次数");
+                    UpdateStatus(DeviceStatus.Error);
+                }
+            }
+        }
+        
+        #endregion
 
         private void OnDataReceived(object? sender, BleDataReceivedEventArgs e)
         {
@@ -499,6 +682,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             if (!_disposed)
             {
+                StopReconnectTimer();
                 _transport.StateChanged -= OnTransportStateChanged;
                 _transport.DataReceived -= OnDataReceived;
                 _transport.Dispose();

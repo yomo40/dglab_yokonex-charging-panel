@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private LogsPage? _logsPage;
     private SettingsPage? _settingsPage;
     private RoomPage? _roomPage;
+    private SensorPage? _sensorPage;
 
     public MainWindow()
     {
@@ -69,13 +70,13 @@ public partial class MainWindow : Window
             var connectedCount = AppServices.Instance.DeviceManager.GetConnectedDevices().Count;
             if (connectedCount > 0)
             {
-                StatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#10B981"));
-                StatusText.Text = $"已连接 {connectedCount} 个设备";
+                TopStatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#10B981"));
+                TopStatusText.Text = $"已连接 {connectedCount} 个设备";
             }
             else
             {
-                StatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#6B7280"));
-                StatusText.Text = "未连接设备";
+                TopStatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#6B7280"));
+                TopStatusText.Text = "未连接设备";
             }
         });
     }
@@ -84,7 +85,7 @@ public partial class MainWindow : Window
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            StatusText.Text = message;
+            TopStatusText.Text = message;
         });
     }
 
@@ -122,10 +123,11 @@ public partial class MainWindow : Window
             "Devices" => ("设备管理", "添加和管理你的设备"),
             "Control" => ("设备控制", "实时控制设备输出"),
             "OCR" => ("血量识别", "配置血量识别区域和参数"),
-            "Events" => ("电击调节", "配置血量变化触发的电击规则"),
+            "Events" => ("电击规则", "配置血量变化触发的电击规则"),
+            "Sensor" => ("传感器配置", "配置役次元传感器的触发规则"),
             "Plugins" => ("游戏适配", "管理游戏适配脚本"),
             "Room" => ("多人房间", "创建或加入房间与他人互动"),
-            "Logs" => ("动作日志", "查看设备动作历史记录"),
+            "Logs" => ("日志", "查看软件运行日志"),
             "Settings" => ("系统设置", "应用程序设置"),
             _ => ("概览", "设备状态总览与快捷控制")
         };
@@ -138,6 +140,7 @@ public partial class MainWindow : Window
             "Control" => _controlPage ??= new ControlPage(),
             "OCR" => _ocrPage ??= new OCRPage(),
             "Events" => _eventsPage ??= new EventsPage(),
+            "Sensor" => _sensorPage ??= new SensorPage(),
             "Plugins" => _pluginsPage ??= new PluginsPage(),
             "Room" => _roomPage ??= new RoomPage(),
             "Logs" => _logsPage ??= new LogsPage(),
@@ -147,8 +150,8 @@ public partial class MainWindow : Window
         
         PageContainer.Child = page;
         
-        // 保存按钮只在设置/OCR/Events页面可见
-        GlobalSaveButton.IsVisible = pageName is "Settings" or "OCR" or "Events";
+        // 保存按钮只在设置页面可见
+        GlobalSaveButton.IsVisible = pageName == "Settings";
         
         Logger.Debug("Switched to page: {Page}", pageName);
     }

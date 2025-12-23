@@ -842,16 +842,60 @@ public partial class RoomPage : UserControl
                 
                 foreach (var device in devices)
                 {
+                    var channel = e.Command.Channel switch
+                    {
+                        "A" => Core.Devices.Channel.A,
+                        "B" => Core.Devices.Channel.B,
+                        _ => Core.Devices.Channel.AB
+                    };
+                    
                     switch (e.Command.Action)
                     {
                         case "set_strength":
-                            var channel = e.Command.Channel switch
+                            await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 0, Core.Devices.StrengthMode.Set);
+                            break;
+                            
+                        case "increase_strength":
+                            await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 1, Core.Devices.StrengthMode.Increase);
+                            break;
+                            
+                        case "decrease_strength":
+                            await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 1, Core.Devices.StrengthMode.Decrease);
+                            break;
+                            
+                        case "send_waveform":
+                            if (!string.IsNullOrEmpty(e.Command.WaveformData))
                             {
-                                "A" => Core.Devices.Channel.A,
-                                "B" => Core.Devices.Channel.B,
-                                _ => Core.Devices.Channel.AB
-                            };
-                            await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 0);
+                                try
+                                {
+                                    var waveData = System.Text.Json.JsonSerializer.Deserialize<Core.Devices.DGLab.WaveformData>(e.Command.WaveformData);
+                                    if (waveData != null)
+                                    {
+                                        await deviceManager.SendWaveformAsync(device.Id, channel, waveData);
+                                    }
+                                }
+                                catch (Exception wex)
+                                {
+                                    Logger.Warning(wex, "Failed to parse waveform data");
+                                }
+                            }
+                            break;
+                            
+                        case "clear_queue":
+                            await deviceManager.ClearWaveformQueueAsync(device.Id, channel);
+                            break;
+                            
+                        case "trigger_event":
+                            // 触发事件
+                            if (!string.IsNullOrEmpty(e.Command.WaveformData))
+                            {
+                                var eventService = Core.AppServices.Instance.EventService;
+                                await eventService.TriggerEventAsync(e.Command.WaveformData, device.Id);
+                            }
+                            break;
+                            
+                        case "emergency_stop":
+                            await deviceManager.EmergencyStopAllAsync();
                             break;
                     }
                 }

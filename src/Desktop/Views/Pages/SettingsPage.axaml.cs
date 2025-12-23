@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
@@ -48,6 +49,9 @@ public partial class SettingsPage : UserControl
             _ => 0
         };
         MinimizeToTray.IsChecked = GetBoolSetting(settings, "ui.minimizeToTray", false);
+        
+        // 绑定主题选择器变化事件，实现即时预览
+        ThemeSelector.SelectionChanged += OnThemeSelectionChanged;
         
         LogLevel.SelectedIndex = GetStringSetting(settings, "log.level", "Verbose") switch
         {
@@ -141,6 +145,22 @@ public partial class SettingsPage : UserControl
     private void OnSaveSettingsClick(object? sender, RoutedEventArgs e)
     {
         SaveSettings();
+    }
+    
+    /// <summary>
+    /// 主题选择变化时即时应用
+    /// </summary>
+    private void OnThemeSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var theme = ThemeSelector.SelectedIndex switch
+        {
+            0 => "dark",
+            1 => "light",
+            2 => "system",
+            _ => "dark"
+        };
+        App.SetTheme(theme);
+        Logger.Debug("Theme changed to: {Theme}", theme);
     }
 
     private void OnOpenLogsFolderClick(object? sender, RoutedEventArgs e)

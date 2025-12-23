@@ -59,6 +59,8 @@ public class DeviceManager : IDisposable
     /// <summary>QR 码变化事件（用于 WebSocket 连接）</summary>
     public event EventHandler<QRCodeChangedEventArgs>? QRCodeChanged;
 
+
+
     #region Device Creation
 
     /// <summary>
@@ -165,7 +167,9 @@ public class DeviceManager : IDisposable
             Config = config,
             Device = adapter,
             IsVirtual = isVirtual,
-            ConnectionMode = mode
+            ConnectionMode = mode,
+            DGLabVersion = dglabVersion,
+            YokonexType = yokonexType
         };
 
         // 注册事件
@@ -306,7 +310,9 @@ public class DeviceManager : IDisposable
             Status = wrapper.Status,
             State = wrapper.Device.State,
             IsVirtual = wrapper.IsVirtual,
-            ConnectionMode = wrapper.ConnectionMode
+            ConnectionMode = wrapper.ConnectionMode,
+            DGLabVersion = wrapper.DGLabVersion,
+            YokonexType = wrapper.YokonexType
         };
     }
 
@@ -329,7 +335,9 @@ public class DeviceManager : IDisposable
             Status = w.Status,
             State = w.Device.State,
             IsVirtual = w.IsVirtual,
-            ConnectionMode = w.ConnectionMode
+            ConnectionMode = w.ConnectionMode,
+            DGLabVersion = w.DGLabVersion,
+            YokonexType = w.YokonexType
         }).ToList();
         
         _cacheExpiry = DateTime.UtcNow.AddMilliseconds(CacheExpiryMs);
@@ -534,6 +542,7 @@ public class DeviceManager : IDisposable
             }
         }
         _devices.Clear();
+
         GC.SuppressFinalize(this);
     }
 
@@ -549,6 +558,8 @@ public class DeviceManager : IDisposable
         public IDevice Device { get; set; } = null!;
         public bool IsVirtual { get; set; }
         public ConnectionMode ConnectionMode { get; set; }
+        public DGLabVersion? DGLabVersion { get; set; }
+        public YokonexDeviceType? YokonexType { get; set; }
     }
 }
 
@@ -566,6 +577,8 @@ public class DeviceInfo
     public DeviceState State { get; set; } = new();
     public bool IsVirtual { get; set; }
     public ConnectionMode ConnectionMode { get; set; }
+    public DGLabVersion? DGLabVersion { get; set; }
+    public YokonexDeviceType? YokonexType { get; set; }
 }
 
 /// <summary>

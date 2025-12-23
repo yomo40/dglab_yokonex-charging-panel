@@ -54,6 +54,11 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public const byte CmdAngle = 0x14;
         
         /// <summary>
+        /// 命令字 - 查询命令
+        /// </summary>
+        public const byte CmdQuery = 0x15;
+        
+        /// <summary>
         /// 通道号
         /// </summary>
         public const byte ChannelA = 0x01;
@@ -135,6 +140,13 @@ namespace ChargingPanel.Core.Devices.Yokonex
         private (float X, float Y, float Z) _currentAngle = (0, 0, 0);
         private (bool A, bool B) _channelConnectionState = (false, false);
         private YokonexMotorState _motorState = YokonexMotorState.Off;
+        
+        // 重连和电量轮询
+        private Timer? _batteryTimer;
+        private Timer? _reconnectTimer;
+        private int _reconnectAttempts;
+        private const int MaxReconnectAttempts = 5;
+        private const int ReconnectDelayMs = 3000;
 
         // IDevice 属性
         public string Id { get; }
@@ -197,6 +209,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     YokonexEmsProtocol.ServiceUuid,
                     YokonexEmsProtocol.NotifyCharacteristic);
                 UpdateStatus(DeviceStatus.Connected);
+                
+                // 启动电量轮询
+                StartBatteryPolling();
+                
+                // 重置重连计数
+                _reconnectAttempts = 0;
             }
             catch (Exception ex)
             {
@@ -211,7 +229,24 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// </summary>
         public async Task DisconnectAsync()
         {
+            StopBatteryPolling();
+            StopReconnectTimer();
             await _transport.DisconnectAsync();
+        }
+        
+        /// <summary>
+        /// 手动触发重连
+        /// </summary>
+        public async Task ReconnectAsync()
+        {
+            if (Config == null)
+            {
+                throw new InvalidOperationException("没有保存的连接配置");
+            }
+            
+            Console.WriteLine("[YokonexEMS] 手动触发重连");
+            _reconnectAttempts = 0;
+            await TryReconnectAsync();
         }
 
         /// <summary>
@@ -433,24 +468,107 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             return (_channelA, _channelB);
         }
+        
+        /// <summary>
+        /// 查询设备状态 (通道状态、计步、角度等)
+        /// </summary>
+        /// <param name="queryType">查询类型: 0x01=通道状态, 0x02=计步, 0x03=角度</param>
+        public async Task QueryStatusAsync(byte queryType = 0x01)
+        {
+            var data = new byte[4];
+            data[0] = YokonexEmsProtocol.PacketHeader;
+            data[1] = YokonexEmsProtocol.CmdQuery;
+            data[2] = queryType;
+            data[3] = CalculateChecksum(data, 0, 3);
+
+            await SendCommandAsync(data);
+        }
+        
+        /// <summary>
+        /// 查询通道连接状态 (电极片是否接入)
+        /// </summary>
+        public Task QueryChannelConnectionAsync() => QueryStatusAsync(0x01);
+        
+        /// <summary>
+        /// 查询计步数据
+        /// </summary>
+        public Task QueryStepCountAsync() => QueryStatusAsync(0x02);
+        
+        /// <summary>
+        /// 查询角度数据
+        /// </summary>
+        public Task QueryAngleAsync() => QueryStatusAsync(0x03);
 
         #region IDevice 实现
 
         public async Task SetStrengthAsync(Channel channel, int value, StrengthMode mode = StrengthMode.Set)
         {
+            // 根据模式计算目标强度 (0-100 范围)
+            int targetValue;
+            switch (mode)
+            {
+                case StrengthMode.Increase:
+                    // 增加：基于当前值增加
+                    if (channel == Channel.A || channel == Channel.AB)
+                    {
+                        var currentA = (int)(_channelA.Strength / 2.76);
+                        targetValue = Math.Clamp(currentA + value, 0, 100);
+                    }
+                    else
+                    {
+                        var currentB = (int)(_channelB.Strength / 2.76);
+                        targetValue = Math.Clamp(currentB + value, 0, 100);
+                    }
+                    break;
+                case StrengthMode.Decrease:
+                    // 减少：基于当前值减少
+                    if (channel == Channel.A || channel == Channel.AB)
+                    {
+                        var currentA = (int)(_channelA.Strength / 2.76);
+                        targetValue = Math.Clamp(currentA - value, 0, 100);
+                    }
+                    else
+                    {
+                        var currentB = (int)(_channelB.Strength / 2.76);
+                        targetValue = Math.Clamp(currentB - value, 0, 100);
+                    }
+                    break;
+                case StrengthMode.Set:
+                default:
+                    targetValue = Math.Clamp(value, 0, 100);
+                    break;
+            }
+            
             // 将 0-100 映射到 0-276
-            int mappedValue = (int)(value * 2.76);
+            int mappedValue = (int)(targetValue * 2.76);
             
             switch (channel)
             {
                 case Channel.A:
-                    await SetChannelAAsync(mappedValue, value > 0);
+                    await SetChannelAAsync(mappedValue, targetValue > 0);
                     break;
                 case Channel.B:
-                    await SetChannelBAsync(mappedValue, value > 0);
+                    await SetChannelBAsync(mappedValue, targetValue > 0);
                     break;
                 case Channel.AB:
-                    await SetChannelABAsync(mappedValue, value > 0);
+                    // AB 通道需要分别计算
+                    if (mode == StrengthMode.Increase || mode == StrengthMode.Decrease)
+                    {
+                        var currentA = (int)(_channelA.Strength / 2.76);
+                        var currentB = (int)(_channelB.Strength / 2.76);
+                        var targetA = mode == StrengthMode.Increase 
+                            ? Math.Clamp(currentA + value, 0, 100) 
+                            : Math.Clamp(currentA - value, 0, 100);
+                        var targetB = mode == StrengthMode.Increase 
+                            ? Math.Clamp(currentB + value, 0, 100) 
+                            : Math.Clamp(currentB - value, 0, 100);
+                        await SetChannelAAsync((int)(targetA * 2.76), targetA > 0);
+                        await SetChannelBAsync((int)(targetB * 2.76), targetB > 0);
+                    }
+                    else
+                    {
+                        await SetChannelABAsync(mappedValue, targetValue > 0);
+                    }
                     break;
             }
         }
@@ -530,9 +648,15 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             _isConnected = state == BleConnectionState.Connected;
             if (state == BleConnectionState.Connected)
+            {
                 UpdateStatus(DeviceStatus.Connected);
+            }
             else if (state == BleConnectionState.Disconnected)
+            {
                 UpdateStatus(DeviceStatus.Disconnected);
+                // 触发自动重连
+                StartReconnectTimer();
+            }
         }
 
         private void OnDataReceived(object? sender, BleDataReceivedEventArgs e)
@@ -552,9 +676,189 @@ namespace ChargingPanel.Core.Devices.Yokonex
             
             // 解析不同类型的响应
             Console.WriteLine($"[YokonexEMS] 收到响应: 命令={cmd:X2}, 数据={BitConverter.ToString(data)}");
+            
+            switch (cmd)
+            {
+                case YokonexEmsProtocol.CmdChannelControl:
+                    // 通道控制响应 - 包含通道连接状态
+                    if (data.Length >= 5)
+                    {
+                        // 字节3: A通道连接状态 (0=未连接, 1=已连接)
+                        // 字节4: B通道连接状态
+                        var connA = data[2] == 0x01;
+                        var connB = data[3] == 0x01;
+                        if (_channelConnectionState != (connA, connB))
+                        {
+                            _channelConnectionState = (connA, connB);
+                            ChannelConnectionChanged?.Invoke(this, _channelConnectionState);
+                            Console.WriteLine($"[YokonexEMS] 通道连接状态: A={connA}, B={connB}");
+                        }
+                    }
+                    break;
+                    
+                case YokonexEmsProtocol.CmdPedometer:
+                    // 计步响应
+                    if (data.Length >= 6)
+                    {
+                        // 字节3-6: 计步数 (4字节，高位在前)
+                        _stepCount = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+                        StepCountChanged?.Invoke(this, _stepCount);
+                        Console.WriteLine($"[YokonexEMS] 计步: {_stepCount}");
+                    }
+                    break;
+                    
+                case YokonexEmsProtocol.CmdAngle:
+                    // 角度响应
+                    if (data.Length >= 8)
+                    {
+                        // 字节3-4: X轴原始值
+                        // 字节5-6: Y轴原始值
+                        // 字节7-8: Z轴原始值
+                        var rawX = (short)((data[2] << 8) | data[3]);
+                        var rawY = (short)((data[4] << 8) | data[5]);
+                        var rawZ = (short)((data[6] << 8) | data[7]);
+                        // 转换为角度 (需要根据实际传感器校准)
+                        _currentAngle = (rawX / 100.0f, rawY / 100.0f, rawZ / 100.0f);
+                        AngleChanged?.Invoke(this, _currentAngle);
+                        Console.WriteLine($"[YokonexEMS] 角度: X={_currentAngle.X:F2}, Y={_currentAngle.Y:F2}, Z={_currentAngle.Z:F2}");
+                    }
+                    break;
+                    
+                case YokonexEmsProtocol.CmdQuery:
+                    // 查询响应 - 根据查询类型解析
+                    if (data.Length >= 4)
+                    {
+                        var queryType = data[2];
+                        switch (queryType)
+                        {
+                            case 0x01: // 通道连接状态
+                                if (data.Length >= 5)
+                                {
+                                    _channelConnectionState = (data[3] == 0x01, data[4] == 0x01);
+                                    ChannelConnectionChanged?.Invoke(this, _channelConnectionState);
+                                }
+                                break;
+                            case 0x10: // 电量
+                                _batteryLevel = data[3];
+                                BatteryChanged?.Invoke(this, _batteryLevel);
+                                Console.WriteLine($"[YokonexEMS] 电量: {_batteryLevel}%");
+                                break;
+                        }
+                    }
+                    break;
+            }
         }
 
         private bool IsConnected => _isConnected && _transport.State == BleConnectionState.Connected;
+        
+        #region 电量轮询和自动重连
+        
+        /// <summary>
+        /// 启动电量轮询定时器
+        /// </summary>
+        private void StartBatteryPolling()
+        {
+            StopBatteryPolling();
+            
+            // 每 60 秒轮询一次电量
+            _batteryTimer = new Timer(async _ =>
+            {
+                if (!IsConnected) return;
+                
+                try
+                {
+                    // 役次元电击器电量查询 (需要根据实际协议实现)
+                    // 这里假设发送 0x35 0x15 查询电量
+                    var queryData = new byte[3];
+                    queryData[0] = YokonexEmsProtocol.PacketHeader;
+                    queryData[1] = 0x15;  // 假设的电量查询命令
+                    queryData[2] = CalculateChecksum(queryData, 0, 2);
+                    
+                    await _transport.WriteWithoutResponseAsync(
+                        YokonexEmsProtocol.ServiceUuid,
+                        YokonexEmsProtocol.WriteCharacteristic,
+                        queryData);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[YokonexEMS] 电量轮询失败: {ex.Message}");
+                }
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60));
+        }
+        
+        /// <summary>
+        /// 停止电量轮询定时器
+        /// </summary>
+        private void StopBatteryPolling()
+        {
+            _batteryTimer?.Dispose();
+            _batteryTimer = null;
+        }
+        
+        /// <summary>
+        /// 启动重连定时器
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            if (_reconnectAttempts >= MaxReconnectAttempts)
+            {
+                Console.WriteLine($"[YokonexEMS] 已达到最大重连次数 ({MaxReconnectAttempts})，停止重连");
+                return;
+            }
+            
+            StopReconnectTimer();
+            
+            _reconnectTimer = new Timer(async _ =>
+            {
+                await TryReconnectAsync();
+            }, null, TimeSpan.FromMilliseconds(ReconnectDelayMs), Timeout.InfiniteTimeSpan);
+        }
+        
+        /// <summary>
+        /// 停止重连定时器
+        /// </summary>
+        private void StopReconnectTimer()
+        {
+            _reconnectTimer?.Dispose();
+            _reconnectTimer = null;
+        }
+        
+        /// <summary>
+        /// 尝试重连
+        /// </summary>
+        private async Task TryReconnectAsync()
+        {
+            if (Config == null || Status == DeviceStatus.Connected)
+            {
+                return;
+            }
+            
+            _reconnectAttempts++;
+            Console.WriteLine($"[YokonexEMS] 尝试重连 (第 {_reconnectAttempts}/{MaxReconnectAttempts} 次)");
+            
+            try
+            {
+                await ConnectAsync(Config, CancellationToken.None);
+                Console.WriteLine("[YokonexEMS] 重连成功");
+                _reconnectAttempts = 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[YokonexEMS] 重连失败: {ex.Message}");
+                
+                if (_reconnectAttempts < MaxReconnectAttempts)
+                {
+                    StartReconnectTimer();
+                }
+                else
+                {
+                    Console.WriteLine("[YokonexEMS] 重连失败，已达到最大重连次数");
+                    UpdateStatus(DeviceStatus.Error);
+                }
+            }
+        }
+        
+        #endregion
 
         #endregion
 
@@ -562,6 +866,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             if (!_disposed)
             {
+                StopBatteryPolling();
+                StopReconnectTimer();
                 _transport.StateChanged -= OnTransportStateChanged;
                 _transport.DataReceived -= OnDataReceived;
                 _transport.Dispose();

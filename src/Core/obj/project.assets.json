@@ -2,6 +2,42 @@
   "version": 3,
   "targets": {
     "net8.0-windows10.0.19041": {
+      "Esprima/3.0.5": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Jint/3.1.6": {
+        "type": "package",
+        "dependencies": {
+          "Esprima": "3.0.5"
+        },
+        "compile": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.AI.DirectML/1.15.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.AI.DirectML.props": {},
+          "build/Microsoft.AI.DirectML.targets": {}
+        }
+      },
       "Microsoft.Data.Sqlite/8.0.11": {
         "type": "package",
         "dependencies": {
@@ -66,61 +102,22 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "Microsoft.ML.OnnxRuntime/1.19.2": {
+      "Microsoft.ML.OnnxRuntime.DirectML/1.19.2": {
         "type": "package",
         "dependencies": {
+          "Microsoft.AI.DirectML": "1.15.1",
           "Microsoft.ML.OnnxRuntime.Managed": "1.19.2"
         },
         "build": {
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.props": {},
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.targets": {}
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.props": {},
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.targets": {}
         },
         "runtimeTargets": {
-          "runtimes/android/native/onnxruntime.aar": {
-            "assetType": "native",
-            "rid": "android"
-          },
-          "runtimes/ios/native/onnxruntime.xcframework.zip": {
-            "assetType": "native",
-            "rid": "ios"
-          },
-          "runtimes/linux-arm64/native/libonnxruntime.so": {
-            "assetType": "native",
-            "rid": "linux-arm64"
-          },
-          "runtimes/linux-arm64/native/libonnxruntime_providers_shared.so": {
-            "assetType": "native",
-            "rid": "linux-arm64"
-          },
-          "runtimes/linux-x64/native/libonnxruntime.so": {
-            "assetType": "native",
-            "rid": "linux-x64"
-          },
-          "runtimes/linux-x64/native/libonnxruntime_providers_shared.so": {
-            "assetType": "native",
-            "rid": "linux-x64"
-          },
-          "runtimes/osx-arm64/native/libonnxruntime.dylib": {
-            "assetType": "native",
-            "rid": "osx-arm64"
-          },
-          "runtimes/osx-x64/native/libonnxruntime.dylib": {
-            "assetType": "native",
-            "rid": "osx-x64"
-          },
           "runtimes/win-arm64/native/onnxruntime.dll": {
             "assetType": "native",
             "rid": "win-arm64"
           },
           "runtimes/win-arm64/native/onnxruntime.lib": {
-            "assetType": "native",
-            "rid": "win-arm64"
-          },
-          "runtimes/win-arm64/native/onnxruntime_providers_shared.dll": {
-            "assetType": "native",
-            "rid": "win-arm64"
-          },
-          "runtimes/win-arm64/native/onnxruntime_providers_shared.lib": {
             "assetType": "native",
             "rid": "win-arm64"
           },
@@ -132,27 +129,11 @@
             "assetType": "native",
             "rid": "win-x64"
           },
-          "runtimes/win-x64/native/onnxruntime_providers_shared.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/onnxruntime_providers_shared.lib": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
           "runtimes/win-x86/native/onnxruntime.dll": {
             "assetType": "native",
             "rid": "win-x86"
           },
           "runtimes/win-x86/native/onnxruntime.lib": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/onnxruntime_providers_shared.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/onnxruntime_providers_shared.lib": {
             "assetType": "native",
             "rid": "win-x86"
           }
@@ -474,7 +455,7 @@
           }
         }
       },
-      "SixLabors.ImageSharp/3.1.5": {
+      "SixLabors.ImageSharp/3.1.12": {
         "type": "package",
         "compile": {
           "lib/net6.0/SixLabors.ImageSharp.dll": {
@@ -1566,6 +1547,42 @@
       }
     },
     "net8.0-windows10.0.19041/win-arm64": {
+      "Esprima/3.0.5": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Jint/3.1.6": {
+        "type": "package",
+        "dependencies": {
+          "Esprima": "3.0.5"
+        },
+        "compile": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.AI.DirectML/1.15.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.AI.DirectML.props": {},
+          "build/Microsoft.AI.DirectML.targets": {}
+        }
+      },
       "Microsoft.Data.Sqlite/8.0.11": {
         "type": "package",
         "dependencies": {
@@ -1630,20 +1647,19 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "Microsoft.ML.OnnxRuntime/1.19.2": {
+      "Microsoft.ML.OnnxRuntime.DirectML/1.19.2": {
         "type": "package",
         "dependencies": {
+          "Microsoft.AI.DirectML": "1.15.1",
           "Microsoft.ML.OnnxRuntime.Managed": "1.19.2"
         },
         "native": {
           "runtimes/win-arm64/native/onnxruntime.dll": {},
-          "runtimes/win-arm64/native/onnxruntime.lib": {},
-          "runtimes/win-arm64/native/onnxruntime_providers_shared.dll": {},
-          "runtimes/win-arm64/native/onnxruntime_providers_shared.lib": {}
+          "runtimes/win-arm64/native/onnxruntime.lib": {}
         },
         "build": {
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.props": {},
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.targets": {}
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.props": {},
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.targets": {}
         }
       },
       "Microsoft.ML.OnnxRuntime.Managed/1.19.2": {
@@ -2142,7 +2158,7 @@
           }
         }
       },
-      "SixLabors.ImageSharp/3.1.5": {
+      "SixLabors.ImageSharp/3.1.12": {
         "type": "package",
         "compile": {
           "lib/net6.0/SixLabors.ImageSharp.dll": {
@@ -3128,6 +3144,42 @@
       }
     },
     "net8.0-windows10.0.19041/win-x64": {
+      "Esprima/3.0.5": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Esprima.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Jint/3.1.6": {
+        "type": "package",
+        "dependencies": {
+          "Esprima": "3.0.5"
+        },
+        "compile": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Jint.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.AI.DirectML/1.15.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.AI.DirectML.props": {},
+          "build/Microsoft.AI.DirectML.targets": {}
+        }
+      },
       "Microsoft.Data.Sqlite/8.0.11": {
         "type": "package",
         "dependencies": {
@@ -3192,20 +3244,19 @@
           "buildTransitive/net6.0/_._": {}
         }
       },
-      "Microsoft.ML.OnnxRuntime/1.19.2": {
+      "Microsoft.ML.OnnxRuntime.DirectML/1.19.2": {
         "type": "package",
         "dependencies": {
+          "Microsoft.AI.DirectML": "1.15.1",
           "Microsoft.ML.OnnxRuntime.Managed": "1.19.2"
         },
         "native": {
           "runtimes/win-x64/native/onnxruntime.dll": {},
-          "runtimes/win-x64/native/onnxruntime.lib": {},
-          "runtimes/win-x64/native/onnxruntime_providers_shared.dll": {},
-          "runtimes/win-x64/native/onnxruntime_providers_shared.lib": {}
+          "runtimes/win-x64/native/onnxruntime.lib": {}
         },
         "build": {
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.props": {},
-          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.targets": {}
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.props": {},
+          "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.targets": {}
         }
       },
       "Microsoft.ML.OnnxRuntime.Managed/1.19.2": {
@@ -3704,7 +3755,7 @@
           }
         }
       },
-      "SixLabors.ImageSharp/3.1.5": {
+      "SixLabors.ImageSharp/3.1.12": {
         "type": "package",
         "compile": {
           "lib/net6.0/SixLabors.ImageSharp.dll": {
@@ -4691,6 +4742,107 @@
     }
   },
   "libraries": {
+    "Esprima/3.0.5": {
+      "sha512": "yJrbImpXdJAwKoa0FOgK3JV4wuOPHhKI1vWmNepJD5U/t6ENwEr0FX6gl06rIxxKbVGrKCd8JMmm7rieT/4dIw==",
+      "type": "package",
+      "path": "esprima/3.0.5",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "esprima.3.0.5.nupkg.sha512",
+        "esprima.nuspec",
+        "lib/net462/Esprima.dll",
+        "lib/net462/Esprima.xml",
+        "lib/netstandard2.0/Esprima.dll",
+        "lib/netstandard2.0/Esprima.xml",
+        "lib/netstandard2.1/Esprima.dll",
+        "lib/netstandard2.1/Esprima.xml"
+      ]
+    },
+    "Jint/3.1.6": {
+      "sha512": "xUKyx6vTjBv/6cVjKgEYtEuMYwTns1u9LxZ6lPdHpFtg4OIuofMNcF9UW1fEe0mHO/35ZO987IRRrxF11Iq0Qw==",
+      "type": "package",
+      "path": "jint/3.1.6",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "jint.3.1.6.nupkg.sha512",
+        "jint.nuspec",
+        "lib/net462/Jint.dll",
+        "lib/net462/Jint.xml",
+        "lib/net6.0/Jint.dll",
+        "lib/net6.0/Jint.xml",
+        "lib/net8.0/Jint.dll",
+        "lib/net8.0/Jint.xml",
+        "lib/netstandard2.0/Jint.dll",
+        "lib/netstandard2.0/Jint.xml",
+        "lib/netstandard2.1/Jint.dll",
+        "lib/netstandard2.1/Jint.xml"
+      ]
+    },
+    "Microsoft.AI.DirectML/1.15.1": {
+      "sha512": "j1zJaXb6nKpYFaHLTH/jA5xr0Am1TeRUadkve63Gs1Mkg6xZiwDbXvPg4qMDRcpEZmYKzwHax53duheEz3nzAg==",
+      "type": "package",
+      "path": "microsoft.ai.directml/1.15.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE-CODE.txt",
+        "LICENSE.txt",
+        "README.md",
+        "ThirdPartyNotices.txt",
+        "bin/arm-win/DirectML.Debug.dll",
+        "bin/arm-win/DirectML.Debug.pdb",
+        "bin/arm-win/DirectML.dll",
+        "bin/arm-win/DirectML.lib",
+        "bin/arm-win/DirectML.pdb",
+        "bin/arm64-win/DirectML.Debug.dll",
+        "bin/arm64-win/DirectML.Debug.pdb",
+        "bin/arm64-win/DirectML.dll",
+        "bin/arm64-win/DirectML.lib",
+        "bin/arm64-win/DirectML.pdb",
+        "bin/arm64ec-win/DirectML.Debug.dll",
+        "bin/arm64ec-win/DirectML.Debug.pdb",
+        "bin/arm64ec-win/DirectML.dll",
+        "bin/arm64ec-win/DirectML.lib",
+        "bin/arm64ec-win/DirectML.pdb",
+        "bin/x64-linux/libdirectml.so",
+        "bin/x64-win/DirectML.Debug.dll",
+        "bin/x64-win/DirectML.Debug.pdb",
+        "bin/x64-win/DirectML.dll",
+        "bin/x64-win/DirectML.lib",
+        "bin/x64-win/DirectML.pdb",
+        "bin/x64-xbox-scarlett-230307/DirectML.Debug.dll",
+        "bin/x64-xbox-scarlett-230307/DirectML.Debug.pdb",
+        "bin/x64-xbox-scarlett-230307/DirectML.dll",
+        "bin/x64-xbox-scarlett-230307/DirectML.lib",
+        "bin/x64-xbox-scarlett-230307/DirectML.pdb",
+        "bin/x64-xbox-scarlett-230603/DirectML.Debug.dll",
+        "bin/x64-xbox-scarlett-230603/DirectML.Debug.pdb",
+        "bin/x64-xbox-scarlett-230603/DirectML.dll",
+        "bin/x64-xbox-scarlett-230603/DirectML.lib",
+        "bin/x64-xbox-scarlett-230603/DirectML.pdb",
+        "bin/x64-xbox-scarlett-231000/DirectML.Debug.dll",
+        "bin/x64-xbox-scarlett-231000/DirectML.Debug.pdb",
+        "bin/x64-xbox-scarlett-231000/DirectML.dll",
+        "bin/x64-xbox-scarlett-231000/DirectML.lib",
+        "bin/x64-xbox-scarlett-231000/DirectML.pdb",
+        "bin/x86-win/DirectML.Debug.dll",
+        "bin/x86-win/DirectML.Debug.pdb",
+        "bin/x86-win/DirectML.dll",
+        "bin/x86-win/DirectML.lib",
+        "bin/x86-win/DirectML.pdb",
+        "build/Microsoft.AI.DirectML.Rules.Project.xml",
+        "build/Microsoft.AI.DirectML.props",
+        "build/Microsoft.AI.DirectML.targets",
+        "include/DirectML.h",
+        "include/DirectMLConfig.h",
+        "microsoft.ai.directml.1.15.1.nupkg.sha512",
+        "microsoft.ai.directml.nuspec"
+      ]
+    },
     "Microsoft.Data.Sqlite/8.0.11": {
       "sha512": "6JocV6S1akKlXaDVpRmmwc9d/M7wXBmiEZ7RxB5lxDk+er9Xi3P+yVYVnh+6IJ+Y6v8pecGWhGwcgH1mONcLuw==",
       "type": "package",
@@ -4788,10 +4940,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.ML.OnnxRuntime/1.19.2": {
-      "sha512": "V1v8BebP1ZEFcZf2hGWuN7S5jAqmE2zBOq9RbGebZi2jd/aTZpg4PiTDtpQoGAIhZg4EPQUsHAyOJxwue44pBA==",
+    "Microsoft.ML.OnnxRuntime.DirectML/1.19.2": {
+      "sha512": "tNSSwJoPiJy92mdP6Y2Kb3JyEwxqlzfYkhbtT9QrU2XMGCyXA+Rbc07Y892rTtYBK/8btE3zWCZ3VdEYlHrtfA==",
       "type": "package",
-      "path": "microsoft.ml.onnxruntime/1.19.2",
+      "path": "microsoft.ml.onnxruntime.directml/1.19.2",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -4800,9 +4952,10 @@
         "Privacy.md",
         "README.md",
         "ThirdPartyNotices.txt",
-        "build/native/Microsoft.ML.OnnxRuntime.props",
-        "build/native/Microsoft.ML.OnnxRuntime.targets",
+        "build/native/Microsoft.ML.OnnxRuntime.DirectML.props",
+        "build/native/Microsoft.ML.OnnxRuntime.DirectML.targets",
         "build/native/include/cpu_provider_factory.h",
+        "build/native/include/dml_provider_factory.h",
         "build/native/include/onnxruntime_c_api.h",
         "build/native/include/onnxruntime_cxx_api.h",
         "build/native/include/onnxruntime_cxx_inline.h",
@@ -4811,38 +4964,18 @@
         "build/native/include/onnxruntime_run_options_config_keys.h",
         "build/native/include/onnxruntime_session_options_config_keys.h",
         "build/native/include/provider_options.h",
-        "build/net8.0-android31.0/Microsoft.ML.OnnxRuntime.targets",
-        "build/net8.0-ios15.4/Microsoft.ML.OnnxRuntime.targets",
-        "build/net8.0-maccatalyst14.0/_._",
-        "build/netstandard2.0/Microsoft.ML.OnnxRuntime.props",
-        "build/netstandard2.0/Microsoft.ML.OnnxRuntime.targets",
-        "build/netstandard2.1/Microsoft.ML.OnnxRuntime.props",
-        "build/netstandard2.1/Microsoft.ML.OnnxRuntime.targets",
-        "buildTransitive/net8.0-android31.0/Microsoft.ML.OnnxRuntime.targets",
-        "buildTransitive/net8.0-ios15.4/Microsoft.ML.OnnxRuntime.targets",
-        "buildTransitive/net8.0-maccatalyst14.0/_._",
-        "microsoft.ml.onnxruntime.1.19.2.nupkg.sha512",
-        "microsoft.ml.onnxruntime.nuspec",
-        "runtimes/android/native/onnxruntime.aar",
-        "runtimes/ios/native/onnxruntime.xcframework.zip",
-        "runtimes/linux-arm64/native/libonnxruntime.so",
-        "runtimes/linux-arm64/native/libonnxruntime_providers_shared.so",
-        "runtimes/linux-x64/native/libonnxruntime.so",
-        "runtimes/linux-x64/native/libonnxruntime_providers_shared.so",
-        "runtimes/osx-arm64/native/libonnxruntime.dylib",
-        "runtimes/osx-x64/native/libonnxruntime.dylib",
+        "build/netstandard2.0/Microsoft.ML.OnnxRuntime.DirectML.props",
+        "build/netstandard2.0/Microsoft.ML.OnnxRuntime.DirectML.targets",
+        "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.props",
+        "build/netstandard2.1/Microsoft.ML.OnnxRuntime.DirectML.targets",
+        "microsoft.ml.onnxruntime.directml.1.19.2.nupkg.sha512",
+        "microsoft.ml.onnxruntime.directml.nuspec",
         "runtimes/win-arm64/native/onnxruntime.dll",
         "runtimes/win-arm64/native/onnxruntime.lib",
-        "runtimes/win-arm64/native/onnxruntime_providers_shared.dll",
-        "runtimes/win-arm64/native/onnxruntime_providers_shared.lib",
         "runtimes/win-x64/native/onnxruntime.dll",
         "runtimes/win-x64/native/onnxruntime.lib",
-        "runtimes/win-x64/native/onnxruntime_providers_shared.dll",
-        "runtimes/win-x64/native/onnxruntime_providers_shared.lib",
         "runtimes/win-x86/native/onnxruntime.dll",
-        "runtimes/win-x86/native/onnxruntime.lib",
-        "runtimes/win-x86/native/onnxruntime_providers_shared.dll",
-        "runtimes/win-x86/native/onnxruntime_providers_shared.lib"
+        "runtimes/win-x86/native/onnxruntime.lib"
       ]
     },
     "Microsoft.ML.OnnxRuntime.Managed/1.19.2": {
@@ -5810,10 +5943,10 @@
         "serilog.sinks.file.nuspec"
       ]
     },
-    "SixLabors.ImageSharp/3.1.5": {
-      "sha512": "lNtlq7dSI/QEbYey+A0xn48z5w4XHSffF8222cC4F4YwTXfEImuiBavQcWjr49LThT/pRmtWJRcqA/PlL+eJ6g==",
+    "SixLabors.ImageSharp/3.1.12": {
+      "sha512": "iAg6zifihXEFS/t7fiHhZBGAdCp3FavsF4i2ZIDp0JfeYeDVzvmlbY1CNhhIKimaIzrzSi5M/NBFcWvZT2rB/A==",
       "type": "package",
-      "path": "sixlabors.imagesharp/3.1.5",
+      "path": "sixlabors.imagesharp/3.1.12",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -5822,7 +5955,7 @@
         "lib/net6.0/SixLabors.ImageSharp.dll",
         "lib/net6.0/SixLabors.ImageSharp.xml",
         "sixlabors.imagesharp.128.png",
-        "sixlabors.imagesharp.3.1.5.nupkg.sha512",
+        "sixlabors.imagesharp.3.1.12.nupkg.sha512",
         "sixlabors.imagesharp.nuspec"
       ]
     },
@@ -8448,15 +8581,16 @@
   },
   "projectFileDependencyGroups": {
     "net8.0-windows10.0.19041": [
+      "Jint >= 3.1.6",
       "Microsoft.Data.Sqlite >= 8.0.11",
       "Microsoft.Extensions.DependencyInjection >= 8.0.1",
-      "Microsoft.ML.OnnxRuntime >= 1.19.2",
+      "Microsoft.ML.OnnxRuntime.DirectML >= 1.19.2",
       "QRCoder >= 1.6.0",
       "Serilog >= 4.1.0",
       "Serilog.Formatting.Compact >= 3.0.0",
       "Serilog.Sinks.Console >= 6.0.0",
       "Serilog.Sinks.File >= 6.0.0",
-      "SixLabors.ImageSharp >= 3.1.5",
+      "SixLabors.ImageSharp >= 3.1.12",
       "System.Net.Http.Json >= 8.0.1",
       "System.Net.WebSockets.Client >= 4.3.2",
       "System.Reactive >= 6.0.1",
@@ -8470,11 +8604,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
+      "projectUniqueName": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj",
       "projectName": "ChargingPanel.Core",
-      "projectPath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
+      "projectPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj",
       "packagesPath": "C:\\Users\\凌雨墨\\.nuget\\packages\\",
-      "outputPath": "F:\\test\\github\\src\\Core\\obj\\",
+      "outputPath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -8513,6 +8647,10 @@
       "net8.0-windows10.0.19041": {
         "targetAlias": "net8.0-windows10.0.19041.0",
         "dependencies": {
+          "Jint": {
+            "target": "Package",
+            "version": "[3.1.6, )"
+          },
           "Microsoft.Data.Sqlite": {
             "target": "Package",
             "version": "[8.0.11, )"
@@ -8521,7 +8659,7 @@
             "target": "Package",
             "version": "[8.0.1, )"
           },
-          "Microsoft.ML.OnnxRuntime": {
+          "Microsoft.ML.OnnxRuntime.DirectML": {
             "target": "Package",
             "version": "[1.19.2, )"
           },
@@ -8547,7 +8685,7 @@
           },
           "SixLabors.ImageSharp": {
             "target": "Package",
-            "version": "[3.1.5, )"
+            "version": "[3.1.12, )"
           },
           "System.Net.Http.Json": {
             "target": "Package",
@@ -8646,31 +8784,5 @@
         "#import": []
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known high severity vulnerability, https://github.com/advisories/GHSA-2cmq-823j-5qj8",
-      "libraryId": "SixLabors.ImageSharp",
-      "targetGraphs": [
-        "net8.0-windows10.0.19041",
-        "net8.0-windows10.0.19041/win-arm64",
-        "net8.0-windows10.0.19041/win-x64"
-      ]
-    },
-    {
-      "code": "NU1902",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc",
-      "libraryId": "SixLabors.ImageSharp",
-      "targetGraphs": [
-        "net8.0-windows10.0.19041",
-        "net8.0-windows10.0.19041/win-arm64",
-        "net8.0-windows10.0.19041/win-x64"
-      ]
-    }
-  ]
+  }
 }

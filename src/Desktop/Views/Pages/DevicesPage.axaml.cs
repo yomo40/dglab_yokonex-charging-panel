@@ -22,10 +22,12 @@ public partial class DevicesPage : UserControl
 #pragma warning disable CS0414 // Field is assigned but never used - reserved for future use
     private bool _isDGLabTabActive = true;
     private bool _isDGLabWSMode = true;
-    private bool _isYokonexIMMode = true;
+    private bool _isYokonexIMMode = false;  // 默认蓝牙模式
     private bool _useOfficialServer = true;
 #pragma warning restore CS0414
     private bool _isScanning = false;
+    private YokonexDeviceType _selectedYokonexType = YokonexDeviceType.Estim;
+    private DGLabVersion _selectedDGLabVersion = DGLabVersion.V3;  // 默认V3
     
     public ObservableCollection<DeviceViewModel> Devices { get; } = new();
 
@@ -179,14 +181,71 @@ public partial class DevicesPage : UserControl
     private void OnTabYokonexClick(object? sender, RoutedEventArgs e)
     {
         _isDGLabTabActive = false;
-        TabYokonex.Background = new SolidColorBrush(Color.Parse("#06b6d4"));
+        TabYokonex.Background = new SolidColorBrush(Color.Parse("#F59E0B"));
         TabYokonex.Foreground = Brushes.White;
-        TabYokonex.BorderBrush = new SolidColorBrush(Color.Parse("#06b6d4"));
+        TabYokonex.BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B"));
         TabDGLab.Background = new SolidColorBrush(Color.Parse("#313244"));
         TabDGLab.Foreground = new SolidColorBrush(Color.Parse("#A6ADC8"));
         TabDGLab.BorderBrush = new SolidColorBrush(Color.Parse("#45475A"));
         FormDGLab.IsVisible = false;
         FormYokonex.IsVisible = true;
+    }
+    
+    private void OnYokonexDeviceTypeClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string typeTag) return;
+        
+        _selectedYokonexType = typeTag switch
+        {
+            "Estim" => YokonexDeviceType.Estim,
+            "Enema" => YokonexDeviceType.Enema,
+            "Vibrator" => YokonexDeviceType.Vibrator,
+            "Cup" => YokonexDeviceType.Cup,
+            _ => YokonexDeviceType.Estim
+        };
+        
+        // 更新按钮样式
+        var buttons = new[] { BtnYokonexEstim, BtnYokonexEnema, BtnYokonexVibrator, BtnYokonexCup };
+        foreach (var b in buttons)
+        {
+            b.BorderBrush = new SolidColorBrush(Color.Parse("#45475A"));
+        }
+        btn.BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B"));
+        
+        // 更新设备信息卡片
+        UpdateYokonexDeviceInfo();
+        
+        // 更新蓝牙扫描描述
+        UpdateYokonexBTScanDesc();
+    }
+    
+    private void UpdateYokonexDeviceInfo()
+    {
+        var (icon, title, desc) = _selectedYokonexType switch
+        {
+            YokonexDeviceType.Estim => ("🔌", "役次元电击器", "支持双通道 EMS 控制 (276级强度)、16种固定模式、自定义模式、马达控制、计步器、角度传感器"),
+            YokonexDeviceType.Enema => ("💉", "役次元灌肠器", "支持蠕动泵控制 (正转/反转)、抽水泵控制、压力传感器、AES-128 加密通信"),
+            YokonexDeviceType.Vibrator => ("💗", "役次元跳蛋", "支持多马达独立控制 (最多3个)、20级力度等级、多种固定模式"),
+            YokonexDeviceType.Cup => ("🍆", "役次元飞机杯", "支持多马达独立控制 (最多3个)、20级力度等级、多种固定模式"),
+            _ => ("📱", "役次元设备", "")
+        };
+        
+        YokonexDeviceIcon.Text = icon;
+        YokonexDeviceTitle.Text = title;
+        YokonexDeviceDesc.Text = desc;
+    }
+    
+    private void UpdateYokonexBTScanDesc()
+    {
+        var desc = _selectedYokonexType switch
+        {
+            YokonexDeviceType.Estim => "扫描附近的役次元电击器设备 (服务 UUID: FF30)",
+            YokonexDeviceType.Enema => "扫描附近的役次元灌肠器设备 (服务 UUID: FFB0)",
+            YokonexDeviceType.Vibrator => "扫描附近的役次元跳蛋设备 (服务 UUID: FF40)",
+            YokonexDeviceType.Cup => "扫描附近的役次元飞机杯设备 (服务 UUID: FF40)",
+            _ => "扫描附近的役次元设备"
+        };
+        YokonexBTScanDesc.Text = desc;
     }
 
     #endregion
@@ -213,6 +272,43 @@ public partial class DevicesPage : UserControl
         BtnDGLabWS.BorderThickness = new Thickness(1);
         DGLabWSForm.IsVisible = false;
         DGLabBTForm.IsVisible = true;
+    }
+    
+    private void OnDGLabVersionV2Click(object? sender, RoutedEventArgs e)
+    {
+        _selectedDGLabVersion = DGLabVersion.V2;
+        UpdateDGLabVersionUI();
+    }
+    
+    private void OnDGLabVersionV3Click(object? sender, RoutedEventArgs e)
+    {
+        _selectedDGLabVersion = DGLabVersion.V3;
+        UpdateDGLabVersionUI();
+    }
+    
+    private void UpdateDGLabVersionUI()
+    {
+        // 更新按钮样式
+        var selectedColor = Color.Parse("#8b5cf6");
+        var unselectedColor = Color.Parse("#45475A");
+        
+        BtnDGLabV2.BorderBrush = new SolidColorBrush(_selectedDGLabVersion == DGLabVersion.V2 ? selectedColor : unselectedColor);
+        BtnDGLabV3.BorderBrush = new SolidColorBrush(_selectedDGLabVersion == DGLabVersion.V3 ? selectedColor : unselectedColor);
+        
+        // 更新提示文本
+        var (hint, prefix) = _selectedDGLabVersion switch
+        {
+            DGLabVersion.V2 => ("扫描附近的 DG-LAB V2 设备 (D-LAB ESTIM01)", "D-LAB ESTIM01"),
+            DGLabVersion.V3 => ("扫描附近的 DG-LAB V3 设备 (47L121000)", "47L121000"),
+            _ => ("扫描附近的 DG-LAB 设备", "47L")
+        };
+        
+        if (this.FindControl<TextBlock>("DGLabBTVersionHint") is TextBlock hintText)
+        {
+            hintText.Text = hint;
+        }
+        
+        Logger.Information("DG-LAB version selected: {Version}", _selectedDGLabVersion);
     }
 
     private void OnOfficialServerClick(object? sender, RoutedEventArgs e)
@@ -242,10 +338,10 @@ public partial class DevicesPage : UserControl
     private void OnYokonexConnModeIMClick(object? sender, RoutedEventArgs e)
     {
         _isYokonexIMMode = true;
-        BtnYokonexIM.BorderBrush = new SolidColorBrush(Color.Parse("#06b6d4"));
+        BtnYokonexIM.BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B"));
         BtnYokonexIM.BorderThickness = new Thickness(2);
         BtnYokonexBT.BorderBrush = new SolidColorBrush(Color.Parse("#45475A"));
-        BtnYokonexBT.BorderThickness = new Thickness(1);
+        BtnYokonexBT.BorderThickness = new Thickness(2);
         YokonexIMForm.IsVisible = true;
         YokonexBTForm.IsVisible = false;
     }
@@ -253,10 +349,10 @@ public partial class DevicesPage : UserControl
     private void OnYokonexConnModeBTClick(object? sender, RoutedEventArgs e)
     {
         _isYokonexIMMode = false;
-        BtnYokonexBT.BorderBrush = new SolidColorBrush(Color.Parse("#3B82F6"));
+        BtnYokonexBT.BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B"));
         BtnYokonexBT.BorderThickness = new Thickness(2);
         BtnYokonexIM.BorderBrush = new SolidColorBrush(Color.Parse("#45475A"));
-        BtnYokonexIM.BorderThickness = new Thickness(1);
+        BtnYokonexIM.BorderThickness = new Thickness(2);
         YokonexIMForm.IsVisible = false;
         YokonexBTForm.IsVisible = true;
     }
@@ -566,9 +662,22 @@ public partial class DevicesPage : UserControl
             deviceList.Children.Add(new TextBlock { Text = "正在扫描蓝牙设备，请稍候...", Foreground = new SolidColorBrush(Color.Parse("#F59E0B")), FontSize = 12, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center });
 
             using var transport = new WindowsBluetoothTransport();
-            Guid? serviceFilter = deviceType == DeviceType.Yokonex ? Guid.Parse("0000ff30-0000-1000-8000-00805f9b34fb") : null;
             
-            Logger.Information("Starting Bluetooth scan for {Type} devices...", deviceType);
+            // 根据设备类型选择服务 UUID
+            Guid? serviceFilter = null;
+            if (deviceType == DeviceType.Yokonex)
+            {
+                serviceFilter = _selectedYokonexType switch
+                {
+                    YokonexDeviceType.Estim => Guid.Parse("0000ff30-0000-1000-8000-00805f9b34fb"),
+                    YokonexDeviceType.Enema => Guid.Parse("0000ffb0-0000-1000-8000-00805f9b34fb"),
+                    YokonexDeviceType.Vibrator or YokonexDeviceType.Cup => Guid.Parse("0000ff40-0000-1000-8000-00805f9b34fb"),
+                    _ => Guid.Parse("0000ff30-0000-1000-8000-00805f9b34fb")
+                };
+            }
+            
+            Logger.Information("Starting Bluetooth scan for {Type} devices (YokonexType={YokonexType}, ServiceUUID={ServiceUUID})...", 
+                deviceType, _selectedYokonexType, serviceFilter);
             var devices = await transport.ScanAsync(serviceFilter: serviceFilter, namePrefix: null, timeoutMs: 8000);
             deviceList.Children.Clear();
 
@@ -578,6 +687,7 @@ public partial class DevicesPage : UserControl
                 noDevicePanel.Children.Add(new TextBlock { Text = "未发现设备", Foreground = new SolidColorBrush(Color.Parse("#EF4444")), FontSize = 13, FontWeight = FontWeight.SemiBold });
                 noDevicePanel.Children.Add(new TextBlock { Text = "• 设备是否已开启电源", Foreground = new SolidColorBrush(Color.Parse("#A6ADC8")), FontSize = 12 });
                 noDevicePanel.Children.Add(new TextBlock { Text = "• 设备是否在蓝牙范围内", Foreground = new SolidColorBrush(Color.Parse("#A6ADC8")), FontSize = 12 });
+                noDevicePanel.Children.Add(new TextBlock { Text = "• 是否选择了正确的设备类型", Foreground = new SolidColorBrush(Color.Parse("#A6ADC8")), FontSize = 12 });
                 var diagnoseBtn = new Button { Content = "🔧 诊断蓝牙", Background = new SolidColorBrush(Color.Parse("#F59E0B")), Foreground = Brushes.White, Padding = new Thickness(12, 6), Margin = new Thickness(0, 10, 0, 0) };
                 diagnoseBtn.Click += OnDiagnoseBluetoothClick;
                 noDevicePanel.Children.Add(diagnoseBtn);
@@ -615,13 +725,14 @@ public partial class DevicesPage : UserControl
 
     private Border CreateBluetoothDeviceCard(BleDeviceInfo device, DeviceType deviceType)
     {
-        var card = new Border { Background = new SolidColorBrush(Color.Parse("#1E1E2E")), CornerRadius = new CornerRadius(6), Padding = new Thickness(12), Margin = new Thickness(0, 4, 0, 4) };
+        var card = new Border { Background = new SolidColorBrush(Color.Parse("#1E1E2E")), CornerRadius = new CornerRadius(8), Padding = new Thickness(14), Margin = new Thickness(0, 4, 0, 4) };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         var info = new StackPanel();
         info.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(device.Name) ? "未知设备" : device.Name, Foreground = Brushes.White, FontWeight = FontWeight.SemiBold, FontSize = 13 });
         info.Children.Add(new TextBlock { Text = $"MAC: {device.MacAddress} | 信号: {device.Rssi} dBm", Foreground = new SolidColorBrush(Color.Parse("#A6ADC8")), FontSize = 11, Margin = new Thickness(0, 2, 0, 0) });
         Grid.SetColumn(info, 0);
-        var connectBtn = new Button { Content = "连接", Background = new SolidColorBrush(Color.Parse(deviceType == DeviceType.DGLab ? "#8b5cf6" : "#06b6d4")), Foreground = Brushes.White, Padding = new Thickness(12, 6), Tag = (device.Id, deviceType) };
+        // 郊狼用紫色，役次元用橙色
+        var connectBtn = new Button { Content = "连接", Background = new SolidColorBrush(Color.Parse(deviceType == DeviceType.DGLab ? "#8b5cf6" : "#F59E0B")), Foreground = Brushes.White, Padding = new Thickness(14, 8), Tag = (device.Id, deviceType), CornerRadius = new CornerRadius(6) };
         connectBtn.Click += OnConnectBluetoothDeviceClick;
         Grid.SetColumn(connectBtn, 1);
         grid.Children.Add(info);
@@ -637,15 +748,30 @@ public partial class DevicesPage : UserControl
         {
             btn.Content = "连接中...";
             btn.IsEnabled = false;
-            Logger.Information("Connecting to Bluetooth device {Id} as {Type}", deviceId, deviceType);
+            Logger.Information("Connecting to Bluetooth device {Id} as {Type} (DGLabVersion={DGLabVersion}, YokonexType={YokonexType})", 
+                deviceId, deviceType, _selectedDGLabVersion, _selectedYokonexType);
             var config = new ConnectionConfig { Address = deviceId, AutoReconnect = true };
-            YokonexDeviceType yokonexType = YokonexDeviceType.Estim;
-            DGLabVersion dglabVersion = DGLabVersion.V3;
-            if (deviceType == DeviceType.Yokonex && YokonexBTDeviceType.SelectedItem is ComboBoxItem item)
+            
+            // 使用选择的DG-LAB版本
+            var dglabVersion = _selectedDGLabVersion;
+            var dglabVersionName = dglabVersion switch
             {
-                yokonexType = item.Tag?.ToString() switch { "Estim" => YokonexDeviceType.Estim, "Enema" => YokonexDeviceType.Enema, "Vibrator" => YokonexDeviceType.Vibrator, "Cup" => YokonexDeviceType.Cup, _ => YokonexDeviceType.Estim };
-            }
-            string name = deviceType == DeviceType.DGLab ? "蓝牙郊狼" : $"蓝牙役次元-{yokonexType}";
+                DGLabVersion.V2 => "V2",
+                DGLabVersion.V3 => "V3",
+                _ => "V3"
+            };
+            
+            // 使用选择的役次元设备类型
+            var yokonexType = _selectedYokonexType;
+            var yokonexTypeName = yokonexType switch
+            {
+                YokonexDeviceType.Estim => "电击器",
+                YokonexDeviceType.Enema => "灌肠器",
+                YokonexDeviceType.Vibrator => "跳蛋",
+                YokonexDeviceType.Cup => "飞机杯",
+                _ => "设备"
+            };
+            string name = deviceType == DeviceType.DGLab ? $"蓝牙郊狼-{dglabVersionName}" : $"蓝牙役次元-{yokonexTypeName}";
             var newDeviceId = await AppServices.Instance.DeviceManager.AddDeviceAsync(deviceType, config, name, isVirtual: false, mode: ConnectionMode.Bluetooth, dglabVersion: dglabVersion, yokonexType: yokonexType);
             await AppServices.Instance.DeviceManager.ConnectDeviceAsync(newDeviceId);
             RefreshDeviceList();
@@ -658,6 +784,36 @@ public partial class DevicesPage : UserControl
             btn.Content = "连接";
             btn.IsEnabled = true;
         }
+    }
+
+    #endregion
+
+    #region Quick Add Buttons
+
+    /// <summary>
+    /// 快速添加郊狼设备 (WebSocket 方式)
+    /// </summary>
+    private void OnQuickAddDGLabClick(object? sender, RoutedEventArgs e)
+    {
+        // 切换到 DG-LAB 选项卡
+        OnTabDGLabClick(sender, e);
+        // 切换到 WebSocket 模式
+        OnDGLabConnModeWSClick(sender, e);
+        // 触发添加
+        OnAddDGLabWSClick(sender, e);
+    }
+
+    /// <summary>
+    /// 快速添加役次元设备 (蓝牙扫描)
+    /// </summary>
+    private void OnQuickAddYokonexClick(object? sender, RoutedEventArgs e)
+    {
+        // 切换到役次元选项卡
+        OnTabYokonexClick(sender, e);
+        // 切换到蓝牙模式
+        OnYokonexConnModeBTClick(sender, e);
+        // 触发蓝牙扫描
+        OnScanYokonexBTClick(sender, e);
     }
 
     #endregion

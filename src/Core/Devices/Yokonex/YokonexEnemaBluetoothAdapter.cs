@@ -30,11 +30,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         
         /// <summary>
         /// AES-128 加密密钥 (16字节)
+        /// 来源: 协议文档 TDL_YISKJ-003_协议规范-V1.0 image-4.png
         /// </summary>
         public static readonly byte[] AesKey = new byte[] 
         { 
-            0x2C, 0x53, 0x4D, 0x53, 0x4F, 0x45, 0x5A, 0x46, 
-            0x4F, 0x58, 0x49, 0x4E, 0x4B, 0x33, 0x4B, 0x4E 
+            0x0F, 0x61, 0x38, 0x2B, 0xC3, 0x9C, 0x4F, 0xA5, 
+            0x47, 0x67, 0x47, 0x80, 0x8A, 0xB9, 0x32, 0x10
         };
         
         /// <summary>
@@ -88,7 +89,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
     /// 役次元灌肠器蓝牙适配器
     /// 支持蠕动泵和抽水泵控制，带 AES-128 ECB 加密
     /// </summary>
-    public class YokonexEnemaBluetoothAdapter : IDevice
+    public class YokonexEnemaBluetoothAdapter : IDevice, IYokonexEnemaDevice
     {
         private readonly IBluetoothTransport _transport;
         private readonly Aes _aes;
@@ -100,6 +101,13 @@ namespace ChargingPanel.Core.Devices.Yokonex
         private int _batteryLevel = 100;
         private int _limitA = 100;
         private int _limitB = 100;
+        
+        // 重连和电量轮询
+        private Timer? _batteryTimer;
+        private Timer? _reconnectTimer;
+        private int _reconnectAttempts;
+        private const int MaxReconnectAttempts = 5;
+        private const int ReconnectDelayMs = 3000;
 
         // IDevice 属性
         public string Id { get; }
@@ -122,6 +130,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         // 额外事件
         public event EventHandler<(int a, int b)>? PressureChanged;
         public event EventHandler<EnemaDeviceStatus>? EnemaStatusChanged;
+        
+        // IYokonexEnemaDevice 事件
+        public event EventHandler<bool>? InjectionStateChanged;
+        
+        // IYokonexDevice 属性
+        public YokonexDeviceType YokonexType => YokonexDeviceType.Enema;
 
         public YokonexEnemaBluetoothAdapter(IBluetoothTransport transport, string? id = null, string? name = null)
         {
@@ -162,6 +176,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     YokonexEnemaProtocol.ServiceUuid,
                     YokonexEnemaProtocol.NotifyCharacteristic);
                 UpdateStatus(DeviceStatus.Connected);
+                
+                // 启动电量轮询
+                StartBatteryPolling();
+                
+                // 重置重连计数
+                _reconnectAttempts = 0;
             }
             catch (Exception ex)
             {
@@ -176,7 +196,24 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// </summary>
         public async Task DisconnectAsync()
         {
+            StopBatteryPolling();
+            StopReconnectTimer();
             await _transport.DisconnectAsync();
+        }
+        
+        /// <summary>
+        /// 手动触发重连
+        /// </summary>
+        public async Task ReconnectAsync()
+        {
+            if (Config == null)
+            {
+                throw new InvalidOperationException("没有保存的连接配置");
+            }
+            
+            Console.WriteLine("[YokonexEnema] 手动触发重连");
+            _reconnectAttempts = 0;
+            await TryReconnectAsync();
         }
 
         /// <summary>
@@ -272,6 +309,63 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// 获取当前灌肠器状态
         /// </summary>
         public EnemaDeviceStatus GetEnemaStatus() => _enemaStatus;
+
+        #region IYokonexEnemaDevice 实现
+        
+        /// <summary>
+        /// 是否正在注入
+        /// </summary>
+        public bool IsInjecting => _enemaStatus.PeristalticPumpState != PeristalticPumpState.Stop;
+        
+        /// <summary>
+        /// 当前注入强度 (0-100)
+        /// </summary>
+        public int InjectionStrength { get; private set; }
+        
+        /// <summary>
+        /// 当前振动强度 (灌肠器无振动功能，始终为0)
+        /// </summary>
+        public int VibrationStrength => 0;
+        
+        /// <summary>
+        /// 设置注入强度
+        /// </summary>
+        public Task SetInjectionStrengthAsync(int strength)
+        {
+            InjectionStrength = Math.Clamp(strength, 0, 100);
+            return Task.CompletedTask;
+        }
+        
+        /// <summary>
+        /// 开始注入
+        /// </summary>
+        public async Task StartInjectionAsync()
+        {
+            // 根据强度计算持续时间 (强度越高，持续时间越长)
+            int duration = InjectionStrength > 0 ? (InjectionStrength * 60 / 100) : 10; // 最长60秒
+            await SetPeristalticPumpAsync(PeristalticPumpState.Forward, duration);
+            InjectionStateChanged?.Invoke(this, true);
+        }
+        
+        /// <summary>
+        /// 停止注入
+        /// </summary>
+        public async Task StopInjectionAsync()
+        {
+            await PauseAllAsync();
+            InjectionStateChanged?.Invoke(this, false);
+        }
+        
+        /// <summary>
+        /// 设置振动强度 (灌肠器不支持振动)
+        /// </summary>
+        public Task SetVibrationStrengthAsync(int strength)
+        {
+            // 灌肠器没有振动功能
+            return Task.CompletedTask;
+        }
+        
+        #endregion
 
         #region IDevice 实现
 
@@ -391,10 +485,115 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             _isConnected = state == BleConnectionState.Connected;
             if (state == BleConnectionState.Connected)
+            {
                 UpdateStatus(DeviceStatus.Connected);
+            }
             else if (state == BleConnectionState.Disconnected)
+            {
                 UpdateStatus(DeviceStatus.Disconnected);
+                // 触发自动重连
+                StartReconnectTimer();
+            }
         }
+        
+        #region 电量轮询和自动重连
+        
+        /// <summary>
+        /// 启动电量轮询定时器
+        /// </summary>
+        private void StartBatteryPolling()
+        {
+            StopBatteryPolling();
+            
+            // 每 60 秒轮询一次电量
+            _batteryTimer = new Timer(async _ =>
+            {
+                if (!IsConnected) return;
+                
+                try
+                {
+                    await QueryBatteryAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[YokonexEnema] 电量轮询失败: {ex.Message}");
+                }
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60));
+        }
+        
+        /// <summary>
+        /// 停止电量轮询定时器
+        /// </summary>
+        private void StopBatteryPolling()
+        {
+            _batteryTimer?.Dispose();
+            _batteryTimer = null;
+        }
+        
+        /// <summary>
+        /// 启动重连定时器
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            if (_reconnectAttempts >= MaxReconnectAttempts)
+            {
+                Console.WriteLine($"[YokonexEnema] 已达到最大重连次数 ({MaxReconnectAttempts})，停止重连");
+                return;
+            }
+            
+            StopReconnectTimer();
+            
+            _reconnectTimer = new Timer(async _ =>
+            {
+                await TryReconnectAsync();
+            }, null, TimeSpan.FromMilliseconds(ReconnectDelayMs), Timeout.InfiniteTimeSpan);
+        }
+        
+        /// <summary>
+        /// 停止重连定时器
+        /// </summary>
+        private void StopReconnectTimer()
+        {
+            _reconnectTimer?.Dispose();
+            _reconnectTimer = null;
+        }
+        
+        /// <summary>
+        /// 尝试重连
+        /// </summary>
+        private async Task TryReconnectAsync()
+        {
+            if (Config == null || Status == DeviceStatus.Connected)
+            {
+                return;
+            }
+            
+            _reconnectAttempts++;
+            Console.WriteLine($"[YokonexEnema] 尝试重连 (第 {_reconnectAttempts}/{MaxReconnectAttempts} 次)");
+            
+            try
+            {
+                await ConnectAsync(Config, CancellationToken.None);
+                Console.WriteLine("[YokonexEnema] 重连成功");
+                _reconnectAttempts = 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[YokonexEnema] 重连失败: {ex.Message}");
+                
+                if (_reconnectAttempts < MaxReconnectAttempts)
+                {
+                    StartReconnectTimer();
+                }
+                else
+                {
+                    Console.WriteLine("[YokonexEnema] 重连失败，已达到最大重连次数");
+                    UpdateStatus(DeviceStatus.Error);
+                }
+            }
+        }
+        
+        #endregion
 
         private void OnDataReceived(object? sender, BleDataReceivedEventArgs e)
         {
@@ -466,6 +665,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             if (!_disposed)
             {
+                StopBatteryPolling();
+                StopReconnectTimer();
                 _transport.StateChanged -= OnTransportStateChanged;
                 _transport.DataReceived -= OnDataReceived;
                 _aes.Dispose();

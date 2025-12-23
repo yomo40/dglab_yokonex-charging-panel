@@ -1,14 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "MRfeqJI8z9M=",
+  "dgSpecHash": "ZSrKznmiQK0=",
   "success": true,
-  "projectFilePath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
+  "projectFilePath": "F:\\project_dglab-yokonex\\dglab_yokonex-charging-panel-source-v0.9.7.3\\src\\Core\\ChargingPanel.Core.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\凌雨墨\\.nuget\\packages\\esprima\\3.0.5\\esprima.3.0.5.nupkg.sha512",
+    "C:\\Users\\凌雨墨\\.nuget\\packages\\jint\\3.1.6\\jint.3.1.6.nupkg.sha512",
+    "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.ai.directml\\1.15.1\\microsoft.ai.directml.1.15.1.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.data.sqlite\\8.0.11\\microsoft.data.sqlite.8.0.11.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.data.sqlite.core\\8.0.11\\microsoft.data.sqlite.core.8.0.11.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\8.0.1\\microsoft.extensions.dependencyinjection.8.0.1.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.2\\microsoft.extensions.dependencyinjection.abstractions.8.0.2.nupkg.sha512",
-    "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.ml.onnxruntime\\1.19.2\\microsoft.ml.onnxruntime.1.19.2.nupkg.sha512",
+    "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.ml.onnxruntime.directml\\1.19.2\\microsoft.ml.onnxruntime.directml.1.19.2.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.ml.onnxruntime.managed\\1.19.2\\microsoft.ml.onnxruntime.managed.1.19.2.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.netcore.targets\\1.1.0\\microsoft.netcore.targets.1.1.0.nupkg.sha512",
@@ -56,7 +59,7 @@
     "C:\\Users\\凌雨墨\\.nuget\\packages\\serilog.formatting.compact\\3.0.0\\serilog.formatting.compact.3.0.0.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\serilog.sinks.console\\6.0.0\\serilog.sinks.console.6.0.0.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\serilog.sinks.file\\6.0.0\\serilog.sinks.file.6.0.0.nupkg.sha512",
-    "C:\\Users\\凌雨墨\\.nuget\\packages\\sixlabors.imagesharp\\3.1.5\\sixlabors.imagesharp.3.1.5.nupkg.sha512",
+    "C:\\Users\\凌雨墨\\.nuget\\packages\\sixlabors.imagesharp\\3.1.12\\sixlabors.imagesharp.3.1.12.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\sqlitepclraw.bundle_e_sqlite3\\2.1.6\\sqlitepclraw.bundle_e_sqlite3.2.1.6.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\sqlitepclraw.core\\2.1.6\\sqlitepclraw.core.2.1.6.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.6\\sqlitepclraw.lib.e_sqlite3.2.1.6.nupkg.sha512",
@@ -124,34 +127,5 @@
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.netcore.app.host.win-arm64\\8.0.22\\microsoft.netcore.app.host.win-arm64.8.0.22.nupkg.sha512",
     "C:\\Users\\凌雨墨\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.57\\microsoft.windows.sdk.net.ref.10.0.19041.57.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known high severity vulnerability, https://github.com/advisories/GHSA-2cmq-823j-5qj8",
-      "projectPath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
-      "warningLevel": 1,
-      "filePath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
-      "libraryId": "SixLabors.ImageSharp",
-      "targetGraphs": [
-        "net8.0-windows10.0.19041",
-        "net8.0-windows10.0.19041/win-arm64",
-        "net8.0-windows10.0.19041/win-x64"
-      ]
-    },
-    {
-      "code": "NU1902",
-      "level": "Warning",
-      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc",
-      "projectPath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
-      "warningLevel": 1,
-      "filePath": "F:\\test\\github\\src\\Core\\ChargingPanel.Core.csproj",
-      "libraryId": "SixLabors.ImageSharp",
-      "targetGraphs": [
-        "net8.0-windows10.0.19041",
-        "net8.0-windows10.0.19041/win-arm64",
-        "net8.0-windows10.0.19041/win-x64"
-      ]
-    }
-  ]
+  "logs": []
 }

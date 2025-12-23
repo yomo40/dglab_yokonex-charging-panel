@@ -16,19 +16,22 @@ public partial class PluginsPage : UserControl
     
     public ObservableCollection<ScriptViewModel> Scripts { get; } = new();
     private ScriptViewModel? _selectedScript;
-
+    
     public PluginsPage()
     {
         InitializeComponent();
         ScriptList.ItemsSource = Scripts;
         
+        // 设置默认脚本模板
+        CodeEditor.Text = GetDefaultScriptTemplate();
+        
+        // 与 EventsPage 一致：在构造函数中直接加载
         if (AppServices.IsInitialized)
         {
             LoadScripts();
         }
         
-        // 设置默认脚本模板
-        CodeEditor.Text = GetDefaultScriptTemplate();
+        Logger.Information("PluginsPage constructor completed");
     }
 
     private void LoadScripts()
@@ -44,7 +47,7 @@ public partial class PluginsPage : UserControl
                 Game = record.Game,
                 Version = record.Version,
                 Enabled = record.Enabled,
-                Content = record.Content
+                Content = record.Code
             });
         }
     }
@@ -115,80 +118,236 @@ return {
             ScriptGame.Text = script.Game;
             ScriptVersion.Text = script.Version;
             CodeEditor.Text = script.Content;
+            Logger.Information("Selected script: {Name}", script.Name);
         }
     }
 
     private void OnNewScriptClick(object? sender, RoutedEventArgs e)
     {
-        var newId = $"script_{Guid.NewGuid():N}".Substring(0, 20);
-        
-        _selectedScript = new ScriptViewModel
+        try
         {
-            Id = newId,
-            Name = "新脚本",
-            Game = "未指定",
-            Version = "1.0.0",
-            Enabled = false,
-            Content = GetDefaultScriptTemplate()
-        };
-        
-        ScriptFileName.Text = "新脚本 (未保存)";
-        ScriptName.Text = "新脚本";
-        ScriptGame.Text = "未指定";
-        ScriptVersion.Text = "1.0.0";
-        CodeEditor.Text = GetDefaultScriptTemplate();
+            var newId = $"script_{Guid.NewGuid():N}".Substring(0, 20);
+            
+            _selectedScript = new ScriptViewModel
+            {
+                Id = newId,
+                Name = "新脚本",
+                Game = "未指定",
+                Version = "1.0.0",
+                Enabled = false,
+                Content = GetDefaultScriptTemplate()
+            };
+            
+            ScriptFileName.Text = "新脚本 (未保存)";
+            ScriptName.Text = "新脚本";
+            ScriptGame.Text = "未指定";
+            ScriptVersion.Text = "1.0.0";
+            CodeEditor.Text = GetDefaultScriptTemplate();
+            
+            Logger.Information("New script created: {ScriptId}", newId);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to create new script");
+        }
     }
 
-    private void OnImportScriptClick(object? sender, RoutedEventArgs e)
+    private async void OnImportScriptClick(object? sender, RoutedEventArgs e)
     {
-        // TODO: 实现文件选择对话框导入脚本
-        Logger.Information("Script import not yet implemented");
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null) return;
+            
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "导入脚本",
+                AllowMultiple = true,  // 支持多选
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("JavaScript") { Patterns = new[] { "*.js" } },
+                    new Avalonia.Platform.Storage.FilePickerFileType("所有文件") { Patterns = new[] { "*.*" } }
+                }
+            });
+            
+            if (files.Count > 0)
+            {
+                foreach (var file in files)
+                {
+                    await using var stream = await file.OpenReadAsync();
+                    using var reader = new StreamReader(stream);
+                    var content = await reader.ReadToEndAsync();
+                    
+                    var newId = $"script_{Guid.NewGuid():N}".Substring(0, 20);
+                    var fileName = Path.GetFileNameWithoutExtension(file.Name);
+                    
+                    // 直接保存到数据库
+                    var record = new ScriptRecord
+                    {
+                        Id = newId,
+                        Name = fileName,
+                        Game = "未指定",
+                        Version = "1.0.0",
+                        Enabled = false,
+                        Code = content
+                    };
+                    
+                    Database.Instance.SaveScript(record);
+                    Logger.Warning("[PluginsPage] Script imported and saved: {FileName} -> {Id}", file.Name, newId);
+                }
+                
+                // 重新加载列表
+                LoadScripts();
+                
+                // 如果只导入了一个文件，选中它并显示在编辑器中
+                if (files.Count == 1)
+                {
+                    var lastScript = Scripts.LastOrDefault();
+                    if (lastScript != null)
+                    {
+                        _selectedScript = lastScript;
+                        ScriptFileName.Text = $"{lastScript.Name} (已导入)";
+                        ScriptName.Text = lastScript.Name;
+                        ScriptGame.Text = lastScript.Game;
+                        ScriptVersion.Text = lastScript.Version;
+                        CodeEditor.Text = lastScript.Content;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to import script");
+        }
     }
 
     private void OnSaveScriptClick(object? sender, RoutedEventArgs e)
     {
-        if (_selectedScript == null) return;
-        
-        var record = new ScriptRecord
+        try
         {
-            Id = _selectedScript.Id,
-            Name = ScriptName.Text ?? "未命名",
-            Game = ScriptGame.Text ?? "未指定",
-            Version = ScriptVersion.Text ?? "1.0.0",
-            Enabled = _selectedScript.Enabled,
-            Content = CodeEditor.Text ?? ""
-        };
-        
-        Database.Instance.SaveScript(record);
-        LoadScripts();
-        
-        Logger.Information("Script saved: {ScriptId}", record.Id);
-    }
-
-    private void OnExportScriptClick(object? sender, RoutedEventArgs e)
-    {
-        // TODO: 实现脚本导出
-        Logger.Information("Script export not yet implemented");
-    }
-
-    private void OnScriptToggleClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is CheckBox cb && cb.DataContext is ScriptViewModel script)
-        {
-            script.Enabled = cb.IsChecked ?? false;
+            // 如果没有选中脚本，创建一个新的
+            if (_selectedScript == null)
+            {
+                var newId = $"script_{Guid.NewGuid():N}".Substring(0, 20);
+                _selectedScript = new ScriptViewModel
+                {
+                    Id = newId,
+                    Name = ScriptName.Text ?? "新脚本",
+                    Game = ScriptGame.Text ?? "未指定",
+                    Version = ScriptVersion.Text ?? "1.0.0",
+                    Enabled = false,
+                    Content = CodeEditor.Text ?? ""
+                };
+                Logger.Information("Created new script for save: {ScriptId}", newId);
+            }
+            else
+            {
+                // 更新 ViewModel
+                _selectedScript.Name = ScriptName.Text ?? "未命名";
+                _selectedScript.Game = ScriptGame.Text ?? "未指定";
+                _selectedScript.Version = ScriptVersion.Text ?? "1.0.0";
+                _selectedScript.Content = CodeEditor.Text ?? "";
+            }
             
             var record = new ScriptRecord
             {
-                Id = script.Id,
-                Name = script.Name,
-                Game = script.Game,
-                Version = script.Version,
-                Enabled = script.Enabled,
-                Content = script.Content
+                Id = _selectedScript.Id,
+                Name = _selectedScript.Name,
+                Game = _selectedScript.Game,
+                Version = _selectedScript.Version,
+                Enabled = _selectedScript.Enabled,
+                Code = _selectedScript.Content  // 使用 Code 字段保存
             };
             
             Database.Instance.SaveScript(record);
-            Logger.Information("Script {ScriptId} enabled: {Enabled}", script.Id, script.Enabled);
+            
+            // 更新文件名显示
+            ScriptFileName.Text = $"{_selectedScript.Name} ({_selectedScript.Game}) - 已保存";
+            
+            // 重新加载列表
+            LoadScripts();
+            
+            // 重新选中当前脚本
+            var savedScript = Scripts.FirstOrDefault(s => s.Id == _selectedScript.Id);
+            if (savedScript != null)
+            {
+                _selectedScript = savedScript;
+            }
+            
+            Logger.Information("Script saved: {ScriptId} - {ScriptName}", record.Id, record.Name);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to save script: {Message}", ex.Message);
+        }
+    }
+
+    private async void OnExportScriptClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel == null)
+            {
+                Logger.Warning("Cannot get TopLevel for file dialog");
+                return;
+            }
+            
+            // 使用脚本名称或默认名称
+            var suggestedName = _selectedScript?.Name ?? ScriptName.Text ?? "script";
+            if (string.IsNullOrWhiteSpace(suggestedName)) suggestedName = "script";
+            
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+            {
+                Title = "导出脚本",
+                SuggestedFileName = $"{suggestedName}.js",
+                FileTypeChoices = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("JavaScript") { Patterns = new[] { "*.js" } }
+                }
+            });
+            
+            if (file != null)
+            {
+                await using var stream = await file.OpenWriteAsync();
+                await using var writer = new StreamWriter(stream);
+                await writer.WriteAsync(CodeEditor.Text ?? "");
+                
+                ScriptFileName.Text = $"{suggestedName} - 已导出";
+                Logger.Information("Script exported: {FileName}", file.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to export script: {Message}", ex.Message);
+        }
+    }
+
+    private void OnScriptToggleChanged(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (sender is ToggleSwitch toggle && toggle.DataContext is ScriptViewModel script)
+            {
+                script.Enabled = toggle.IsChecked ?? false;
+                
+                var record = new ScriptRecord
+                {
+                    Id = script.Id,
+                    Name = script.Name,
+                    Game = script.Game,
+                    Version = script.Version,
+                    Enabled = script.Enabled,
+                    Code = script.Content  // 使用 Code 字段
+                };
+                
+                Database.Instance.SaveScript(record);
+                Logger.Information("Script {ScriptId} enabled: {Enabled}", script.Id, script.Enabled);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to toggle script");
         }
     }
 

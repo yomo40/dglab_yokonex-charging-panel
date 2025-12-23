@@ -5,12 +5,26 @@
     <ScrollViewer>
         <StackPanel Spacing="16">
             <!-- 服务器设置 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="🌐" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="内置服务器" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#8b5cf620" CornerRadius="10" Padding="10">
+                                <TextBlock Text="🌐" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="内置服务器" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20">
@@ -63,12 +77,26 @@
             </Border>
             
             <!-- 设备默认设置 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="📱" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="设备默认设置" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#10B98120" CornerRadius="10" Padding="10">
+                                <TextBlock Text="📱" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="设备默认设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20">
@@ -100,12 +128,26 @@
             </Border>
             
             <!-- 外观设置 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="🎨" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="外观设置" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                                <TextBlock Text="🎨" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="外观设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20">
@@ -130,12 +172,26 @@
             </Border>
             
             <!-- 日志设置 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="📋" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="日志设置" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#3B82F620" CornerRadius="10" Padding="10">
+                                <TextBlock Text="📋" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="日志设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20">
@@ -213,12 +269,26 @@
             </Border>
             
             <!-- 关于 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #188b5cf6">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="ℹ️" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="关于" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#8b5cf620" CornerRadius="10" Padding="10">
+                                <TextBlock Text="ℹ️" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="关于" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20">

@@ -1,0 +1,39 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# Publish
+publish/
+release/
+
+# Logs
+*.log
+
+# Build artifacts
+*.pdb
+*.lib
+*.exe
+*.dll
+*.cache
+
+# OS files
+.DS_Store
+Thumbs.db

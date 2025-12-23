@@ -3,14 +3,28 @@
              x:Class="ChargingPanel.Desktop.Views.Pages.ControlPage">
     
     <ScrollViewer>
-        <StackPanel Spacing="20">
+        <StackPanel Spacing="20" Margin="0,0,0,20">
             <!-- 目标设备选择 -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="🎯" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                            <TextBlock Text="目标设备" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#8b5cf620" CornerRadius="10" Padding="10">
+                                <TextBlock Text="🎯" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="目标设备" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="20">
@@ -41,12 +55,26 @@
             <!-- 双通道控制面板 -->
             <Grid ColumnDefinitions="*,*">
                 <!-- 通道 A -->
-                <Border Grid.Column="0" Background="#313244" CornerRadius="12" Padding="0" Margin="0,0,10,0">
+                <Border Grid.Column="0" CornerRadius="16" Padding="0" Margin="0,0,10,0" BoxShadow="0 4 16 0 #188b5cf6">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#313244" />
+                            <GradientStop Offset="1" Color="#353550" />
+                        </LinearGradientBrush>
+                    </Border.Background>
                     <StackPanel>
-                        <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="⚡" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                                <TextBlock Text="通道 A 控制" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        <Border CornerRadius="16,16,0,0" Padding="22,18">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#1E1E2E" />
+                                    <GradientStop Offset="1" Color="#262640" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#8b5cf620" CornerRadius="10" Padding="10">
+                                    <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="通道 A 控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
                         <StackPanel Margin="20" HorizontalAlignment="Center">
@@ -75,24 +103,48 @@
                                     Click="OnApplyStrengthA" />
                             
                             <!-- 快捷按钮 -->
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,15,0,0">
-                                <Button Content="-10" Tag="A,-10" Click="OnQuickControl" Width="50" />
-                                <Button Content="-1" Tag="A,-1" Click="OnQuickControl" Width="40" />
-                                <Button Content="0" Tag="A,0" Click="OnQuickControl" Background="#F59E0B" Foreground="White" Width="40" />
-                                <Button Content="+1" Tag="A,1" Click="OnQuickControl" Width="40" />
-                                <Button Content="+10" Tag="A,10" Click="OnQuickControl" Width="50" />
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,15,0,0">
+                                <Button Content="-10" Tag="A,-10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="-1" Tag="A,-1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="0" Tag="A,0" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#F59E0B" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+1" Tag="A,1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+10" Tag="A,10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
                 
                 <!-- 通道 B -->
-                <Border Grid.Column="1" Background="#313244" CornerRadius="12" Padding="0" Margin="10,0,0,0">
+                <Border Grid.Column="1" CornerRadius="16" Padding="0" Margin="10,0,0,0" BoxShadow="0 4 16 0 #1806b6d4">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#313244" />
+                            <GradientStop Offset="1" Color="#353550" />
+                        </LinearGradientBrush>
+                    </Border.Background>
                     <StackPanel>
-                        <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="⚡" FontSize="16" Foreground="#06b6d4" VerticalAlignment="Center" />
-                                <TextBlock Text="通道 B 控制" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        <Border CornerRadius="16,16,0,0" Padding="22,18">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#1E1E2E" />
+                                    <GradientStop Offset="1" Color="#262640" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#06b6d420" CornerRadius="10" Padding="10">
+                                    <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="通道 B 控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
                         <StackPanel Margin="20" HorizontalAlignment="Center">
@@ -121,12 +173,22 @@
                                     Click="OnApplyStrengthB" />
                             
                             <!-- 快捷按钮 -->
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,15,0,0">
-                                <Button Content="-10" Tag="B,-10" Click="OnQuickControl" Width="50" />
-                                <Button Content="-1" Tag="B,-1" Click="OnQuickControl" Width="40" />
-                                <Button Content="0" Tag="B,0" Click="OnQuickControl" Background="#F59E0B" Foreground="White" Width="40" />
-                                <Button Content="+1" Tag="B,1" Click="OnQuickControl" Width="40" />
-                                <Button Content="+10" Tag="B,10" Click="OnQuickControl" Width="50" />
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,15,0,0">
+                                <Button Content="-10" Tag="B,-10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="-1" Tag="B,-1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="0" Tag="B,0" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#F59E0B" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+1" Tag="B,1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+10" Tag="B,10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#45475A" Foreground="White" FontWeight="SemiBold" />
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -134,14 +196,46 @@
             </Grid>
             
             <!-- 役次元设备专用控制 -->
-            <Border x:Name="YokonexControlPanel" Background="#313244" CornerRadius="12" Padding="0" IsVisible="False">
+            <Border x:Name="YokonexControlPanel" CornerRadius="16" Padding="0" IsVisible="False" BoxShadow="0 4 16 0 #18F59E0B">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBlock Text="📱" FontSize="16" Foreground="#06b6d4" VerticalAlignment="Center" />
-                            <TextBlock Text="役次元设备控制" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                                <TextBlock Text="📱" FontSize="18" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="役次元设备控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
+                    <!-- 通道连接状态 -->
+                    <Border x:Name="YokonexChannelStatus" Background="#1E1E2E" CornerRadius="8" Padding="12" Margin="20,10,20,0">
+                        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*">
+                            <TextBlock Text="🔌 通道状态:" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,16,0">
+                                <Ellipse x:Name="ChannelAIndicator" Width="10" Height="10" Fill="#6B7280" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ChannelAStatusText" Text="A: 未知" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,16,0">
+                                <Ellipse x:Name="ChannelBIndicator" Width="10" Height="10" Fill="#6B7280" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ChannelBStatusText" Text="B: 未知" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="3" Text="🚶 计步:" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0" />
+                            <TextBlock Grid.Column="4" x:Name="StepCountText" Text="0" Foreground="#10B981" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="5" x:Name="AngleText" Text="📐 X:0° Y:0° Z:0°" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0" />
+                        </Grid>
+                    </Border>
+                    
                     <Grid ColumnDefinitions="*,*,*" Margin="20">
                         <!-- 电击控制 -->
                         <StackPanel Grid.Column="0" Margin="0,0,10,0">
@@ -198,20 +292,78 @@
             </Border>
             
             <!-- 郊狼专用控制 (DG-LAB 高级设置 + 波形预设合并) -->
-            <Border Background="#313244" CornerRadius="12" Padding="0">
+            <Border x:Name="DGLabControlPanel" CornerRadius="16" Padding="0" IsVisible="False" BoxShadow="0 4 16 0 #188b5cf6">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#313244" />
+                        <GradientStop Offset="1" Color="#353550" />
+                    </LinearGradientBrush>
+                </Border.Background>
                 <StackPanel>
-                    <Border Background="#1E1E2E" CornerRadius="12,12,0,0" Padding="20,16">
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#1E1E2E" />
+                                <GradientStop Offset="1" Color="#262640" />
+                            </LinearGradientBrush>
+                        </Border.Background>
                         <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                                <TextBlock Text="⚡" FontSize="16" Foreground="#8b5cf6" VerticalAlignment="Center" />
-                                <TextBlock Text="郊狼专用控制" FontWeight="SemiBold" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                                <Border Background="#8b5cf620" CornerRadius="10" Padding="10">
+                                    <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="郊狼专用控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
                             </StackPanel>
-                            <Border Grid.Column="1" Background="#8b5cf6" CornerRadius="4" Padding="8,4">
+                            <Border Grid.Column="1" CornerRadius="8" Padding="10,6">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                        <GradientStop Offset="0" Color="#8b5cf6" />
+                                        <GradientStop Offset="1" Color="#a855f7" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
                                 <TextBlock Text="DG-LAB" Foreground="White" FontSize="11" FontWeight="SemiBold" />
                             </Border>
                         </Grid>
                     </Border>
                     <StackPanel Margin="20" Spacing="20">
+                        
+                        <!-- 按钮设备专用控制 (仅按钮版显示) -->
+                        <Border x:Name="SensorControlPanel" IsVisible="False" Background="#1E1E2E" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="🔘" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="按钮设备控制" Foreground="#10B981" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="按钮设备通过外部电压检测触发事件，请在郊狼APP中配置触发规则。" 
+                                           Foreground="#A6ADC8" FontSize="12" TextWrapping="Wrap" />
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="目标电压范围 (V)" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,4" />
+                                        <Grid ColumnDefinitions="*,Auto,*">
+                                            <TextBox x:Name="SensorVoltageMin" Text="0.49" Background="#313244" Foreground="White" 
+                                                     BorderBrush="#45475A" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                            <TextBlock Grid.Column="1" Text="~" Foreground="#A6ADC8" Margin="8,0" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="2" x:Name="SensorVoltageMax" Text="0.84" Background="#313244" Foreground="White" 
+                                                     BorderBrush="#45475A" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock Text="触发强度变化" Foreground="#A6ADC8" FontSize="12" Margin="0,0,0,4" />
+                                        <Grid ColumnDefinitions="*,Auto,*">
+                                            <TextBox x:Name="SensorStrengthMin" Text="1" Background="#313244" Foreground="White" 
+                                                     BorderBrush="#45475A" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                            <TextBlock Grid.Column="1" Text="~" Foreground="#A6ADC8" Margin="8,0" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="2" x:Name="SensorStrengthMax" Text="40" Background="#313244" Foreground="White" 
+                                                     BorderBrush="#45475A" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                                <Border Background="#F59E0B10" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+                                    <TextBlock Text="💡 按钮设备的触发规则需要在郊狼APP中配置。本面板仅用于监控和测试。" 
+                                               Foreground="#F59E0B" FontSize="11" TextWrapping="Wrap" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
                         
                         <!-- 强度上限设置 -->
                         <StackPanel>

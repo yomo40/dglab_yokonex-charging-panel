@@ -336,6 +336,27 @@ public class Database : IDisposable
             )
         ");
 
+        // 传感器规则表 - 存储役次元传感器触发规则
+        ExecuteNonQuery(@"
+            CREATE TABLE IF NOT EXISTS sensor_rules (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                deviceId TEXT,
+                sensorType TEXT NOT NULL CHECK(sensorType IN ('step', 'angle', 'channel')),
+                triggerType TEXT NOT NULL CHECK(triggerType IN ('threshold', 'change', 'connect', 'disconnect')),
+                threshold REAL DEFAULT 0,
+                targetDeviceId TEXT,
+                targetChannel TEXT DEFAULT 'A' CHECK(targetChannel IN ('A', 'B', 'AB')),
+                action TEXT NOT NULL CHECK(action IN ('set', 'increase', 'decrease', 'pulse', 'wave')),
+                value INTEGER DEFAULT 10,
+                duration INTEGER DEFAULT 500,
+                cooldownMs INTEGER DEFAULT 1000,
+                enabled INTEGER DEFAULT 1,
+                createdAt TEXT NOT NULL,
+                updatedAt TEXT NOT NULL
+            )
+        ");
+
         _logger.Information("Database base tables created");
     }
 
@@ -363,6 +384,9 @@ public class Database : IDisposable
             CREATE INDEX IF NOT EXISTS idx_room_members_userId ON room_members(userId);
             CREATE INDEX IF NOT EXISTS idx_waveform_presets_channel ON waveform_presets(channel);
             CREATE INDEX IF NOT EXISTS idx_waveform_presets_sortOrder ON waveform_presets(sortOrder);
+            CREATE INDEX IF NOT EXISTS idx_sensor_rules_deviceId ON sensor_rules(deviceId);
+            CREATE INDEX IF NOT EXISTS idx_sensor_rules_sensorType ON sensor_rules(sensorType);
+            CREATE INDEX IF NOT EXISTS idx_sensor_rules_enabled ON sensor_rules(enabled);
         ");
 
         // 初始化默认数据
@@ -388,7 +412,15 @@ public class Database : IDisposable
                 ("character-debuff", "角色受负面效果", "中毒、流血等持续伤害", "system", "AB", "wave", 8, 1000),
                 ("query", "查询", "查询当前血量状态", "system", "A", "set", 0, 0),
                 ("dead", "死亡", "角色死亡时强烈反馈", "system", "AB", "set", 100, 2000),
-                ("new-credit", "获得积分", "完成任务获得积分时反馈", "system", "A", "pulse", 20, 500)
+                ("knocked", "倒地/击倒", "被击倒可救起时的反馈", "system", "AB", "set", 80, 1500),
+                ("respawn", "重生", "角色重生时的反馈", "system", "A", "pulse", 30, 500),
+                ("new-round", "新回合", "新回合/关卡开始时的反馈", "system", "AB", "pulse", 20, 300),
+                ("game-over", "游戏结束", "游戏结束时的反馈", "system", "AB", "set", 50, 1000),
+                ("new-credit", "获得积分", "完成任务获得积分时反馈", "system", "A", "pulse", 20, 500),
+                ("step-count-changed", "步数变化", "役次元设备计步器步数变化触发", "system", "A", "pulse", 15, 300),
+                ("angle-changed", "角度变化", "役次元设备角度传感器变化触发", "system", "B", "pulse", 20, 400),
+                ("channel-disconnected", "通道断开", "役次元设备电极片脱落时触发", "system", "AB", "set", 0, 0),
+                ("channel-connected", "通道连接", "役次元设备电极片接入时触发", "system", "A", "pulse", 10, 200)
             };
 
             using var transaction = _connection.BeginTransaction();
@@ -684,6 +716,16 @@ public class Database : IDisposable
 
     private static EventRecord MapEventRecord(SqliteDataReader reader)
     {
+        // 安全获取列索引，如果列不存在返回 -1
+        int GetOrdinalSafe(string name)
+        {
+            try { return reader.GetOrdinal(name); }
+            catch { return -1; }
+        }
+        
+        var waveformOrdinal = GetOrdinalSafe("waveformData");
+        var priorityOrdinal = GetOrdinalSafe("priority");
+        
         return new EventRecord
         {
             Id = reader.GetString(reader.GetOrdinal("id")),
@@ -695,12 +737,12 @@ public class Database : IDisposable
             Action = reader.GetString(reader.GetOrdinal("action")),
             Value = reader.GetInt32(reader.GetOrdinal("value")),
             Duration = reader.GetInt32(reader.GetOrdinal("duration")),
-            WaveformData = reader.IsDBNull(reader.GetOrdinal("waveformData")) ? null : reader.GetString(reader.GetOrdinal("waveformData")),
+            WaveformData = waveformOrdinal >= 0 && !reader.IsDBNull(waveformOrdinal) ? reader.GetString(waveformOrdinal) : null,
             Enabled = reader.GetInt32(reader.GetOrdinal("enabled")) == 1,
             CreatedAt = reader.GetString(reader.GetOrdinal("createdAt")),
             UpdatedAt = reader.GetString(reader.GetOrdinal("updatedAt")),
             // 映射额外的数据库列到 UI 属性
-            Priority = reader.IsDBNull(reader.GetOrdinal("priority")) ? 10 : reader.GetInt32(reader.GetOrdinal("priority")),
+            Priority = priorityOrdinal >= 0 && !reader.IsDBNull(priorityOrdinal) ? reader.GetInt32(priorityOrdinal) : 10,
             // 从 Value 映射到 Strength
             Strength = reader.GetInt32(reader.GetOrdinal("value")),
             // 默认触发类型和范围
@@ -794,19 +836,81 @@ public class Database : IDisposable
         return results.ToDictionary(x => x.Item1, x => x.Item2);
     }
 
-    private static ScriptRecord MapScriptRecord(SqliteDataReader reader) => new()
+    private static ScriptRecord MapScriptRecord(SqliteDataReader reader)
     {
-        Id = reader.GetString(0),
-        Name = reader.GetString(1),
-        Game = reader.GetString(2),
-        Description = reader.IsDBNull(3) ? null : reader.GetString(3),
-        Version = reader.GetString(4),
-        Author = reader.GetString(5),
-        Code = reader.GetString(6),
-        Enabled = reader.GetInt32(7) == 1,
-        CreatedAt = reader.GetString(8),
-        UpdatedAt = reader.GetString(9)
-    };
+        // 列顺序: id(0), name(1), game(2), description(3), version(4), author(5), code(6), variables(7), enabled(8), createdAt(9), updatedAt(10)
+        return new ScriptRecord
+        {
+            Id = reader.GetString(0),
+            Name = reader.GetString(1),
+            Game = reader.GetString(2),
+            Description = reader.IsDBNull(3) ? null : reader.GetString(3),
+            Version = reader.IsDBNull(4) ? "1.0.0" : reader.GetString(4),
+            Author = reader.IsDBNull(5) ? "Anonymous" : reader.GetString(5),
+            Code = reader.IsDBNull(6) ? "" : reader.GetString(6),
+            // variables 在索引 7，跳过
+            Enabled = reader.IsDBNull(8) ? true : reader.GetInt32(8) == 1,
+            CreatedAt = reader.IsDBNull(9) ? "" : reader.GetString(9),
+            UpdatedAt = reader.IsDBNull(10) ? "" : reader.GetString(10)
+        };
+    }
+
+    /// <summary>
+    /// 导入默认脚本（如果尚未导入）
+    /// </summary>
+    public void ImportDefaultScripts(string scriptsPath)
+    {
+        if (!Directory.Exists(scriptsPath))
+        {
+            _logger.Debug("Default scripts path not found: {Path}", scriptsPath);
+            return;
+        }
+
+        var scriptFiles = Directory.GetFiles(scriptsPath, "*.js");
+        foreach (var filePath in scriptFiles)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
+            var scriptId = $"default_{fileName}";
+            
+            // 检查是否已存在
+            var existing = GetScript(scriptId);
+            if (existing != null)
+            {
+                _logger.Debug("Default script already exists: {Name}", fileName);
+                continue;
+            }
+            
+            try
+            {
+                var code = File.ReadAllText(filePath);
+                var script = new ScriptRecord
+                {
+                    Id = scriptId,
+                    Name = fileName.Replace("_", " "),
+                    Game = ExtractGameFromScript(code) ?? "通用",
+                    Description = "默认脚本",
+                    Version = "1.0.0",
+                    Author = "System",
+                    Code = code,
+                    Enabled = false
+                };
+                
+                AddScript(script);
+                _logger.Information("Imported default script: {Name}", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to import default script: {Path}", filePath);
+            }
+        }
+    }
+    
+    private static string? ExtractGameFromScript(string code)
+    {
+        // 尝试从脚本的 return 语句中提取 game 字段
+        var match = System.Text.RegularExpressions.Regex.Match(code, @"game:\s*['""]([^'""]+)['""]");
+        return match.Success ? match.Groups[1].Value : null;
+    }
 
     #endregion
 
@@ -1069,6 +1173,119 @@ public class Database : IDisposable
 
     #endregion
 
+    #region Sensor Rule Operations
+
+    public List<SensorRuleRecord> GetAllSensorRules()
+    {
+        return ExecuteQuery("SELECT * FROM sensor_rules ORDER BY name", MapSensorRuleRecord);
+    }
+
+    public List<SensorRuleRecord> GetEnabledSensorRules()
+    {
+        return ExecuteQuery("SELECT * FROM sensor_rules WHERE enabled = 1 ORDER BY name", MapSensorRuleRecord);
+    }
+
+    public List<SensorRuleRecord> GetSensorRulesByDevice(string deviceId)
+    {
+        return ExecuteQuery("SELECT * FROM sensor_rules WHERE deviceId = @deviceId OR deviceId IS NULL ORDER BY name", 
+            MapSensorRuleRecord, ("@deviceId", deviceId));
+    }
+
+    public List<SensorRuleRecord> GetSensorRulesBySensorType(string sensorType)
+    {
+        return ExecuteQuery("SELECT * FROM sensor_rules WHERE sensorType = @sensorType ORDER BY name", 
+            MapSensorRuleRecord, ("@sensorType", sensorType));
+    }
+
+    public SensorRuleRecord? GetSensorRule(string id)
+    {
+        return ExecuteQuerySingle("SELECT * FROM sensor_rules WHERE id = @id", MapSensorRuleRecord, ("@id", id));
+    }
+
+    public void AddSensorRule(SensorRuleRecord rule)
+    {
+        var now = DateTime.UtcNow.ToString("o");
+        var id = string.IsNullOrEmpty(rule.Id) ? $"sr_{Guid.NewGuid():N}"[..20] : rule.Id;
+        ExecuteNonQuery(@"
+            INSERT INTO sensor_rules (id, name, deviceId, sensorType, triggerType, threshold, targetDeviceId, targetChannel, action, value, duration, cooldownMs, enabled, createdAt, updatedAt)
+            VALUES (@id, @name, @deviceId, @sensorType, @triggerType, @threshold, @targetDeviceId, @targetChannel, @action, @value, @duration, @cooldownMs, @enabled, @now, @now)
+        ",
+        ("@id", id),
+        ("@name", rule.Name),
+        ("@deviceId", rule.DeviceId),
+        ("@sensorType", rule.SensorType),
+        ("@triggerType", rule.TriggerType),
+        ("@threshold", rule.Threshold),
+        ("@targetDeviceId", rule.TargetDeviceId),
+        ("@targetChannel", rule.TargetChannel),
+        ("@action", rule.Action),
+        ("@value", rule.Value),
+        ("@duration", rule.Duration),
+        ("@cooldownMs", rule.CooldownMs),
+        ("@enabled", rule.Enabled ? 1 : 0),
+        ("@now", now));
+    }
+
+    public bool UpdateSensorRule(string id, SensorRuleRecord updates)
+    {
+        var now = DateTime.UtcNow.ToString("o");
+        ExecuteNonQuery(@"
+            UPDATE sensor_rules SET name = @name, deviceId = @deviceId, sensorType = @sensorType, triggerType = @triggerType,
+            threshold = @threshold, targetDeviceId = @targetDeviceId, targetChannel = @targetChannel, action = @action,
+            value = @value, duration = @duration, cooldownMs = @cooldownMs, enabled = @enabled, updatedAt = @now
+            WHERE id = @id
+        ",
+        ("@id", id),
+        ("@name", updates.Name),
+        ("@deviceId", updates.DeviceId),
+        ("@sensorType", updates.SensorType),
+        ("@triggerType", updates.TriggerType),
+        ("@threshold", updates.Threshold),
+        ("@targetDeviceId", updates.TargetDeviceId),
+        ("@targetChannel", updates.TargetChannel),
+        ("@action", updates.Action),
+        ("@value", updates.Value),
+        ("@duration", updates.Duration),
+        ("@cooldownMs", updates.CooldownMs),
+        ("@enabled", updates.Enabled ? 1 : 0),
+        ("@now", now));
+        return true;
+    }
+
+    public bool DeleteSensorRule(string id)
+    {
+        ExecuteNonQuery("DELETE FROM sensor_rules WHERE id = @id", ("@id", id));
+        return true;
+    }
+
+    public void ToggleSensorRule(string id, bool enabled)
+    {
+        var now = DateTime.UtcNow.ToString("o");
+        ExecuteNonQuery("UPDATE sensor_rules SET enabled = @enabled, updatedAt = @now WHERE id = @id",
+            ("@id", id), ("@enabled", enabled ? 1 : 0), ("@now", now));
+    }
+
+    private static SensorRuleRecord MapSensorRuleRecord(SqliteDataReader reader) => new()
+    {
+        Id = reader.GetString(reader.GetOrdinal("id")),
+        Name = reader.GetString(reader.GetOrdinal("name")),
+        DeviceId = reader.IsDBNull(reader.GetOrdinal("deviceId")) ? null : reader.GetString(reader.GetOrdinal("deviceId")),
+        SensorType = reader.GetString(reader.GetOrdinal("sensorType")),
+        TriggerType = reader.GetString(reader.GetOrdinal("triggerType")),
+        Threshold = reader.GetDouble(reader.GetOrdinal("threshold")),
+        TargetDeviceId = reader.IsDBNull(reader.GetOrdinal("targetDeviceId")) ? null : reader.GetString(reader.GetOrdinal("targetDeviceId")),
+        TargetChannel = reader.GetString(reader.GetOrdinal("targetChannel")),
+        Action = reader.GetString(reader.GetOrdinal("action")),
+        Value = reader.GetInt32(reader.GetOrdinal("value")),
+        Duration = reader.GetInt32(reader.GetOrdinal("duration")),
+        CooldownMs = reader.GetInt32(reader.GetOrdinal("cooldownMs")),
+        Enabled = reader.GetInt32(reader.GetOrdinal("enabled")) == 1,
+        CreatedAt = reader.GetString(reader.GetOrdinal("createdAt")),
+        UpdatedAt = reader.GetString(reader.GetOrdinal("updatedAt"))
+    };
+
+    #endregion
+
     public void Dispose()
     {
         // 停止定时器
@@ -1125,12 +1342,13 @@ public class EventRecord
     public string UpdatedAt { get; set; } = "";
     
     // 用于 UI 绑定的额外属性
-    public string TriggerType { get; set; } = "decrease";
-    public int MinChange { get; set; } = 1;
-    public int MaxChange { get; set; } = 100;
+    public string TriggerType { get; set; } = "hp-decrease";
+    public int MinChange { get; set; } = 10;  // 指定变化量
+    public int MaxChange { get; set; } = 10;  // 保持兼容
     public string ActionType { get; set; } = "set";
     public int Strength { get; set; } = 50;
     public int Priority { get; set; } = 10;
+    public string TargetDeviceType { get; set; } = "All"; // DGLab | Yokonex_Estim | Yokonex_Enema | Yokonex_Vibrator | Yokonex_Cup | All
 }
 
 public class ScriptRecord
@@ -1177,6 +1395,28 @@ public class WaveformPresetRecord
     public int Intensity { get; set; } = 50;
     public bool IsBuiltIn { get; set; }
     public int SortOrder { get; set; }
+    public string CreatedAt { get; set; } = "";
+    public string UpdatedAt { get; set; } = "";
+}
+
+/// <summary>
+/// 传感器规则记录
+/// </summary>
+public class SensorRuleRecord
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? DeviceId { get; set; }  // 源设备ID (null=所有设备)
+    public string SensorType { get; set; } = "step";  // step, angle, channel
+    public string TriggerType { get; set; } = "threshold";  // threshold, change, connect, disconnect
+    public double Threshold { get; set; }  // 触发阈值
+    public string? TargetDeviceId { get; set; }  // 目标设备ID (null=所有设备)
+    public string TargetChannel { get; set; } = "A";  // A, B, AB
+    public string Action { get; set; } = "increase";  // set, increase, decrease, pulse, wave
+    public int Value { get; set; } = 10;  // 强度值
+    public int Duration { get; set; } = 500;  // 持续时间 (ms)
+    public int CooldownMs { get; set; } = 1000;  // 冷却时间 (ms)
+    public bool Enabled { get; set; } = true;
     public string CreatedAt { get; set; } = "";
     public string UpdatedAt { get; set; } = "";
 }

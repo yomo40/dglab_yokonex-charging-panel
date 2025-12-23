@@ -22,7 +22,7 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = ChargingPanel.Desktop
-build_property.ProjectDir = F:\test\github\src\Desktop\
+build_property.ProjectDir = F:\project_dglab-yokonex\dglab_yokonex-charging-panel-source-v0.9.7.3\src\Desktop\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTAotOptimizerEnabled = true
@@ -36,38 +36,44 @@ build_property.CsWinRTUseWindowsUIXamlProjections = false
 build_property.EffectiveAnalysisLevelStyle = 8.0
 build_property.EnableCodeStyleSeverity = 
 
-[F:/test/github/src/Desktop/App.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/CoordinatePickerWindow.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/CoordinatePickerWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/MainWindow.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/ControlPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/ControlPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/DevicesPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/DevicesPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/EventsPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/EventsPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/LogsPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/LogsPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/OCRPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/OCRPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/OverviewPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/OverviewPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/PluginsPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/PluginsPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/RoomPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/RoomPage.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[F:/test/github/src/Desktop/Views/Pages/SettingsPage.axaml]
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/SensorPage.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/Pages/SettingsPage.axaml]
+build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
+
+[F:/project_dglab-yokonex/dglab_yokonex-charging-panel-source-v0.9.7.3/src/Desktop/Views/SensorRuleDialog.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

@@ -27,12 +27,35 @@ public static class WaveformGenerator
     /// <summary>
     /// 生成 HEX 波形数组（用于 WebSocket 协议）
     /// 每条波形数据必须是 8 字节的 HEX 格式，代表 100ms 的数据
-    /// 格式: [freq1, strength1, freq2, strength2, freq3, strength3, freq4, strength4]
-    /// 每组 freq+strength 代表 25ms
+    /// 官方V3格式: [freq1, freq2, freq3, freq4, strength1, strength2, strength3, strength4]
+    /// 前4字节是频率，后4字节是强度，每组代表 25ms
     /// </summary>
     public static List<string> GenerateHexArray(WaveformData data)
     {
         var result = new List<string>();
+        
+        // 如果有自定义 HEX 数据，优先使用
+        if (!string.IsNullOrEmpty(data.HexData))
+        {
+            // HexData 格式: 逗号分隔的多段 HEX 波形，每段 16 字符 (8 字节)
+            var hexParts = data.HexData.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var hex in hexParts)
+            {
+                var trimmed = hex.Trim();
+                // 验证 HEX 格式: 必须是 16 字符 (8 字节)
+                if (trimmed.Length == 16 && System.Text.RegularExpressions.Regex.IsMatch(trimmed, "^[0-9A-Fa-f]+$"))
+                {
+                    result.Add(trimmed.ToUpperInvariant());
+                }
+            }
+            
+            // 如果解析成功，直接返回
+            if (result.Count > 0)
+            {
+                return result;
+            }
+        }
+        
         var totalTime = 0;
         
         // 每个 HEX 数据代表 100ms (包含 4 个 25ms 的小周期)
@@ -42,14 +65,13 @@ public static class WaveformGenerator
             int freq = DGLabBluetoothProtocol.ConvertFrequency(data.Frequency);
             int strength = Math.Clamp(data.Strength, 0, 100);
             
-            // 构建 8 字节数据 (4 组 freq+strength，每组 25ms)
-            // 格式: [freq1, strength1, freq2, strength2, freq3, strength3, freq4, strength4]
+            // 构建 8 字节数据 (官方V3格式)
+            // 格式: [freq1, freq2, freq3, freq4, strength1, strength2, strength3, strength4]
+            // 示例: freq=10, strength=20 → 0A0A0A0A14141414
             var hexBytes = new byte[]
             {
-                (byte)freq, (byte)strength,
-                (byte)freq, (byte)strength,
-                (byte)freq, (byte)strength,
-                (byte)freq, (byte)strength
+                (byte)freq, (byte)freq, (byte)freq, (byte)freq,
+                (byte)strength, (byte)strength, (byte)strength, (byte)strength
             };
             
             result.Add(BitConverter.ToString(hexBytes).Replace("-", ""));
@@ -132,7 +154,7 @@ public static class WaveformGenerator
                 });
             }
             
-            // 关闭周期
+            // 关闭周期 - 官方示例: 频率{0,0,0,0} + 强度{0,0,0,101} 使通道无效
             int offSteps = Math.Max(1, offTime / 100);
             for (int i = 0; i < offSteps; i++)
             {
@@ -200,7 +222,7 @@ public static class WaveformGenerator
             result.Add(new ChannelWaveform { Frequency = new[] { freqValue, freqValue, freqValue, freqValue }, Strength = new[] { strength * 70 / 100, strength * 70 / 100, 0, 0 } });
             result.Add(new ChannelWaveform { Frequency = new[] { 0, 0, 0, 0 }, Strength = new[] { 0, 0, 0, 101 } });
             
-            // 间隔
+            // 间隔 - 官方示例: 频率{0,0,0,0} + 强度{0,0,0,101} 使通道无效
             result.Add(new ChannelWaveform { Frequency = new[] { 0, 0, 0, 0 }, Strength = new[] { 0, 0, 0, 101 } });
             result.Add(new ChannelWaveform { Frequency = new[] { 0, 0, 0, 0 }, Strength = new[] { 0, 0, 0, 101 } });
         }

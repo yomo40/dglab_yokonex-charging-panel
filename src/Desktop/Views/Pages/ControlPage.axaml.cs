@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Devices;
 using ChargingPanel.Core.Devices.DGLab;
+using ChargingPanel.Core.Devices.Yokonex;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -47,7 +48,13 @@ public partial class ControlPage : UserControl
         
         foreach (var device in devices)
         {
-            var icon = device.Type == DeviceType.DGLab ? "⚡" : "📱";
+            var icon = device.Type switch
+            {
+                DeviceType.DGLab => "⚡",
+                DeviceType.Yokonex => "📱",
+                DeviceType.Virtual => "🔧",
+                _ => "📟"
+            };
             DeviceSelector.Items.Add(new ComboBoxItem 
             { 
                 Content = $"{icon} {device.Name}",
@@ -84,6 +91,8 @@ public partial class ControlPage : UserControl
         if (string.IsNullOrEmpty(_selectedDeviceId) || !AppServices.IsInitialized)
         {
             DeviceTypeBadge.IsVisible = false;
+            YokonexControlPanel.IsVisible = false;
+            DGLabControlPanel.IsVisible = false;
             return;
         }
 
@@ -97,12 +106,31 @@ public partial class ControlPage : UserControl
                 DeviceTypeText.Text = "⚡ DG-LAB";
                 DeviceTypeBadge.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#8b5cf6"));
                 YokonexControlPanel.IsVisible = false;
+                DGLabControlPanel.IsVisible = true;  // 显示郊狼专用控制
+                
+                // 隐藏传感器控制面板（已移除郊狼按钮设备支持）
+                SensorControlPanel.IsVisible = false;
             }
-            else
+            else if (deviceInfo.Type == DeviceType.Yokonex)
             {
                 DeviceTypeText.Text = "📱 役次元";
                 DeviceTypeBadge.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#06b6d4"));
                 YokonexControlPanel.IsVisible = true;
+                DGLabControlPanel.IsVisible = false;  // 隐藏郊狼专用控制
+                SensorControlPanel.IsVisible = false;  // 隐藏按钮设备控制面板
+                
+                // 更新役次元设备状态显示
+                UpdateYokonexStatus();
+                SubscribeYokonexEvents();
+            }
+            else if (deviceInfo.Type == DeviceType.Virtual)
+            {
+                // 虚拟设备 - 显示通用控制面板
+                DeviceTypeText.Text = "🔧 虚拟设备";
+                DeviceTypeBadge.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#F59E0B"));
+                YokonexControlPanel.IsVisible = false;
+                DGLabControlPanel.IsVisible = true;  // 虚拟设备使用郊狼控制面板（通用）
+                SensorControlPanel.IsVisible = false;
             }
             DeviceTypeText.Foreground = Avalonia.Media.Brushes.White;
         }
@@ -111,7 +139,90 @@ public partial class ControlPage : UserControl
             Logger.Warning(ex, "Failed to update device type badge");
             DeviceTypeBadge.IsVisible = false;
             YokonexControlPanel.IsVisible = false;
+            DGLabControlPanel.IsVisible = false;
         }
+    }
+    
+    private IYokonexEmsDevice? _currentYokonexDevice;
+    
+    private void SubscribeYokonexEvents()
+    {
+        // 取消之前的订阅
+        UnsubscribeYokonexEvents();
+        
+        if (string.IsNullOrEmpty(_selectedDeviceId) || !AppServices.IsInitialized) return;
+        
+        var device = AppServices.Instance.DeviceManager.GetDevice(_selectedDeviceId);
+        if (device is IYokonexEmsDevice emsDevice)
+        {
+            _currentYokonexDevice = emsDevice;
+            emsDevice.ChannelConnectionChanged += OnChannelConnectionChanged;
+            emsDevice.StepCountChanged += OnStepCountChanged;
+            emsDevice.AngleChanged += OnAngleChanged;
+        }
+    }
+    
+    private void UnsubscribeYokonexEvents()
+    {
+        if (_currentYokonexDevice != null)
+        {
+            _currentYokonexDevice.ChannelConnectionChanged -= OnChannelConnectionChanged;
+            _currentYokonexDevice.StepCountChanged -= OnStepCountChanged;
+            _currentYokonexDevice.AngleChanged -= OnAngleChanged;
+            _currentYokonexDevice = null;
+        }
+    }
+    
+    private void OnChannelConnectionChanged(object? sender, (bool ChannelA, bool ChannelB) state)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateChannelConnectionUI(state));
+    }
+    
+    private void OnStepCountChanged(object? sender, int stepCount)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            StepCountText.Text = stepCount.ToString();
+        });
+    }
+    
+    private void OnAngleChanged(object? sender, (float X, float Y, float Z) angle)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            AngleText.Text = $"📐 X:{angle.X:F0}° Y:{angle.Y:F0}° Z:{angle.Z:F0}°";
+        });
+    }
+    
+    private void UpdateYokonexStatus()
+    {
+        if (string.IsNullOrEmpty(_selectedDeviceId) || !AppServices.IsInitialized) return;
+        
+        var device = AppServices.Instance.DeviceManager.GetDevice(_selectedDeviceId);
+        if (device is IYokonexEmsDevice emsDevice)
+        {
+            UpdateChannelConnectionUI(emsDevice.ChannelConnectionState);
+            StepCountText.Text = emsDevice.StepCount.ToString();
+            var angle = emsDevice.CurrentAngle;
+            AngleText.Text = $"📐 X:{angle.X:F0}° Y:{angle.Y:F0}° Z:{angle.Z:F0}°";
+        }
+    }
+    
+    private void UpdateChannelConnectionUI((bool ChannelA, bool ChannelB) state)
+    {
+        // 更新 A 通道指示灯
+        ChannelAIndicator.Fill = new Avalonia.Media.SolidColorBrush(
+            state.ChannelA ? Avalonia.Media.Color.Parse("#10B981") : Avalonia.Media.Color.Parse("#EF4444"));
+        ChannelAStatusText.Text = state.ChannelA ? "A: 已接入" : "A: 断开";
+        ChannelAStatusText.Foreground = new Avalonia.Media.SolidColorBrush(
+            state.ChannelA ? Avalonia.Media.Color.Parse("#10B981") : Avalonia.Media.Color.Parse("#EF4444"));
+        
+        // 更新 B 通道指示灯
+        ChannelBIndicator.Fill = new Avalonia.Media.SolidColorBrush(
+            state.ChannelB ? Avalonia.Media.Color.Parse("#10B981") : Avalonia.Media.Color.Parse("#EF4444"));
+        ChannelBStatusText.Text = state.ChannelB ? "B: 已接入" : "B: 断开";
+        ChannelBStatusText.Foreground = new Avalonia.Media.SolidColorBrush(
+            state.ChannelB ? Avalonia.Media.Color.Parse("#10B981") : Avalonia.Media.Color.Parse("#EF4444"));
     }
 
     private void UpdateStrengthDisplay()
@@ -150,6 +261,7 @@ public partial class ControlPage : UserControl
         SliderAValue.Text = "0";
         SliderBValue.Text = "0";
         YokonexControlPanel.IsVisible = false;
+        DGLabControlPanel.IsVisible = false;
         _updatingSliders = false;
     }
 
@@ -235,13 +347,28 @@ public partial class ControlPage : UserControl
         if (slider == null) return;
         
         var value = (int)slider.Value;
-        var mode = modeCombo?.SelectedIndex ?? 0;
+        var mode = (modeCombo?.SelectedIndex ?? 0) + 1; // 模式从1开始
         
         try
         {
-            // TODO: 实现 Yokonex 电击控制
-            await AppServices.Instance.DeviceManager.SetStrengthAsync(_selectedDeviceId, Channel.A, value, StrengthMode.Set);
-            ShowStatus($"电击强度已设置为 {value}，模式 {mode}");
+            var device = AppServices.Instance.DeviceManager.GetDevice(_selectedDeviceId);
+            
+            // 役次元电击器使用 IYokonexEmsDevice 接口
+            if (device is ChargingPanel.Core.Devices.Yokonex.IYokonexEmsDevice emsDevice)
+            {
+                // 设置固定模式 (1-16)
+                await emsDevice.SetFixedModeAsync(Channel.A, mode);
+                // 设置强度 (通过通用接口，会自动映射到 0-276)
+                await device.SetStrengthAsync(Channel.A, value, StrengthMode.Set);
+                ShowStatus($"电击强度 {value}，模式 {mode}");
+            }
+            else
+            {
+                // 非蓝牙设备使用通用接口
+                await device.SetStrengthAsync(Channel.A, value, StrengthMode.Set);
+                ShowStatus($"电击强度已设置为 {value}");
+            }
+            
             Logger.Information("Yokonex Estim strength set to {Value}, mode {Mode}", value, mode);
         }
         catch (Exception ex)
@@ -260,13 +387,36 @@ public partial class ControlPage : UserControl
         if (slider == null) return;
         
         var value = (int)slider.Value;
-        var mode = modeCombo?.SelectedIndex ?? 0;
+        var mode = (modeCombo?.SelectedIndex ?? 0) + 1;
         
         try
         {
-            // TODO: 实现 Yokonex 震动控制
-            await AppServices.Instance.DeviceManager.SetStrengthAsync(_selectedDeviceId, Channel.B, value, StrengthMode.Set);
-            ShowStatus($"震动强度已设置为 {value}，模式 {mode}");
+            var device = AppServices.Instance.DeviceManager.GetDevice(_selectedDeviceId);
+            
+            // 役次元跳蛋/飞机杯使用 IYokonexToyDevice 接口
+            if (device is ChargingPanel.Core.Devices.Yokonex.IYokonexToyDevice toyDevice)
+            {
+                // 跳蛋/飞机杯: 强度范围 0-20
+                var mappedValue = (int)(value * 0.2); // 0-100 -> 0-20
+                await toyDevice.SetMotorStrengthAsync(1, mappedValue);
+                ShowStatus($"震动强度 {mappedValue}/20");
+            }
+            else if (device is ChargingPanel.Core.Devices.Yokonex.IYokonexEmsDevice emsDevice)
+            {
+                // 电击器马达控制
+                var motorState = value > 0 
+                    ? ChargingPanel.Core.Devices.Yokonex.YokonexMotorState.On 
+                    : ChargingPanel.Core.Devices.Yokonex.YokonexMotorState.Off;
+                await emsDevice.SetMotorStateAsync(motorState);
+                ShowStatus($"马达 {(value > 0 ? "开启" : "关闭")}");
+            }
+            else
+            {
+                // 通用接口
+                await device.SetStrengthAsync(Channel.B, value, StrengthMode.Set);
+                ShowStatus($"震动强度已设置为 {value}");
+            }
+            
             Logger.Information("Yokonex Vibrate strength set to {Value}, mode {Mode}", value, mode);
         }
         catch (Exception ex)
@@ -285,12 +435,40 @@ public partial class ControlPage : UserControl
         if (slider == null) return;
         
         var value = (int)slider.Value;
-        var mode = modeCombo?.SelectedIndex ?? 0;
+        var mode = (modeCombo?.SelectedIndex ?? 0) + 1;
         
         try
         {
-            // TODO: 根据 Yokonex 其他设备类型进行控制
-            ShowStatus($"其他设备强度已设置为 {value}，模式 {mode}");
+            var device = AppServices.Instance.DeviceManager.GetDevice(_selectedDeviceId);
+            
+            // 役次元灌肠器使用 IYokonexEnemaDevice 接口
+            if (device is ChargingPanel.Core.Devices.Yokonex.IYokonexEnemaDevice enemaDevice)
+            {
+                // 灌肠器: 注入强度 0-100%
+                await enemaDevice.SetInjectionStrengthAsync(value);
+                if (value > 0)
+                {
+                    await enemaDevice.StartInjectionAsync();
+                    ShowStatus($"注入强度 {value}%");
+                }
+                else
+                {
+                    await enemaDevice.StopInjectionAsync();
+                    ShowStatus("注入已停止");
+                }
+            }
+            else if (device is ChargingPanel.Core.Devices.Yokonex.IYokonexToyDevice toyDevice)
+            {
+                // 跳蛋/飞机杯: 设置所有马达
+                var mappedValue = (int)(value * 0.2); // 0-100 -> 0-20
+                await toyDevice.SetAllMotorsAsync(mappedValue, mappedValue, mappedValue);
+                ShowStatus($"所有马达强度 {mappedValue}/20");
+            }
+            else
+            {
+                ShowStatus($"其他设备强度已设置为 {value}");
+            }
+            
             Logger.Information("Yokonex Other device strength set to {Value}, mode {Mode}", value, mode);
         }
         catch (Exception ex)
@@ -302,14 +480,59 @@ public partial class ControlPage : UserControl
 
     private async void OnQuickControl(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn || btn.Tag is not string tag) return;
-        if (string.IsNullOrEmpty(_selectedDeviceId) || !AppServices.IsInitialized) return;
+        if (sender is not Button btn || btn.Tag is not string tag)
+        {
+            Logger.Warning("OnQuickControl: Invalid sender or tag");
+            return;
+        }
+        
+        if (string.IsNullOrEmpty(_selectedDeviceId))
+        {
+            ShowStatus("请先选择一个设备");
+            Logger.Warning("OnQuickControl: No device selected");
+            return;
+        }
+        
+        if (!AppServices.IsInitialized)
+        {
+            ShowStatus("服务未初始化");
+            Logger.Warning("OnQuickControl: AppServices not initialized");
+            return;
+        }
+        
+        // 检查设备连接状态
+        try
+        {
+            var deviceInfo = AppServices.Instance.DeviceManager.GetDeviceInfo(_selectedDeviceId);
+            if (deviceInfo.Status != DeviceStatus.Connected)
+            {
+                ShowStatus($"设备未连接 (当前状态: {deviceInfo.Status})");
+                Logger.Warning("OnQuickControl: Device not connected, status={Status}", deviceInfo.Status);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus("设备不存在或已移除");
+            Logger.Warning(ex, "OnQuickControl: Failed to get device info");
+            return;
+        }
         
         var parts = tag.Split(',');
-        if (parts.Length != 2) return;
+        if (parts.Length != 2)
+        {
+            Logger.Warning("OnQuickControl: Invalid tag format: {Tag}", tag);
+            return;
+        }
         
         var channel = parts[0] == "A" ? Channel.A : Channel.B;
-        if (!int.TryParse(parts[1], out var value)) return;
+        if (!int.TryParse(parts[1], out var value))
+        {
+            Logger.Warning("OnQuickControl: Invalid value in tag: {Tag}", tag);
+            return;
+        }
+        
+        Logger.Information("OnQuickControl: Channel={Channel}, Value={Value}, DeviceId={DeviceId}", parts[0], value, _selectedDeviceId);
         
         try
         {
@@ -317,19 +540,27 @@ public partial class ControlPage : UserControl
             {
                 // 归零
                 await AppServices.Instance.DeviceManager.SetStrengthAsync(_selectedDeviceId, channel, 0, StrengthMode.Set);
+                ShowStatus($"通道 {parts[0]} 已归零");
+                Logger.Information("Channel {Channel} reset to 0", parts[0]);
             }
             else
             {
                 // 增减
                 var mode = value > 0 ? StrengthMode.Increase : StrengthMode.Decrease;
                 await AppServices.Instance.DeviceManager.SetStrengthAsync(_selectedDeviceId, channel, Math.Abs(value), mode);
+                ShowStatus($"通道 {parts[0]} {(value > 0 ? "+" : "")}{value}");
+                Logger.Information("Channel {Channel} adjusted by {Value}", parts[0], value);
             }
             
+            // 延迟一小段时间后更新显示，确保设备状态已更新
+            await Task.Delay(50);
             UpdateStrengthDisplay();
+            Logger.Debug("Quick control: Channel={Channel}, Value={Value}", parts[0], value);
         }
         catch (Exception ex)
         {
             Logger.Warning(ex, "Quick control failed");
+            ShowStatus($"控制失败: {ex.Message}");
         }
     }
 

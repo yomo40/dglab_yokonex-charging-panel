@@ -9,7 +9,7 @@
     <LangVersion>12.0</LangVersion>
     <RootNamespace>ChargingPanel.Desktop</RootNamespace>
     <AssemblyName>郊狼役次元游戏适配面板</AssemblyName>
-    <Version>0.9.6</Version>
+    <Version>0.9.7.3</Version>
     <Authors>dglab_yokonex</Authors>
     <Description>郊狼&amp;役次元游戏适配面板 - 桌面应用</Description>
     <!-- <ApplicationIcon>Assets\icon.ico</ApplicationIcon> -->
@@ -56,6 +56,11 @@
   <ItemGroup>
     <!-- 文档文件 - 复制到输出目录 -->
     <None Include="docs\**" CopyToOutputDirectory="PreserveNewest" Condition="Exists('docs')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 默认脚本 - 复制到输出目录 -->
+    <None Include="Assets\Scripts\**" CopyToOutputDirectory="PreserveNewest" Link="scripts\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
