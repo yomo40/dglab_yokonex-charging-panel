@@ -1,0 +1,207 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.SettingsPage">
+    
+    <ScrollViewer>
+        <StackPanel Spacing="16">
+            <!-- 外观设置 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="外观设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="主题" Foreground="#9AB0C8" FontSize="12" />
+                            <ComboBox x:Name="ThemeSelector" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="深色" />
+                                <ComboBoxItem Content="浅色" />
+                                <ComboBoxItem Content="跟随系统" />
+                            </ComboBox>
+                        </StackPanel>
+                    
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="启动时最小化到托盘" Foreground="White" />
+                                <TextBlock Text="程序启动后自动最小化到系统托盘" Foreground="#9AB0C8" FontSize="12" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="MinimizeToTray" Grid.Column="1" IsChecked="False" />
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 日志设置 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="日志设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="日志级别" Foreground="#9AB0C8" FontSize="12" />
+                            <ComboBox x:Name="LogLevel" SelectedIndex="1" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Verbose" />
+                                <ComboBoxItem Content="Debug" />
+                                <ComboBoxItem Content="Information" />
+                                <ComboBoxItem Content="Warning" />
+                                <ComboBoxItem Content="Error" />
+                            </ComboBox>
+                        </StackPanel>
+                    
+                        <Border Background="#172033" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                                    <TextBlock Text="数据库日志" Foreground="White" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock x:Name="DatabaseLogInfo" Text="数据库日志：0 条，约 0 KB" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,12" />
+                            
+                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                                    <TextBlock Text="保留天数：" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" />
+                                    <ComboBox x:Name="LogRetentionDays" SelectedIndex="0" Width="90">
+                                        <ComboBoxItem Content="7 天" Tag="7" />
+                                        <ComboBoxItem Content="10 天" Tag="10" />
+                                        <ComboBoxItem Content="30 天" Tag="30" />
+                                    </ComboBox>
+                                </StackPanel>
+                            
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="清理旧日志" 
+                                            Background="#F59E0B" 
+                                            Foreground="White"
+                                            Click="OnClearDatabaseLogsClick" />
+                                    <Button Content="清空全部" 
+                                            Background="#EF4444" 
+                                            Foreground="White"
+                                            Click="OnClearAllDatabaseLogsClick" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    
+                        <Border Background="#172033" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                                    <TextBlock Text="文件日志（永久保留）" Foreground="White" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock x:Name="FileLogInfo" Text="文件日志：0 个文件，共 0 KB" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,12" />
+                                <TextBlock Text="文件日志不自动清理，需手动删除以确保数据留存" Foreground="#6C7086" FontSize="11" FontStyle="Italic" Margin="0,0,0,12" />
+                            
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="打开日志文件夹" 
+                                            Background="#314764" 
+                                            Foreground="White"
+                                            Click="OnOpenLogsFolderClick" />
+                                    <Button Content="手动清理文件" 
+                                            Background="#0284C7" 
+                                            Foreground="White"
+                                            Click="OnManualCleanLogFilesClick" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    
+                        <Button Content="刷新日志信息" 
+                                Background="#10B981" 
+                                Foreground="White"
+                                Click="OnRefreshLogInfoClick" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 关于 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #180EA5E9">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                                <TextBlock Text="信息" FontSize="12" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="关于" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <TextBlock Text="郊狼 &amp; 役次元游戏适配面板" Foreground="White" FontSize="16" FontWeight="SemiBold" />
+                        <TextBlock x:Name="VersionText" Text="版本 --" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                        <TextBlock Text="基于 .NET 8 + Avalonia UI 构建" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
+                    
+                        <Border Background="#314764" CornerRadius="8" Padding="16" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="开发者信息" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="14" />
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,12,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="作者：" Foreground="#9AB0C8" FontSize="13" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="yomo40" Foreground="#7DD3FC" FontSize="13" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="GitHub：" Foreground="#9AB0C8" FontSize="13" Margin="0,4,0,0" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="GitHubLink" 
+                                               Text="https://github.com/yomo40/dglab_yokonex-charging-panel" 
+                                               Foreground="#7DD3FC" FontSize="13" Margin="0,4,0,0"
+                                               Cursor="Hand"
+                                               PointerPressed="OnGitHubLinkClick">
+                                        <TextBlock.TextDecorations>
+                                            <TextDecorationCollection>
+                                                <TextDecoration Location="Underline" />
+                                            </TextDecorationCollection>
+                                        </TextBlock.TextDecorations>
+                                    </TextBlock>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                            <Button Content="项目主页" Background="#0284C7" Foreground="White" Padding="16,8" Click="OnGitHubClick" />
+                            <Button Content="问题反馈" Background="#314764" Foreground="White" Padding="16,8" Click="OnIssuesClick" />
+                            <Button Content="内置文档" Background="#10B981" Foreground="White" Padding="16,8" Click="OnDocsClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+
+
+

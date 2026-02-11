@@ -1,0 +1,76 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.LogsPage">
+    
+    <Grid RowDefinitions="Auto,*">
+        <!-- 工具栏 -->
+        <Border Grid.Row="0" CornerRadius="16" Padding="18" Margin="0,0,0,20" BoxShadow="0 4 16 0 #10000000">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#1F2B3E" />
+                    <GradientStop Offset="1" Color="#24324A" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                    </Border>
+                    <TextBlock Text="设备动作日志" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                </StackPanel>
+                
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="筛选:" Foreground="#9AB0C8" VerticalAlignment="Center" />
+                    <ComboBox x:Name="FilterType" SelectedIndex="0" Width="120">
+                        <ComboBoxItem Content="全部" />
+                        <ComboBoxItem Content="强度变化" />
+                        <ComboBoxItem Content="波形发送" />
+                        <ComboBoxItem Content="设备连接" />
+                        <ComboBoxItem Content="OCR触发" />
+                    </ComboBox>
+                </StackPanel>
+                
+                <Button Grid.Column="3" Content="刷新" Margin="15,0,0,0" Click="OnRefreshClick" />
+                <Button Grid.Column="4" Content="清空日志" Margin="10,0,0,0" Background="#EF4444" Foreground="White" Click="OnClearClick" />
+            </Grid>
+        </Border>
+        
+        <!-- 日志列表 -->
+        <Border Grid.Row="1" CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#1F2B3E" />
+                    <GradientStop Offset="1" Color="#24324A" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid RowDefinitions="Auto,*">
+                <!-- 表头 -->
+                <Border Grid.Row="0" CornerRadius="16,16,0,0" Padding="18,14">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#172033" />
+                            <GradientStop Offset="1" Color="#1C2840" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="150,150,*,100">
+                        <TextBlock Grid.Column="0" Text="时间" Foreground="#9AB0C8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="1" Text="设备" Foreground="#9AB0C8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="2" Text="动作" Foreground="#9AB0C8" FontWeight="SemiBold" FontSize="12" />
+                        <TextBlock Grid.Column="3" Text="来源" Foreground="#9AB0C8" FontWeight="SemiBold" FontSize="12" />
+                    </Grid>
+                </Border>
+                
+                <!-- 日志内容 -->
+                <ScrollViewer Grid.Row="1">
+                    <StackPanel x:Name="LogList" Margin="0,5,0,10">
+                        <TextBlock x:Name="NoLogsHint" Text="暂无日志记录" Foreground="#8091A8" 
+                                   HorizontalAlignment="Center" Margin="0,50,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+    
+</UserControl>
+
+
+

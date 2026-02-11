@@ -1,0 +1,78 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.DocsPage">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,0,16">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#10B98120" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="内置使用文档" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="刷新文档" Background="#314764" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnReloadDocsClick" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="10">
+                        <TextBlock Text="文档已内置到客户端中（Markdown），无需外部浏览器。"
+                                   Foreground="#9AB0C8" FontSize="12" />
+                        <TextBlock x:Name="SourcePathText" Text="来源: -" Foreground="#9AB0C8" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="文档内容（Markdown）" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <TextBox x:Name="DocsText"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 MinHeight="560"
+                                 Background="#172033"
+                                 Foreground="#E6EDF7" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+
+

@@ -1,0 +1,183 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ChargingPanel.Desktop.Views.MainWindow"
+        Title="郊狼&amp;役次元适配器"
+        Width="1240" Height="820"
+        MinWidth="1080" MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppWindowBackgroundBrush}">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="SkinAccentBrush" Color="{DynamicResource AppPrimaryColor}" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="{DynamicResource AppTextColor}" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="{DynamicResource AppSubtextColor}" />
+        <x:Double x:Key="SkinTextBoxOpacity">1</x:Double>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtextBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E2D43" />
+        </Style>
+
+        <Style Selector="Button.nav-active">
+            <Setter Property="Background" Value="#1E2D43" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SkinAccentBrush}" />
+            <Setter Property="BorderThickness" Value="2,0,0,0" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Opacity" Value="{DynamicResource SkinTextBoxOpacity}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <Border x:Name="SkinBackgroundLayer"
+                Grid.RowSpan="1"
+                Background="Transparent"
+                IsHitTestVisible="False" />
+        <Border x:Name="SkinOverlayLayer"
+                Grid.RowSpan="1"
+                Background="Transparent"
+                IsHitTestVisible="False" />
+
+        <Grid ColumnDefinitions="236,*">
+        <Border Grid.Column="0"
+                Background="{DynamicResource AppSurfaceBrush}"
+                BorderBrush="{DynamicResource AppBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel Margin="14">
+                <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource AppPanelBrush}"
+                        CornerRadius="12"
+                        Padding="12"
+                        Margin="0,6,0,16"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1">
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="AppLogoIcon" Text="🐺" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AppPrimaryBrush}" />
+                        <TextBlock Text="郊狼 · 役次元适配器" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
+                        <TextBlock Text="杂鱼训练器" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" />
+                        <Border x:Name="AppVersionBadgeContainer"
+                                Background="{DynamicResource AppPrimarySoftBrush}"
+                                CornerRadius="6"
+                                Padding="8,3"
+                                HorizontalAlignment="Left">
+                            <TextBlock x:Name="AppVersionBadge" Text="v--" FontSize="11" Foreground="{DynamicResource SkinAccentBrush}" FontWeight="SemiBold" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="概览" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedTextBrush}" Margin="6,0,0,6" />
+                        <Button x:Name="NavOverview" Content="🏠 概览" Classes="nav-active" Click="OnNavClick" Tag="Overview" />
+
+                        <TextBlock Text="设备管理" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedTextBrush}" Margin="6,16,0,6" />
+                        <Button x:Name="NavDevices" Content="🔌 设备连接" Classes="nav" Click="OnNavClick" Tag="Devices" />
+                        <Button x:Name="NavControl" Content="🎛️ 设备控制" Classes="nav" Click="OnNavClick" Tag="Control" />
+                        <Button x:Name="NavSensor" Content="📡 传感器" Classes="nav" Click="OnNavClick" Tag="Sensor" />
+
+                        <TextBlock Text="功能模块" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedTextBrush}" Margin="6,16,0,6" />
+                        <Button x:Name="NavEvents" Content="🧠 触发规则" Classes="nav" Click="OnNavClick" Tag="Events" />
+                        <Button x:Name="NavPlugins" Content="🧩 游戏适配" Classes="nav" Click="OnNavClick" Tag="Plugins" />
+                        <Button x:Name="NavOCR" Content="👁️ 血量识别" Classes="nav" Click="OnNavClick" Tag="OCR" />
+                        <Button x:Name="NavRoom" Content="👥 多人房间" Classes="nav" Click="OnNavClick" Tag="Room" />
+
+                        <TextBlock Text="系统设置" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource MutedTextBrush}" Margin="6,16,0,6" />
+                        <Button x:Name="NavLogs" Content="📜 日志" Classes="nav" Click="OnNavClick" Tag="Logs" />
+                        <Button x:Name="NavWebSocket" Content="🛰️ 内置服务器" Classes="nav" Click="OnNavClick" Tag="WebSocket" />
+                        <Button x:Name="NavSkins" Content="🎨 皮肤模块" Classes="nav" Click="OnNavClick" Tag="Skins" />
+                        <Button x:Name="NavDocs" Content="📘 使用文档" Classes="nav" Click="OnNavClick" Tag="Docs" />
+                        <Button x:Name="NavSettings" Content="⚙️ 系统设置" Classes="nav" Click="OnNavClick" Tag="Settings" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Border DockPanel.Dock="Bottom"
+                        Background="{DynamicResource AppPanelBrush}"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10"
+                        Margin="0,14,0,0">
+                    <TextBlock Text="yomo40" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" HorizontalAlignment="Center" />
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="24,20,24,20" RowDefinitions="Auto,*" ColumnDefinitions="*,Auto,Auto,Auto">
+            <StackPanel Grid.Row="0" Grid.Column="0">
+                <TextBlock x:Name="PageTitle" Text="概览" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AppTextBrush}" />
+                <TextBlock x:Name="PageDescription" Text="设备状态总览与快捷控制" FontSize="13" Foreground="{DynamicResource MutedTextBrush}" Margin="0,6,0,0" />
+            </StackPanel>
+
+            <Button x:Name="GlobalSaveButton"
+                    Grid.Row="0" Grid.Column="1"
+                    Classes="success"
+                    Content="保存设置"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center"
+                    IsVisible="False"
+                    Click="OnGlobalSaveClick" />
+
+            <Button x:Name="TopEmergencyStopButton"
+                    Grid.Row="0" Grid.Column="2"
+                    Classes="danger"
+                    Content="紧急停止"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center"
+                    Click="OnEmergencyStopClick" />
+
+            <Border Grid.Row="0" Grid.Column="3"
+                    Background="{DynamicResource AppPanelBrush}"
+                    BorderBrush="{DynamicResource AppBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12,8"
+                    MinWidth="196"
+                    VerticalAlignment="Center">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <Ellipse x:Name="TopStatusIndicator" Width="10" Height="10" Fill="#8091A8" VerticalAlignment="Center" />
+                    <TextBlock x:Name="TopStatusText"
+                               Grid.Column="1"
+                               Text="未连接设备"
+                               Foreground="{DynamicResource AppTextBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="240" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Grid.ColumnSpan="4"
+                    x:Name="PageContainer"
+                    Margin="0,18,0,0"
+                    Background="{DynamicResource AppSurfaceBrush}"
+                    BorderBrush="{DynamicResource AppBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="2" />
+        </Grid>
+        </Grid>
+    </Grid>
+</Window>

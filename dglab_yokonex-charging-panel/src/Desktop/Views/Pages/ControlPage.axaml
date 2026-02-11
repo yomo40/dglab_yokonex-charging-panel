@@ -1,0 +1,773 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.ControlPage">
+    
+    <ScrollViewer>
+        <StackPanel Spacing="20" Margin="0,0,0,20">
+            <!-- 目标设备选择 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="目标设备" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="20">
+                        <ComboBox x:Name="DeviceSelector" 
+                                  HorizontalAlignment="Stretch" 
+                                  SelectionChanged="OnDeviceSelected">
+                            <ComboBoxItem Content="-- 选择设备 --" />
+                        </ComboBox>
+                        
+                        <!-- 设备类型标识 -->
+                        <Border x:Name="DeviceTypeBadge" Grid.Column="1" 
+                                Background="#314764" CornerRadius="6" 
+                                Padding="10,6" Margin="10,0"
+                                IsVisible="False">
+                            <TextBlock x:Name="DeviceTypeText" Text="DG-LAB" Foreground="#9AB0C8" FontSize="12" />
+                        </Border>
+                        
+                        <Button Grid.Column="2" 
+                                Content="紧急停止" 
+                                Background="#EF4444" 
+                                Foreground="White"
+                                Padding="20,10"
+                                Click="OnEmergencyStop" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 设备默认参数（按设备类型分组） -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#10B98120" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="设备默认设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="14">
+                        <TextBlock Text="以下默认参数按设备类型分类，便于后续接入新设备时统一管理。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+
+                        <Grid ColumnDefinitions="*,*">
+                            <Border Grid.Column="0" Background="#172033" CornerRadius="10" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="DG-LAB 默认参数" Foreground="#0EA5E9" FontWeight="SemiBold" />
+                                    <StackPanel>
+                                        <TextBlock Text="A 通道上限" Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                            <Slider x:Name="DefaultDGLabLimitASlider" Minimum="0" Maximum="100" Value="100"
+                                                    ValueChanged="OnDefaultDGLabLimitASliderChanged" />
+                                            <TextBlock x:Name="DefaultDGLabLimitAValueText" Grid.Column="1"
+                                                       Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="B 通道上限" Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                            <Slider x:Name="DefaultDGLabLimitBSlider" Minimum="0" Maximum="100" Value="100"
+                                                    ValueChanged="OnDefaultDGLabLimitBSliderChanged" />
+                                            <TextBlock x:Name="DefaultDGLabLimitBValueText" Grid.Column="1"
+                                                       Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="波形队列上限" Foreground="#9AB0C8" FontSize="12" />
+                                        <TextBox x:Name="DefaultDGLabQueue" Text="500" Margin="0,4,0,0" />
+                                        <TextBlock Text="每通道可缓存的待发送波形片段数量上限。超出后会按策略丢弃旧片段，避免积压。"
+                                                   Foreground="#8091A8" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="#172033" CornerRadius="10" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="役次元默认参数" Foreground="#14B8A6" FontWeight="SemiBold" />
+                                    <TextBlock Text="EMS = 电击强度"
+                                               Foreground="#7DD3FC" FontSize="11" />
+                                    <StackPanel>
+                                        <TextBlock Text="电击上限 (EMS，协议 0-276)" Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                            <Slider x:Name="DefaultYokonexEmsMaxSlider" Minimum="0" Maximum="100" Value="100"
+                                                    ValueChanged="OnDefaultYokonexEmsMaxSliderChanged" />
+                                            <TextBlock x:Name="DefaultYokonexEmsMaxValueText" Grid.Column="1"
+                                                       Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="马达上限" Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                            <Slider x:Name="DefaultYokonexMotorMaxSlider" Minimum="0" Maximum="100" Value="100"
+                                                    ValueChanged="OnDefaultYokonexMotorMaxSliderChanged" />
+                                            <TextBlock x:Name="DefaultYokonexMotorMaxValueText" Grid.Column="1"
+                                                       Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="灌肠注入上限（应用映射 %）" Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                            <Slider x:Name="DefaultYokonexInjectionMaxSlider" Minimum="0" Maximum="100" Value="100"
+                                                    ValueChanged="OnDefaultYokonexInjectionMaxSliderChanged" />
+                                            <TextBlock x:Name="DefaultYokonexInjectionMaxValueText" Grid.Column="1"
+                                                       Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Background="#172033" CornerRadius="10" Padding="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="自动重连" Foreground="White" />
+                                    <TextBlock Text="连接异常时自动重连设备（心跳间隔固定为系统最小支持值）" Foreground="#9AB0C8" FontSize="12" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="AutoReconnectDefault" Grid.Column="1" IsChecked="True" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="保存默认设置" Background="#10B981" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnSaveDeviceDefaults" />
+                            <TextBlock x:Name="DefaultSettingsStatus" Text="未保存" Foreground="#9AB0C8"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 电击强度设置（A/B 合并区块） -->
+            <Border x:Name="EstimStrengthPanel" CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="电击强度设置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Grid ColumnDefinitions="*,*" Margin="20">
+                <!-- 通道 A -->
+                <Border Grid.Column="0" CornerRadius="16" Padding="0" Margin="0,0,10,0" BoxShadow="0 4 16 0 #180EA5E9">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#24324A" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel>
+                        <Border CornerRadius="16,16,0,0" Padding="22,18">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#172033" />
+                                    <GradientStop Offset="1" Color="#1C2840" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="通道 A 控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Margin="20" HorizontalAlignment="Center">
+                            <!-- 强度显示圈 -->
+                            <Border Width="120" Height="120" CornerRadius="60" 
+                                    Background="#172033" BorderBrush="#0EA5E9" BorderThickness="4"
+                                    HorizontalAlignment="Center">
+                                <TextBlock x:Name="StrengthADisplay" Text="0" 
+                                           FontSize="42" FontWeight="Bold" Foreground="#0EA5E9"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            
+                            <!-- 滑块 -->
+                            <TextBlock Text="强度" Foreground="#9AB0C8" FontSize="12" 
+                                       HorizontalAlignment="Center" Margin="0,20,0,5" />
+                            <Slider x:Name="SliderA" Minimum="0" Maximum="200" Value="0" 
+                                    Width="200" ValueChanged="OnSliderAChanged" />
+                            <TextBlock x:Name="SliderAValue" Text="0" Foreground="#9AB0C8" FontSize="12" 
+                                       HorizontalAlignment="Center" Margin="0,5,0,0" />
+                            
+                            <!-- 应用按钮 -->
+                            <Button x:Name="ApplyA" Content="应用强度" 
+                                    Background="#10B981" Foreground="White"
+                                    HorizontalAlignment="Center"
+                                    Padding="20,8" Margin="0,10,0,0"
+                                    Click="OnApplyStrengthA" />
+                            
+                            <!-- 快捷按钮 -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,15,0,0">
+                                <Button Content="-10" Tag="A,-10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="-1" Tag="A,-1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="0" Tag="A,0" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#F59E0B" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+1" Tag="A,1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+10" Tag="A,10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- 通道 B -->
+                <Border Grid.Column="1" CornerRadius="16" Padding="0" Margin="10,0,0,0" BoxShadow="0 4 16 0 #1814B8A6">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#24324A" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel>
+                        <Border CornerRadius="16,16,0,0" Padding="22,18">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#172033" />
+                                    <GradientStop Offset="1" Color="#1C2840" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#14B8A620" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="通道 B 控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Margin="20" HorizontalAlignment="Center">
+                            <!-- 强度显示圈 -->
+                            <Border Width="120" Height="120" CornerRadius="60" 
+                                    Background="#172033" BorderBrush="#14B8A6" BorderThickness="4"
+                                    HorizontalAlignment="Center">
+                                <TextBlock x:Name="StrengthBDisplay" Text="0" 
+                                           FontSize="42" FontWeight="Bold" Foreground="#14B8A6"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            
+                            <!-- 滑块 -->
+                            <TextBlock Text="强度" Foreground="#9AB0C8" FontSize="12" 
+                                       HorizontalAlignment="Center" Margin="0,20,0,5" />
+                            <Slider x:Name="SliderB" Minimum="0" Maximum="200" Value="0" 
+                                    Width="200" ValueChanged="OnSliderBChanged" />
+                            <TextBlock x:Name="SliderBValue" Text="0" Foreground="#9AB0C8" FontSize="12" 
+                                       HorizontalAlignment="Center" Margin="0,5,0,0" />
+                            
+                            <!-- 应用按钮 -->
+                            <Button x:Name="ApplyB" Content="应用强度" 
+                                    Background="#10B981" Foreground="White"
+                                    HorizontalAlignment="Center"
+                                    Padding="20,8" Margin="0,10,0,0"
+                                    Click="OnApplyStrengthB" />
+                            
+                            <!-- 快捷按钮 -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,15,0,0">
+                                <Button Content="-10" Tag="B,-10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="-1" Tag="B,-1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="0" Tag="B,0" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#F59E0B" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+1" Tag="B,1" Click="OnQuickControl" 
+                                        MinWidth="40" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                                <Button Content="+10" Tag="B,10" Click="OnQuickControl" 
+                                        MinWidth="48" Padding="8,6" CornerRadius="6"
+                                        Background="#314764" Foreground="White" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <!-- 役次元设备专用控制 -->
+            <Border x:Name="YokonexControlPanel" CornerRadius="16" Padding="0" IsVisible="False" BoxShadow="0 4 16 0 #18F59E0B">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="役次元设备控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <!-- 通道连接状态 -->
+                    <Border x:Name="YokonexChannelStatus" Background="#172033" CornerRadius="8" Padding="12" Margin="20,10,20,0">
+                        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*">
+                            <TextBlock Text="通道状态:" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,16,0">
+                                <Ellipse x:Name="ChannelAIndicator" Width="10" Height="10" Fill="#8091A8" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ChannelAStatusText" Text="A: 未知" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,16,0">
+                                <Ellipse x:Name="ChannelBIndicator" Width="10" Height="10" Fill="#8091A8" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ChannelBStatusText" Text="B: 未知" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="3" Text="计步:" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0" />
+                            <TextBlock Grid.Column="4" x:Name="StepCountText" Text="0" Foreground="#10B981" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="5" x:Name="AngleText" Text="X:0° Y:0° Z:0°" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0" />
+                        </Grid>
+                    </Border>
+                    
+                    <Grid ColumnDefinitions="*,*,*" Margin="20">
+                        <!-- 电击控制 -->
+                        <StackPanel x:Name="YokonexEstimSection" Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock x:Name="YokonexEstimTitle" Text="电击器控制" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <Slider x:Name="YokonexEstimStrength" Minimum="0" Maximum="100" Value="0" Margin="0,10,0,5" 
+                                    ValueChanged="OnYokonexEstimSliderChanged" />
+                            <TextBlock x:Name="YokonexEstimValue" Text="0" Foreground="#9AB0C8" HorizontalAlignment="Center" />
+                            <ComboBox x:Name="YokonexEstimMode" SelectedIndex="0" HorizontalAlignment="Stretch" Margin="0,10,0,0">
+                                <ComboBoxItem Content="普通模式" Tag="normal" />
+                                <ComboBoxItem Content="脉冲模式" Tag="pulse" />
+                                <ComboBoxItem Content="渐变模式" Tag="gradient" />
+                                <ComboBoxItem Content="随机模式" Tag="random" />
+                            </ComboBox>
+                            <Button Content="应用" Background="#14B8A6" Foreground="White" 
+                                    HorizontalAlignment="Stretch" Margin="0,10,0,0"
+                                    Click="OnApplyYokonexEstim" />
+                        </StackPanel>
+                        
+                        <!-- 跳蛋/飞机杯控制 -->
+                        <StackPanel x:Name="YokonexToySection" Grid.Column="1" Margin="10,0,10,0">
+                            <TextBlock x:Name="YokonexToyTitle" Text="跳蛋控制" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <Slider x:Name="YokonexVibrateStrength" Minimum="0" Maximum="100" Value="0" Margin="0,10,0,5"
+                                    ValueChanged="OnYokonexVibrateSliderChanged" />
+                            <TextBlock x:Name="YokonexVibrateValue" Text="0" Foreground="#9AB0C8" HorizontalAlignment="Center" />
+                            <ComboBox x:Name="YokonexVibrateMode" SelectedIndex="0" HorizontalAlignment="Stretch" Margin="0,10,0,0">
+                                <ComboBoxItem Content="持续震动" Tag="continuous" />
+                                <ComboBoxItem Content="脉冲震动" Tag="pulse" />
+                                <ComboBoxItem Content="波浪震动" Tag="wave" />
+                                <ComboBoxItem Content="心跳模式" Tag="heartbeat" />
+                            </ComboBox>
+                            <Button Content="应用" Background="#EC4899" Foreground="White" 
+                                    HorizontalAlignment="Stretch" Margin="0,10,0,0"
+                                    Click="OnApplyYokonexVibrate" />
+                        </StackPanel>
+                        
+                        <!-- 灌肠控制 -->
+                        <StackPanel x:Name="YokonexEnemaSection" Grid.Column="2" Margin="10,0,0,0">
+                            <TextBlock x:Name="YokonexEnemaTitle" Text="灌肠器控制" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <Slider x:Name="YokonexOtherStrength" Minimum="0" Maximum="100" Value="0" Margin="0,10,0,5"
+                                    ValueChanged="OnYokonexOtherSliderChanged" />
+                            <TextBlock x:Name="YokonexOtherValue" Text="0" Foreground="#9AB0C8" HorizontalAlignment="Center" />
+                            <ComboBox x:Name="YokonexOtherMode" SelectedIndex="0" HorizontalAlignment="Stretch" Margin="0,10,0,0">
+                                <ComboBoxItem Content="注入模式" Tag="inject" />
+                                <ComboBoxItem Content="抽吸模式" Tag="suction" />
+                                <ComboBoxItem Content="循环模式" Tag="cycle" />
+                                <ComboBoxItem Content="自定义" Tag="custom" />
+                            </ComboBox>
+                            <Button Content="应用" Background="#F59E0B" Foreground="White" 
+                                    HorizontalAlignment="Stretch" Margin="0,10,0,0"
+                                    Click="OnApplyYokonexOther" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <!-- 电击设备高级控制（共享波形预设） -->
+            <Border x:Name="DGLabControlPanel" CornerRadius="16" Padding="0" IsVisible="False" BoxShadow="0 4 16 0 #180EA5E9">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                                <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="电击设备高级控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Border Grid.Column="1" CornerRadius="8" Padding="10,6">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                        <GradientStop Offset="0" Color="#0EA5E9" />
+                                        <GradientStop Offset="1" Color="#22D3EE" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock x:Name="ElectroAdvancedTagText" Text="Electro" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="20">
+                        <StackPanel x:Name="DGLabOnlyControls" Spacing="20">
+                        <!-- 按钮设备专用控制 (仅按钮版显示) -->
+                        <Border x:Name="SensorControlPanel" IsVisible="False" Background="#172033" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="配件传感器（外部电压）" Foreground="#10B981" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="用于 47L120100 / PawPrints 占位联调：可模拟外部电压并验证规则链路（事件 -> 规则引擎 -> 设备动作）。" 
+                                           Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock Text="目标电压范围 (V)" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,4" />
+                                        <Grid ColumnDefinitions="*,Auto,*">
+                                            <TextBox x:Name="SensorVoltageMin" Text="0.49" Background="#1F2B3E" Foreground="White" 
+                                                     BorderBrush="#314764" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                            <TextBlock Grid.Column="1" Text="~" Foreground="#9AB0C8" Margin="8,0" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="2" x:Name="SensorVoltageMax" Text="0.84" Background="#1F2B3E" Foreground="White" 
+                                                     BorderBrush="#314764" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock Text="触发强度变化" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,4" />
+                                        <Grid ColumnDefinitions="*,Auto,*">
+                                            <TextBox x:Name="SensorStrengthMin" Text="1" Background="#1F2B3E" Foreground="White" 
+                                                     BorderBrush="#314764" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                            <TextBlock Grid.Column="1" Text="~" Foreground="#9AB0C8" Margin="8,0" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="2" x:Name="SensorStrengthMax" Text="40" Background="#1F2B3E" Foreground="White" 
+                                                     BorderBrush="#314764" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                                <Border Background="#F59E0B10" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+                                    <TextBlock Text="当前硬件协议未完全公开，暂通过外部电压模拟补齐连接管理/传感事件链路。" 
+                                               Foreground="#F59E0B" FontSize="11" TextWrapping="Wrap" />
+                                </Border>
+                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock Text="模拟电压上报 (V)" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,4" />
+                                        <TextBox x:Name="SensorSimVoltage" Text="0.72" Background="#1F2B3E" Foreground="White"
+                                                 BorderBrush="#314764" CornerRadius="4" Padding="8,6" FontSize="12" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="注入" Background="#10B981" Foreground="White"
+                                            Padding="14,8" CornerRadius="6" VerticalAlignment="Bottom"
+                                            Click="OnInjectSensorVoltageClick" />
+                                    <Button Grid.Column="2" Content="随机" Background="#0EA5E9" Foreground="White"
+                                            Padding="14,8" CornerRadius="6" Margin="8,0,0,0" VerticalAlignment="Bottom"
+                                            Click="OnAutoInjectSensorVoltageClick" />
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="实时电压:" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBlock x:Name="SensorRealtimeVoltage" Text="-- V" Foreground="#10B981" FontSize="12" FontWeight="Bold" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 强度上限设置 -->
+                        <StackPanel>
+                            <TextBlock Text="强度上限" Foreground="White" FontWeight="SemiBold" Margin="0,0,0,12" />
+                            <Grid ColumnDefinitions="*,*,Auto">
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock Text="A 通道上限" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="LimitA" Text="200" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                    <TextBlock Text="B 通道上限" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="LimitB" Text="200" Margin="0,5,0,0" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="设置" 
+                                        Background="#0EA5E9" Foreground="White"
+                                        VerticalAlignment="Bottom" Padding="20,10"
+                                        CornerRadius="6"
+                                        Click="OnSetLimits" />
+                            </Grid>
+                        </StackPanel>
+                        
+                        <!-- 波形队列管理 -->
+                        <StackPanel>
+                            <TextBlock Text="波形队列" Foreground="White" FontWeight="SemiBold" Margin="0,0,0,12" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Content="清空 A 通道" Background="#F59E0B" Foreground="White" 
+                                        Padding="16,8" CornerRadius="6" Click="OnClearQueueA" />
+                                <Button Content="清空 B 通道" Background="#F59E0B" Foreground="White" 
+                                        Padding="16,8" CornerRadius="6" Click="OnClearQueueB" />
+                                <Button Content="全部清空" Background="#EF4444" Foreground="White" 
+                                        Padding="16,8" CornerRadius="6" Click="OnClearQueueAll" />
+                            </StackPanel>
+                        </StackPanel>
+                        </StackPanel>
+                        <!-- 波形预设 + 队列编辑器
+                             注意：
+                             - 波形 = 单个波形的图形化编辑（HEX 数据）
+                             - 预设 = 多个波形的播放列表（顺序播放）
+                             TODO: 未来版本添加图形化波形编辑器和播放列表功能 
+                        -->
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                                <TextBlock Text="波形预设" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Button Content="导入"
+                                            Background="#0EA5E9" Foreground="White"
+                                            Padding="12,6" CornerRadius="6" FontSize="12"
+                                            Click="OnImportWaveformPresetsClick" />
+                                    <Button Content="导出"
+                                            Background="#0284C7" Foreground="White"
+                                            Padding="12,6" CornerRadius="6" FontSize="12"
+                                            Click="OnExportWaveformPresetsClick" />
+                                    <Button Content="新建预设" 
+                                            Background="#10B981" Foreground="White" 
+                                            Padding="12,6" CornerRadius="6" FontSize="12"
+                                            Click="OnNewWaveformPresetClick" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,0,0,12">
+                                <TextBlock Text="播放模式" Foreground="#9AB0C8" FontSize="12" VerticalAlignment="Center" />
+                                <ComboBox x:Name="WaveformPlaylistMode"
+                                          Grid.Column="1"
+                                          Width="180"
+                                          Margin="10,0,0,0"
+                                          SelectedIndex="0"
+                                          Background="#1F2B3E"
+                                          Foreground="White">
+                                    <ComboBoxItem Content="顺序循环" Tag="loop" />
+                                    <ComboBoxItem Content="随机播放" Tag="random" />
+                                </ComboBox>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                    <Button x:Name="BtnStartWaveformPlaylist"
+                                            Content="开始播放"
+                                            Background="#10B981"
+                                            Foreground="White"
+                                            Padding="12,6"
+                                            CornerRadius="6"
+                                            FontSize="12"
+                                            Click="OnStartWaveformPlaylistClick" />
+                                    <Button x:Name="BtnStopWaveformPlaylist"
+                                            Content="停止播放"
+                                            Background="#EF4444"
+                                            Foreground="White"
+                                            Padding="12,6"
+                                            CornerRadius="6"
+                                            FontSize="12"
+                                            IsEnabled="False"
+                                            Click="OnStopWaveformPlaylistClick" />
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- 预设列表 -->
+                            <Border Background="#172033" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                                <WrapPanel x:Name="WaveformPresetsPanel" Orientation="Horizontal">
+                                    <Button Content="呼吸灯" Tag="breathing" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="心跳" Tag="heartbeat" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="震动" Tag="vibration" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="爬升" Tag="climb" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="随机" Tag="random" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="脉冲" Tag="pulse" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="波浪" Tag="wave" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                    <Button Content="火焰" Tag="flame" Click="OnWaveformClick" 
+                                            Background="#1F2B3E" Foreground="White" BorderBrush="#314764" BorderThickness="1"
+                                            Margin="0,0,10,10" Padding="15,10" CornerRadius="6" />
+                                </WrapPanel>
+                            </Border>
+                            
+                            <!-- 自定义预设编辑区 (默认隐藏) -->
+                            <Border x:Name="WaveformEditorPanel" IsVisible="False" Background="#172033" CornerRadius="8" Padding="16" Margin="0,0,0,16"
+                                    BorderBrush="#0EA5E9" BorderThickness="1">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="编辑波形预设" Foreground="#0EA5E9" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Content="关闭" 
+                                                Background="Transparent" Foreground="#9AB0C8"
+                                                Padding="8,4" CornerRadius="4"
+                                                Click="OnCloseWaveformEditorClick" />
+                                    </Grid>
+                                    
+                                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                        <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,8,12">
+                                            <TextBlock Text="预设名称" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                            <TextBox x:Name="WaveformPresetName" Watermark="我的波形预设"
+                                                     Background="#1F2B3E" Foreground="White"
+                                                     BorderBrush="#314764" CornerRadius="6" Padding="12,8" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Grid.Row="0" Margin="8,0,0,12">
+                                            <TextBlock Text="图标字符" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                            <TextBox x:Name="WaveformPresetIcon" Text="W" MaxLength="4"
+                                                     Background="#1F2B3E" Foreground="White"
+                                                     BorderBrush="#314764" CornerRadius="6" Padding="12,8" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,0,8,0">
+                                            <TextBlock Text="目标通道" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                            <ComboBox x:Name="WaveformPresetChannel" SelectedIndex="2"
+                                                      Background="#1F2B3E" Foreground="White" HorizontalAlignment="Stretch">
+                                                <ComboBoxItem Content="A 通道" Tag="A" />
+                                                <ComboBoxItem Content="B 通道" Tag="B" />
+                                                <ComboBoxItem Content="双通道 (A+B)" Tag="AB" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Grid.Row="1" Margin="8,0,0,0">
+                                            <TextBlock Text="持续时间 (ms)" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                            <TextBox x:Name="WaveformPresetDuration" Text="1000"
+                                                     Background="#1F2B3E" Foreground="White"
+                                                     BorderBrush="#314764" CornerRadius="6" Padding="12,8" />
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="波形图形编辑（无需输入 HEX）"
+                                                   Foreground="#9AB0C8" FontSize="12" />
+                                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="波形类型" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                                <ComboBox x:Name="WaveformPresetPattern" SelectedIndex="0"
+                                                          SelectionChanged="OnWaveformPatternChanged"
+                                                          Background="#1F2B3E" Foreground="White">
+                                                    <ComboBoxItem Content="脉冲" Tag="pulse" />
+                                                    <ComboBoxItem Content="方波" Tag="square" />
+                                                    <ComboBoxItem Content="正弦" Tag="sine" />
+                                                    <ComboBoxItem Content="三角" Tag="triangle" />
+                                                    <ComboBoxItem Content="锯齿" Tag="saw" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="频率" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <Slider x:Name="WaveformPresetFrequency" Minimum="1" Maximum="100" Value="50"
+                                                            Margin="0,0,12,0"
+                                                            ValueChanged="OnWaveformGraphSettingChanged" />
+                                                    <TextBlock Grid.Column="1" x:Name="WaveformPresetFrequencyText" Text="50 Hz"
+                                                               Foreground="White" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" Width="68" />
+                                                </Grid>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="0" Grid.Row="1">
+                                                <TextBlock Text="脉宽" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <Slider x:Name="WaveformPresetPulse" Minimum="0" Maximum="100" Value="20"
+                                                            Margin="0,0,12,0"
+                                                            ValueChanged="OnWaveformGraphSettingChanged" />
+                                                    <TextBlock Grid.Column="1" x:Name="WaveformPresetPulseText" Text="20 us"
+                                                               Foreground="White" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" Width="68" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                        <Border Background="#1F2B3E" CornerRadius="6" Padding="10">
+                                            <Grid>
+                                                <Canvas Width="420" Height="90" HorizontalAlignment="Center">
+                                                    <Polyline x:Name="WaveformPreviewLine"
+                                                              Stroke="#0EA5E9"
+                                                              StrokeThickness="2" />
+                                                </Canvas>
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock x:Name="WaveformPresetPayloadText"
+                                                   Text="输出参数：50,20"
+                                                   Foreground="#7DD3FC" FontSize="11" />
+                                    </StackPanel>
+                                     
+                                    <StackPanel>
+                                        <TextBlock Text="强度百分比" Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,6" />
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Slider x:Name="WaveformPresetIntensity" Minimum="0" Maximum="100" Value="50" 
+                                                    Margin="0,0,12,0"
+                                                    ValueChanged="OnWaveformPresetIntensityChanged" />
+                                            <TextBlock Grid.Column="1" x:Name="WaveformPresetIntensityText" Text="50%" 
+                                                       Foreground="White" FontWeight="Bold" VerticalAlignment="Center" Width="50" />
+                                        </Grid>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                                        <Button Content="删除" 
+                                                x:Name="BtnDeleteWaveformPreset"
+                                                Background="#EF4444" Foreground="White" 
+                                                Padding="16,8" CornerRadius="6"
+                                                IsVisible="False"
+                                                Click="OnDeleteWaveformPresetClick" />
+                                        <Button Content="保存预设" 
+                                                Background="#0EA5E9" Foreground="White" 
+                                                Padding="16,8" CornerRadius="6"
+                                                Click="OnSaveWaveformPresetClick" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+    
+</UserControl>
+
+
+
+

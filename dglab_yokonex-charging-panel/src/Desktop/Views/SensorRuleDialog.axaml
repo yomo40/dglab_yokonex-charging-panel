@@ -1,0 +1,111 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ChargingPanel.Desktop.Views.SensorRuleDialog"
+        Title="传感器规则"
+        Width="450" Height="550"
+        WindowStartupLocation="CenterOwner"
+        Background="#172033">
+    
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <!-- 标题 -->
+        <TextBlock Grid.Row="0" Text="配置传感器触发规则" FontSize="18" FontWeight="Bold" 
+                   Foreground="White" Margin="0,0,0,20"/>
+        
+        <!-- 表单 -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="12">
+                <!-- 规则名称 -->
+                <StackPanel>
+                    <TextBlock Text="规则名称" Foreground="#9AB0C8" FontSize="12"/>
+                    <TextBox x:Name="RuleName" Margin="0,4,0,0"/>
+                </StackPanel>
+                
+                <!-- 传感器类型 -->
+                <StackPanel>
+                    <TextBlock Text="传感器类型" Foreground="#9AB0C8" FontSize="12"/>
+                    <ComboBox x:Name="SensorType" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="计步器" Tag="Step"/>
+                        <ComboBoxItem Content="角度传感器" Tag="Angle"/>
+                        <ComboBoxItem Content="通道连接" Tag="Channel"/>
+                        <ComboBoxItem Content="压力传感器" Tag="Pressure"/>
+                        <ComboBoxItem Content="外部电压" Tag="ExternalVoltage"/>
+                    </ComboBox>
+                </StackPanel>
+                
+                <!-- 触发类型 -->
+                <StackPanel>
+                    <TextBlock Text="触发条件" Foreground="#9AB0C8" FontSize="12"/>
+                    <ComboBox x:Name="TriggerType" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="超过阈值" Tag="Threshold"/>
+                        <ComboBoxItem Content="数值变化" Tag="Change"/>
+                        <ComboBoxItem Content="连接时" Tag="Connect"/>
+                        <ComboBoxItem Content="断开时" Tag="Disconnect"/>
+                    </ComboBox>
+                </StackPanel>
+                
+                <!-- 阈值 -->
+                <StackPanel>
+                    <TextBlock Text="触发阈值" Foreground="#9AB0C8" FontSize="12"/>
+                    <TextBox x:Name="Threshold" Text="10" Margin="0,4,0,0"/>
+                </StackPanel>
+                
+                <!-- 目标设备 -->
+                <StackPanel>
+                    <TextBlock Text="目标设备" Foreground="#9AB0C8" FontSize="12"/>
+                    <ComboBox x:Name="TargetDevice" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+                
+                <!-- 目标通道 -->
+                <StackPanel>
+                    <TextBlock Text="目标通道" Foreground="#9AB0C8" FontSize="12"/>
+                    <ComboBox x:Name="TargetChannel" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="A 通道" Tag="A"/>
+                        <ComboBoxItem Content="B 通道" Tag="B"/>
+                        <ComboBoxItem Content="双通道" Tag="AB"/>
+                    </ComboBox>
+                </StackPanel>
+                
+                <!-- 动作类型 -->
+                <StackPanel>
+                    <TextBlock Text="动作类型" Foreground="#9AB0C8" FontSize="12"/>
+                    <ComboBox x:Name="ActionType" SelectedIndex="1" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="设置强度" Tag="Set"/>
+                        <ComboBoxItem Content="增加强度" Tag="Increase"/>
+                        <ComboBoxItem Content="减少强度" Tag="Decrease"/>
+                        <ComboBoxItem Content="发送脉冲" Tag="Pulse"/>
+                        <ComboBoxItem Content="发送波形" Tag="Wave"/>
+                    </ComboBox>
+                </StackPanel>
+                
+                <!-- 强度值 -->
+                <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
+                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                        <TextBlock Text="强度值" Foreground="#9AB0C8" FontSize="12"/>
+                        <TextBox x:Name="Value" Text="10" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                        <TextBlock Text="持续时间(ms)" Foreground="#9AB0C8" FontSize="12"/>
+                        <TextBox x:Name="Duration" Text="500" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+                
+                <!-- 冷却时间 -->
+                <StackPanel>
+                    <TextBlock Text="冷却时间(ms)" Foreground="#9AB0C8" FontSize="12"/>
+                    <TextBox x:Name="Cooldown" Text="1000" Margin="0,4,0,0"/>
+                </StackPanel>
+                
+                <!-- 启用状态 -->
+                <CheckBox x:Name="RuleEnabled" Content="启用此规则" IsChecked="True" Foreground="White"/>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- 按钮 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,20,0,0">
+            <Button Content="取消" Padding="24,8" Click="OnCancelClick"/>
+            <Button Content="保存" Background="#10B981" Foreground="White" Padding="24,8" Click="OnSaveClick"/>
+        </StackPanel>
+    </Grid>
+</Window>
+
+

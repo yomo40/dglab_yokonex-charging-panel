@@ -1,0 +1,224 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.SkinPage">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,0,16">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="皮肤模块" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="14">
+                        <TextBlock Text="支持主题、主色、背景图、背景遮罩颜色与透明度、文本框透明度、字体和侧边栏图标配置，可导入/导出皮肤包分享。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+
+                        <StackPanel>
+                            <TextBlock Text="主题" Foreground="#9AB0C8" FontSize="12" />
+                            <ComboBox x:Name="ThemeSelector" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="深色" />
+                                <ComboBoxItem Content="浅色" />
+                                <ComboBoxItem Content="跟随系统" />
+                            </ComboBox>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="主色 (HEX)" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="AccentColorInput" Text="#0EA5E9" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="窗口背景色 (HEX)" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="WindowBackgroundInput" Text="#0B1421" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#172033" CornerRadius="10" Padding="12">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="背景颜色调色盘" Foreground="#E6EDF7" FontSize="12" FontWeight="SemiBold" />
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                                    <Button Grid.Column="0" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#0B1421" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#0B1421" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="1" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#172033" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#172033" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="2" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#1E3A5F" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#1E3A5F" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="3" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#0F766E" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#0F766E" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="4" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#92400E" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#92400E" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="5" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#7F1D1D" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#7F1D1D" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="6" Width="28" Height="28" CornerRadius="14" Margin="0,0,8,0" Background="#1F2937" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#1F2937" Click="OnBackgroundSwatchClick" />
+                                    <Button Grid.Column="7" Width="28" Height="28" CornerRadius="14" Background="#111827" BorderBrush="#314764" BorderThickness="1"
+                                            Tag="#111827" Click="OnBackgroundSwatchClick" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                    <TextBox x:Name="BackgroundOverlayColorInput"
+                                             Watermark="#RRGGBB"
+                                             Text="#0B1421" />
+                                    <Button Grid.Column="1"
+                                            Content="应用"
+                                            Margin="10,0,0,0"
+                                            Padding="12,4"
+                                            CornerRadius="8"
+                                            Background="#0EA5E9"
+                                            Foreground="White"
+                                            Click="OnApplyBackgroundColorClick" />
+                                </Grid>
+                                <Border x:Name="BackgroundColorPreviewBox" Height="34" CornerRadius="8" BorderBrush="#314764" BorderThickness="1">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="#0B1421" />
+                                    </Border.Background>
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="#E6EDF7"
+                                               FontSize="11"
+                                               Text="背景色预览" />
+                                </Border>
+                                <TextBlock x:Name="BackgroundColorPreviewText"
+                                           Text="#0B1421"
+                                           Foreground="#9AB0C8"
+                                           FontSize="11" />
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel>
+                            <TextBlock Text="背景遮罩透明度" Foreground="#9AB0C8" FontSize="12" />
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <Slider x:Name="BackgroundOpacitySlider"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Value="70"
+                                        ValueChanged="OnBackgroundOpacityChanged" />
+                                <TextBlock x:Name="BackgroundOpacityText"
+                                           Grid.Column="1"
+                                           Text="70%"
+                                           Foreground="#E6EDF7"
+                                           FontWeight="SemiBold"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Text="文本框透明度" Foreground="#9AB0C8" FontSize="12" />
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <Slider x:Name="TextBoxOpacitySlider"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Value="100"
+                                        ValueChanged="OnTextBoxOpacityChanged" />
+                                <TextBlock x:Name="TextBoxOpacityText"
+                                           Grid.Column="1"
+                                           Text="100%"
+                                           Foreground="#E6EDF7"
+                                           FontWeight="SemiBold"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <Border Background="#172033" CornerRadius="10" Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="背景图（可选）" Foreground="#E6EDF7" FontSize="12" FontWeight="SemiBold" />
+                                <TextBox x:Name="BackgroundImagePathInput"
+                                         IsReadOnly="True"
+                                         Watermark="未选择背景图"
+                                         Text=""
+                                         Margin="0,2,0,0" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="上传背景图" Background="#0EA5E9" Foreground="White"
+                                            Padding="14,8" CornerRadius="8" Click="OnPickBackgroundImageClick" />
+                                    <Button Content="清除背景图" Background="#314764" Foreground="White"
+                                            Padding="14,8" CornerRadius="8" Click="OnClearBackgroundImageClick" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="全局字体名称" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="FontFamilyInput" Text="" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="侧边栏标识字符（支持 Emoji）" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="LogoIconInput" Text="🐺" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="应用并保存" Background="#10B981" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnApplyAndSaveClick" />
+                            <Button Content="恢复默认" Background="#314764" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnResetDefaultClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="皮肤包导入导出" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="12">
+                        <TextBlock Text="导出的皮肤包为 JSON 文件，可在其他客户端直接导入。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="导出皮肤包" Background="#0284C7" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnExportSkinClick" />
+                            <Button Content="导入皮肤包" Background="#F59E0B" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnImportSkinClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#172033" CornerRadius="12" Padding="14">
+                <TextBlock x:Name="StatusText" Text="就绪" Foreground="#9AB0C8" FontSize="12" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+
+
+
+
+
+

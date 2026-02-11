@@ -1,0 +1,166 @@
+﻿<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:semi="https://irihi.tech/semi"
+             x:Class="ChargingPanel.Desktop.App"
+             RequestedThemeVariant="Dark">
+    <Application.Resources>
+        <Color x:Key="AppWindowBackgroundColor">#0B1421</Color>
+        <Color x:Key="AppSurfaceColor">#101B2B</Color>
+        <Color x:Key="AppPanelColor">#162337</Color>
+        <Color x:Key="AppPanelElevatedColor">#1D2C42</Color>
+        <Color x:Key="AppBorderColor">#2E425F</Color>
+        <Color x:Key="AppTextColor">#E6EDF7</Color>
+        <Color x:Key="AppSubtextColor">#9AB0C8</Color>
+        <Color x:Key="AppPrimaryColor">#0EA5E9</Color>
+        <Color x:Key="AppPrimaryHoverColor">#0284C7</Color>
+        <Color x:Key="AppPrimarySoftColor">#140EA5E9</Color>
+        <Color x:Key="AppSuccessColor">#10B981</Color>
+        <Color x:Key="AppWarningColor">#F59E0B</Color>
+        <Color x:Key="AppDangerColor">#EF4444</Color>
+
+        <SolidColorBrush x:Key="AppWindowBackgroundBrush" Color="{StaticResource AppWindowBackgroundColor}" />
+        <SolidColorBrush x:Key="AppSurfaceBrush" Color="{StaticResource AppSurfaceColor}" />
+        <SolidColorBrush x:Key="AppPanelBrush" Color="{StaticResource AppPanelColor}" />
+        <SolidColorBrush x:Key="AppPanelElevatedBrush" Color="{StaticResource AppPanelElevatedColor}" />
+        <SolidColorBrush x:Key="AppBorderBrush" Color="{StaticResource AppBorderColor}" />
+        <SolidColorBrush x:Key="AppTextBrush" Color="{StaticResource AppTextColor}" />
+        <SolidColorBrush x:Key="AppSubtextBrush" Color="{StaticResource AppSubtextColor}" />
+        <SolidColorBrush x:Key="AppPrimaryBrush" Color="{StaticResource AppPrimaryColor}" />
+        <SolidColorBrush x:Key="AppPrimaryHoverBrush" Color="{StaticResource AppPrimaryHoverColor}" />
+        <SolidColorBrush x:Key="AppPrimarySoftBrush" Color="{StaticResource AppPrimarySoftColor}" />
+        <SolidColorBrush x:Key="AppSuccessBrush" Color="{StaticResource AppSuccessColor}" />
+        <SolidColorBrush x:Key="AppWarningBrush" Color="{StaticResource AppWarningColor}" />
+        <SolidColorBrush x:Key="AppDangerBrush" Color="{StaticResource AppDangerColor}" />
+
+        <SolidColorBrush x:Key="CrustBrush" Color="{StaticResource AppWindowBackgroundColor}" />
+        <SolidColorBrush x:Key="MantleBrush" Color="{StaticResource AppSurfaceColor}" />
+        <SolidColorBrush x:Key="BaseBrush" Color="{StaticResource AppPanelColor}" />
+        <SolidColorBrush x:Key="Surface0Brush" Color="{StaticResource AppPanelElevatedColor}" />
+        <SolidColorBrush x:Key="Surface1Brush" Color="{StaticResource AppBorderColor}" />
+        <SolidColorBrush x:Key="TextBrush" Color="{StaticResource AppTextColor}" />
+        <SolidColorBrush x:Key="SubtextBrush" Color="{StaticResource AppSubtextColor}" />
+        <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource AppPrimaryColor}" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#14B8A6" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource AppSuccessColor}" />
+        <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource AppWarningColor}" />
+        <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource AppDangerColor}" />
+    </Application.Resources>
+
+    <Application.Styles>
+        <semi:SemiTheme Locale="zh-CN" />
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource AppWindowBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI Variable Text, Segoe UI" />
+        </Style>
+
+        <Style Selector="UserControl">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="{DynamicResource AppPanelElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.12" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#253752" />
+        </Style>
+
+        <Style Selector="Button:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1B2A3F" />
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AppPrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppPrimaryHoverBrush}" />
+        </Style>
+
+        <Style Selector="Button.success">
+            <Setter Property="Background" Value="{DynamicResource AppSuccessBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="Button.warning">
+            <Setter Property="Background" Value="{DynamicResource AppWarningBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource AppDangerBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="TextBox, ComboBox, NumericUpDown">
+            <Setter Property="Background" Value="{DynamicResource AppPanelElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <Style Selector="TextBox:focus /template/ Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="ComboBox:focus /template/ Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="ToggleSwitch">
+            <Setter Property="OnContent" Value="开" />
+            <Setter Property="OffContent" Value="关" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="BoxShadow" Value="0 8 24 0 #16000000" />
+        </Style>
+
+        <Style Selector="Border.panel-header">
+            <Setter Property="Background" Value="{DynamicResource AppPanelElevatedBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtextBrush}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource AppSubtextBrush}" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+    </Application.Styles>
+</Application>

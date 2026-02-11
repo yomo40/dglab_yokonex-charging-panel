@@ -1,0 +1,181 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.WebSocketServicePage">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,0,16">
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="郊狼socket服务器" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="14">
+                        <TextBlock Text="用于本地连接 DG-LAB 客户端（默认 9000），可替代官方中转服务。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="开机自动启动" Foreground="White" />
+                                <TextBlock Text="启动程序后自动启用郊狼socket服务器" Foreground="#9AB0C8" FontSize="12" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AutoStartEnabled" Grid.Column="1" IsChecked="True" />
+                        </Grid>
+
+                        <StackPanel>
+                            <TextBlock Text="监听端口" Foreground="#9AB0C8" FontSize="12" />
+                            <TextBox x:Name="PortInput" Text="9000" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                            <Button Grid.Column="0" Content="启动服务" Background="#10B981" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnStartServerClick" />
+                            <Button Grid.Column="1" Content="停止服务" Background="#EF4444" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnStopServerClick" />
+                            <Button Grid.Column="2" Content="刷新状态" Background="#314764" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnRefreshStatusClick" />
+                        </Grid>
+
+                        <Border Background="#172033" CornerRadius="8" Padding="14" Margin="0,4,0,0">
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="120,*">
+                                <TextBlock Text="运行状态" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBlock Grid.Column="1" x:Name="ServerStatusText" Text="未启动" Foreground="#EF4444" FontWeight="SemiBold" />
+
+                                <TextBlock Grid.Row="1" Text="服务地址" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ServerUrlText" Text="-" Foreground="#E6EDF7" Margin="0,8,0,0" />
+
+                                <TextBlock Grid.Row="2" Text="在线客户端" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ClientCountText" Text="0" Foreground="#E6EDF7" Margin="0,8,0,0" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="StatusHintText" Text="就绪" Foreground="#9AB0C8" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#22C55E20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="MOD接入服务器" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="14">
+                        <TextBlock Text="为游戏 MOD 提供固定本地接入：WebSocket 39001 与 HTTP 39002/api/event。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="开机自动启动" Foreground="White" />
+                                <TextBlock Text="自动启用 MOD 接入服务（39001 + 39002）" Foreground="#9AB0C8" FontSize="12" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="ModBridgeEnabled" Grid.Column="1" IsChecked="True" />
+                        </Grid>
+
+                        <Border Background="#172033" CornerRadius="8" Padding="14" Margin="0,4,0,0">
+                            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="100,*">
+                                <TextBlock Text="WebSocket" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBlock Grid.Column="1" Text="ws://127.0.0.1:39001" Foreground="#E6EDF7" />
+
+                                <TextBlock Grid.Row="1" Text="状态" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ModBridgeWsStatusText" Text="未启动" Foreground="#EF4444" Margin="0,8,0,0" />
+
+                                <TextBlock Grid.Row="2" Text="HTTP" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="http://127.0.0.1:39002/api/event" Foreground="#E6EDF7" Margin="0,8,0,0" />
+
+                                <TextBlock Grid.Row="3" Text="状态" Foreground="#9AB0C8" FontSize="12" Margin="0,8,0,0" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ModBridgeHttpStatusText" Text="未启动" Foreground="#EF4444" Margin="0,8,0,0" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="启动MOD服务" Background="#10B981" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnStartModBridgeClick" />
+                            <Button Content="停止MOD服务" Background="#EF4444" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnStopModBridgeClick" />
+                            <Button Content="刷新状态" Background="#314764" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnRefreshModBridgeStatusClick" />
+                        </StackPanel>
+
+                        <TextBlock x:Name="ModBridgeHintText" Text="就绪" Foreground="#9AB0C8" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="连接诊断" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20" Spacing="12">
+                        <TextBlock Text="检查对官方 WebSocket 中转服务的连通性，便于排查网络或防火墙问题。"
+                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="诊断官方中转服务" Background="#F59E0B" Foreground="White"
+                                    Padding="14,8" CornerRadius="8" Click="OnDiagnoseOfficialClick" />
+                        </StackPanel>
+                        <TextBox x:Name="DiagnosticsText"
+                                 Text="尚未执行诊断"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 MinHeight="120"
+                                 Background="#172033"
+                                 Foreground="#E6EDF7" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+
+
+

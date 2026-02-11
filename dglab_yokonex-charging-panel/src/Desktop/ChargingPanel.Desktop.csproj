@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>ChargingPanel.Desktop</RootNamespace>
+    <AssemblyName>郊狼役次元游戏适配面板</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>dglab_yokonex</Authors>
+    <Description>郊狼&amp;役次元游戏适配面板 - 桌面应用</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- <ApplicationIcon>Assets\icon.ico</ApplicationIcon> -->
+    
+    <!-- 发布配置 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    
+    <!-- Windows Runtime 支持 -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia UI -->
+    <PackageReference Include="Avalonia" Version="11.3.7" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.7" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.7" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.7" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.7" />
+    
+    <!-- Avalonia MVVM -->
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.7" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Semi.Avalonia" Version="11.3.7.3" />
+    
+    <!-- Windows Management for GPU detection -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    
+    <!-- 开发工具 (仅调试) -->
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.7" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 引用核心库 -->
+    <ProjectReference Include="..\Core\ChargingPanel.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 资源文件 -->
+    <AvaloniaResource Include="Assets\**" Condition="Exists('Assets')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 文档文件 - 复制到输出目录 -->
+    <None Include="docs\**" CopyToOutputDirectory="PreserveNewest" Condition="Exists('docs')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 默认脚本 - 复制到输出目录 -->
+    <None Include="Assets\Scripts\**" CopyToOutputDirectory="PreserveNewest" Link="scripts\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

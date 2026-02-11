@@ -1,0 +1,396 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.OCRPage">
+    
+    <ScrollViewer>
+        <StackPanel Spacing="16">
+            <!-- 控制栏 -->
+            <Border CornerRadius="16" Padding="22" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid RowDefinitions="Auto,Auto">
+                    <!-- 第一行：状态显示 -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,*,*,Auto" Margin="0,0,0,16">
+                        <!-- 识别状态 -->
+                        <Border Grid.Column="0" Background="#172033" CornerRadius="8" Padding="16,12" MinWidth="120">
+                            <StackPanel>
+                                <TextBlock Text="识别状态" Foreground="#9AB0C8" FontSize="11" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="#8091A8" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="StatusText" Text="未启动" Foreground="White" FontWeight="SemiBold" FontSize="14" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 当前血量 -->
+                        <Border Grid.Column="1" Background="#172033" CornerRadius="8" Padding="16,12" Margin="12,0,0,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="当前血量 (HP)" Foreground="#9AB0C8" FontSize="11" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="CurrentBlood" Text="100" Foreground="#10B981" FontSize="28" FontWeight="Bold" 
+                                           HorizontalAlignment="Center" Margin="0,4,0,0" MinWidth="80" TextAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 当前护甲 -->
+                        <Border Grid.Column="2" Background="#172033" CornerRadius="8" Padding="16,12" Margin="12,0,0,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="当前护甲 (AHP)" Foreground="#9AB0C8" FontSize="11" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="CurrentArmor" Text="100" Foreground="#0EA5E9" FontSize="28" FontWeight="Bold" 
+                                           HorizontalAlignment="Center" Margin="0,4,0,0" MinWidth="80" TextAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- 识别次数 -->
+                        <Border Grid.Column="3" Background="#172033" CornerRadius="8" Padding="16,12" Margin="12,0,0,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="识别次数" Foreground="#9AB0C8" FontSize="11" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="RecognitionCount" Text="0" Foreground="#F59E0B" FontSize="22" FontWeight="SemiBold" 
+                                           HorizontalAlignment="Center" Margin="0,4,0,0" MinWidth="60" TextAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    
+                    <!-- 第二行：操作按钮 -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                        <Button x:Name="BtnStart" 
+                                Background="#10B981"
+                                Foreground="White"
+                                Padding="24,12"
+                                FontWeight="SemiBold"
+                                CornerRadius="8"
+                                Click="OnStartClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="开始识别" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="BtnStop" 
+                                Background="#EF4444"
+                                Foreground="White"
+                                Padding="24,12"
+                                FontWeight="SemiBold"
+                                CornerRadius="8"
+                                IsEnabled="False"
+                                Click="OnStopClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="停止识别" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- 血量 (HP) 配置区 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #18EF4444">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                                <Border Background="#EF444420" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="血量 (HP) 识别配置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Border Grid.Column="1" CornerRadius="8" Padding="10,6">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                        <GradientStop Offset="0" Color="#10B981" />
+                                        <GradientStop Offset="1" Color="#34d399" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="必填" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <Grid ColumnDefinitions="*,*" Margin="20">
+                        <!-- 左侧：区域配置 -->
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,0,0,16">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
+                                    <TextBlock Text="X 坐标" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="AreaX" Text="0" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
+                                    <TextBlock Text="Y 坐标" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="AreaY" Text="0" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="宽度" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="AreaWidth" Text="200" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="高度" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="AreaHeight" Text="20" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Grid>
+                            
+                            <Button Content="拾取血量坐标" 
+                                    Background="#0284C7" 
+                                    Foreground="White" 
+                                    HorizontalAlignment="Stretch"
+                                    Margin="0,0,0,16"
+                                    Click="OnPickCoordinatesClick" />
+                            
+                            <Grid ColumnDefinitions="*,*" Margin="0,0,0,16">
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="初始血量" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="InitialBlood" Text="100" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="识别间隔 (ms)" Foreground="#9AB0C8" FontSize="12" />
+                                    <TextBox x:Name="Interval" Text="500" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        
+                        <!-- 右侧：识别参数 -->
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="识别模式" Foreground="#9AB0C8" FontSize="12" />
+                                <ComboBox x:Name="RecognitionMode" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="自动检测" />
+                                    <ComboBoxItem Content="血条识别 (颜色)" />
+                                    <ComboBoxItem Content="数字识别 (OCR)" />
+                                    <ComboBoxItem Content="AI模型 (ONNX)" />
+                                </ComboBox>
+                            </StackPanel>
+                            
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="血条颜色" Foreground="#9AB0C8" FontSize="12" />
+                                <ComboBox x:Name="HealthBarColor" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="自动检测" />
+                                    <ComboBoxItem Content="红色" />
+                                    <ComboBoxItem Content="绿色" />
+                                    <ComboBoxItem Content="黄色" />
+                                    <ComboBoxItem Content="蓝色" />
+                                    <ComboBoxItem Content="橙色" />
+                                </ComboBox>
+                            </StackPanel>
+                            
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="颜色容差" Foreground="#9AB0C8" FontSize="12" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Slider x:Name="ColorTolerance" Grid.Column="0" Minimum="10" Maximum="50" Value="30" />
+                                    <TextBlock x:Name="ToleranceValue" Grid.Column="1" Text="30" Foreground="White" Width="30" TextAlignment="Right" />
+                                </Grid>
+                            </StackPanel>
+                            
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="采样行数" Foreground="#9AB0C8" FontSize="12" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Slider x:Name="SampleRows" Grid.Column="0" Minimum="1" Maximum="5" Value="3" />
+                                    <TextBlock x:Name="SampleRowsValue" Grid.Column="1" Text="3" Foreground="White" Width="30" TextAlignment="Right" />
+                                </Grid>
+                            </StackPanel>
+                            
+                            <CheckBox x:Name="EdgeDetection" Content="启用边缘检测" IsChecked="True" Foreground="White" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <!-- 护甲 (AHP) 配置区 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #183B82F6">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                                <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="护甲 (AHP) 识别配置" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Border Grid.Column="2" Background="#8091A880" CornerRadius="8" Padding="10,6">
+                                <TextBlock Text="可选" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <CheckBox x:Name="ArmorEnabled" Content="启用护甲识别" IsChecked="False" Foreground="White" Margin="0,0,0,16" />
+                        
+                        <Grid ColumnDefinitions="*,*,*,*,Auto" x:Name="ArmorAreaPanel" IsEnabled="False" Margin="0,0,0,16">
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="X 坐标" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="ArmorAreaX" Text="0" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="8,0,8,0">
+                                <TextBlock Text="Y 坐标" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="ArmorAreaY" Text="0" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="8,0,8,0">
+                                <TextBlock Text="宽度" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="ArmorAreaWidth" Text="200" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Margin="8,0,8,0">
+                                <TextBlock Text="高度" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="ArmorAreaHeight" Text="20" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="4" Content="拾取" 
+                                    Background="#0EA5E9" Foreground="White"
+                                    VerticalAlignment="Bottom" Padding="16,8"
+                                    Click="OnPickArmorCoordinatesClick" />
+                        </Grid>
+                        
+                        <Grid ColumnDefinitions="*,*" x:Name="ArmorConfigPanel" IsEnabled="False">
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="护甲条颜色" Foreground="#9AB0C8" FontSize="12" />
+                                <ComboBox x:Name="ArmorBarColor" SelectedIndex="4" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="自动检测" />
+                                    <ComboBoxItem Content="红色" />
+                                    <ComboBoxItem Content="绿色" />
+                                    <ComboBoxItem Content="黄色" />
+                                    <ComboBoxItem Content="蓝色" />
+                                    <ComboBoxItem Content="白色" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="初始护甲" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBox x:Name="InitialArmor" Text="100" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- AI 模型配置区 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #18F59E0B">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="AI 模型配置 (高级)" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="20">
+                        <TextBlock Text="支持加载自定义训练的 ONNX 模型进行血量/护甲识别" 
+                                   Foreground="#9AB0C8" FontSize="12" Margin="0,0,0,16" />
+                        
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,16">
+                            <TextBox x:Name="ModelPath" Grid.Column="0" 
+                                     Watermark="选择 .onnx 模型文件..."
+                                     IsReadOnly="True" Margin="0,0,8,0" />
+                            <Button Grid.Column="1" Content="浏览" 
+                                    Background="#0284C7" Foreground="White"
+                                    Padding="16,8" Margin="0,0,8,0"
+                                    Click="OnBrowseModelClick" />
+                            <Button Grid.Column="2" Content="清除" 
+                                    Background="#314764" Foreground="White"
+                                    Padding="16,8"
+                                    Click="OnClearModelClick" />
+                        </Grid>
+                        
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="使用 GPU 加速 (DirectML)" Foreground="White" />
+                                <TextBlock Text="支持 NVIDIA / AMD / Intel 显卡加速推理" Foreground="#9AB0C8" FontSize="11" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="UseGPU" Grid.Column="1" IsChecked="True" />
+                        </Grid>
+                        
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="GPU 设备" Foreground="#9AB0C8" FontSize="12" />
+                            <ComboBox x:Name="GPUDevice" SelectedIndex="0" Margin="0,4,0,0" HorizontalAlignment="Stretch" MaxWidth="500">
+                                <!-- 将在代码中动态填充 GPU 列表 -->
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <Border Background="#172033" CornerRadius="8" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="模型要求：" Foreground="#F59E0B" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                <TextBlock Text="• 输入：RGB 图像（根据区域配置裁剪）" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBlock Text="• 输出：血量百分比 (0-100) 或数字值" Foreground="#9AB0C8" FontSize="12" />
+                                <TextBlock Text="• 格式：ONNX Runtime 兼容模型" Foreground="#9AB0C8" FontSize="12" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 预览和操作区 -->
+            <Border CornerRadius="16" Padding="22" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="识别预览" FontWeight="Bold" Foreground="White" FontSize="14" Margin="0,0,0,8" />
+                        <Border Background="#172033" CornerRadius="8" Height="120" MinWidth="300">
+                            <Image x:Name="PreviewImage" Stretch="Uniform" />
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="20,0,0,0" Spacing="12" VerticalAlignment="Center">
+                        <Button Background="#F59E0B" 
+                                Foreground="White" 
+                                Padding="24,12"
+                                FontWeight="SemiBold"
+                                CornerRadius="8"
+                                HorizontalAlignment="Stretch"
+                                MinWidth="140"
+                                Click="OnRecalibrateClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="重新校准" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Background="#10B981" 
+                                Foreground="White" 
+                                Padding="24,12"
+                                FontWeight="SemiBold"
+                                CornerRadius="8"
+                                HorizontalAlignment="Stretch"
+                                MinWidth="140"
+                                Click="OnTestRecognitionClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="测试识别" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
+
+
+

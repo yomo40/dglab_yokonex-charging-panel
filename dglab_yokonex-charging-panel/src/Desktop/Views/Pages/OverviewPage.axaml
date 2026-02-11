@@ -1,0 +1,275 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ChargingPanel.Desktop.Views.Pages.OverviewPage">
+    
+    <ScrollViewer>
+        <StackPanel Spacing="20" Margin="0,0,0,20">
+            
+            <!-- 统计卡片区域 - 增强视觉效果 -->
+            <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto">
+                <!-- 已注册设备 -->
+                <Border Grid.Column="0" CornerRadius="16" Padding="22" Margin="0,0,10,0"
+                        BoxShadow="0 4 16 0 #180EA5E9">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#2A3B56" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" CornerRadius="14" Width="54" Height="54" Margin="0,0,16,0"
+                                BoxShadow="0 4 12 0 #300EA5E9">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#0EA5E9" />
+                                    <GradientStop Offset="1" Color="#22D3EE" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatDevices" Text="0" FontSize="32" FontWeight="Bold" Foreground="White" />
+                            <TextBlock Text="已注册设备" Foreground="#9AB0C8" FontSize="13" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 已连接 -->
+                <Border Grid.Column="1" CornerRadius="16" Padding="22" Margin="5,0,5,0"
+                        BoxShadow="0 4 16 0 #1810B981">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#2A3B56" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" CornerRadius="14" Width="54" Height="54" Margin="0,0,16,0"
+                                BoxShadow="0 4 12 0 #3010B981">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#10B981" />
+                                    <GradientStop Offset="1" Color="#34d399" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatConnected" Text="0" FontSize="32" FontWeight="Bold" Foreground="#34d399" />
+                            <TextBlock Text="已连接" Foreground="#9AB0C8" FontSize="13" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 运行中脚本 -->
+                <Border Grid.Column="2" CornerRadius="16" Padding="22" Margin="5,0,5,0"
+                        BoxShadow="0 4 16 0 #18F59E0B">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#2A3B56" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" CornerRadius="14" Width="54" Height="54" Margin="0,0,16,0"
+                                BoxShadow="0 4 12 0 #30F59E0B">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#F59E0B" />
+                                    <GradientStop Offset="1" Color="#F59E0B" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatScripts" Text="0" FontSize="32" FontWeight="Bold" Foreground="#F59E0B" />
+                            <TextBlock Text="运行中脚本" Foreground="#9AB0C8" FontSize="13" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- 激活的电击规则 -->
+                <Border Grid.Column="3" CornerRadius="16" Padding="22" Margin="10,0,0,0"
+                        BoxShadow="0 4 16 0 #1814B8A6">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#1F2B3E" />
+                            <GradientStop Offset="1" Color="#2A3B56" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border Grid.Column="0" CornerRadius="14" Width="54" Height="54" Margin="0,0,16,0"
+                                BoxShadow="0 4 12 0 #3014B8A6">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#14B8A6" />
+                                    <GradientStop Offset="1" Color="#22d3ee" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatEvents" Text="0" FontSize="32" FontWeight="Bold" Foreground="#22d3ee" />
+                            <TextBlock Text="激活规则" Foreground="#9AB0C8" FontSize="13" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+            
+            <!-- 设备通道状态 - 增强卡片样式 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                                </Border>
+                                <TextBlock Text="设备通道状态" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Padding="14,8" CornerRadius="10" 
+                                    Background="#314764" Foreground="#E6EDF7" FontSize="12" FontWeight="SemiBold"
+                                    Click="OnRefreshDeviceStrength">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="刷新" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <StackPanel x:Name="DeviceStrengthList" Margin="22">
+                        <TextBlock x:Name="NoDevicesHint" Text="暂无已连接设备" Foreground="#8091A8" HorizontalAlignment="Center" FontSize="14" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 血量识别概览 - 增强卡片样式 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#EF444420" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="血量识别概览" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Grid ColumnDefinitions="*,*,*,*" Margin="22,20">
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="当前血量" Foreground="#9AB0C8" FontSize="12" HorizontalAlignment="Center" />
+                            <Border Background="#10B98115" CornerRadius="10" Padding="16,8" Margin="0,8,0,0" HorizontalAlignment="Center">
+                                <TextBlock x:Name="OcrBlood" Text="100" FontSize="28" FontWeight="Bold" Foreground="#34d399" HorizontalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="识别状态" Foreground="#9AB0C8" FontSize="12" HorizontalAlignment="Center" />
+                            <Border Background="#8091A815" CornerRadius="10" Padding="16,8" Margin="0,8,0,0" HorizontalAlignment="Center">
+                                <TextBlock x:Name="OcrStatus" Text="未运行" FontSize="14" FontWeight="SemiBold" Foreground="#8091A8" HorizontalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="识别次数" Foreground="#9AB0C8" FontSize="12" HorizontalAlignment="Center" />
+                            <Border Background="#0EA5E9" CornerRadius="10" Padding="16,8" Margin="0,8,0,0" HorizontalAlignment="Center">
+                                <TextBlock x:Name="OcrCount" Text="0" FontSize="28" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                            <TextBlock Text="最近触发" Foreground="#9AB0C8" FontSize="12" HorizontalAlignment="Center" />
+                            <Border Background="#8091A815" CornerRadius="10" Padding="16,8" Margin="0,8,0,0" HorizontalAlignment="Center">
+                                <TextBlock x:Name="OcrLastTrigger" Text="-" FontSize="14" FontWeight="SemiBold" Foreground="#8091A8" HorizontalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <!-- 快捷控制 - 增强卡片样式 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#F59E0B20" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="快捷控制" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="QuickControlList" Margin="22">
+                        <TextBlock x:Name="NoQuickControlHint" Text="暂无已连接设备" Foreground="#8091A8" HorizontalAlignment="Center" FontSize="14" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 设备动作历史 - 增强卡片样式 -->
+            <Border CornerRadius="16" Padding="0" BoxShadow="0 4 16 0 #10000000">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#1F2B3E" />
+                        <GradientStop Offset="1" Color="#24324A" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="22,18">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#0EA5E920" CornerRadius="10" Padding="10">
+                            </Border>
+                            <TextBlock Text="设备动作历史" FontWeight="Bold" Foreground="White" FontSize="16" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel x:Name="DeviceActionHistoryList" Margin="22" MaxHeight="220">
+                        <TextBlock x:Name="NoDeviceActionHint" Text="暂无设备动作记录" Foreground="#8091A8" HorizontalAlignment="Center" FontSize="14" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            
+            <!-- 开发者信息 - 增强样式 -->
+            <Border Background="#1F2B3E40" CornerRadius="12" Padding="16,12" HorizontalAlignment="Center" Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Developed with" Foreground="#8091A8" FontSize="12" VerticalAlignment="Center" />
+                    <TextBlock Text="by" Foreground="#8091A8" FontSize="12" VerticalAlignment="Center" />
+                    <TextBlock Text="yomo40" Foreground="#0EA5E9" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            
+        </StackPanel>
+    </ScrollViewer>
+    
+</UserControl>
+
+
+
+
