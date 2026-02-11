@@ -20,6 +20,7 @@ namespace ChargingPanel.Core.Devices.DGLab;
 public class DGLabWebSocketServer : IDisposable
 {
     private static readonly ILogger Logger = Log.ForContext<DGLabWebSocketServer>();
+    private const int MaxMessageLength = 1950;
     
     private HttpListener? _httpListener;
     private CancellationTokenSource? _cts;
@@ -230,7 +231,8 @@ public class DGLabWebSocketServer : IDisposable
             ws = wsContext.WebSocket;
             
             // 生成客户端 ID
-            clientId = Guid.NewGuid().ToString("N")[..16].ToUpper();
+            // 使用 32 位 UUID，和官方协议推荐长度保持一致。
+            clientId = Guid.NewGuid().ToString("N").ToUpperInvariant();
             
             var client = new WebSocketClient(clientId, ws);
             _clients[clientId] = client;
@@ -302,6 +304,19 @@ public class DGLabWebSocketServer : IDisposable
     {
         try
         {
+            if (messageText.Length > MaxMessageLength)
+            {
+                await client.SendAsync(new DGLabMessage
+                {
+                    Type = "error",
+                    ClientId = client.Id,
+                    TargetId = "",
+                    Message = "405"
+                });
+                Logger.Warning("消息长度超限，拒绝处理: client={ClientId}, length={Length}", client.Id, messageText.Length);
+                return;
+            }
+
             Logger.Debug("收到消息 from {ClientId}: {Message}", client.Id, messageText[..Math.Min(200, messageText.Length)]);
             
             var message = JsonSerializer.Deserialize<DGLabMessage>(messageText);
@@ -433,6 +448,18 @@ public class DGLabWebSocketServer : IDisposable
     
     private async Task HandleMsgAsync(WebSocketClient client, DGLabMessage message)
     {
+        if ((message.Message?.Length ?? 0) > MaxMessageLength)
+        {
+            await client.SendAsync(new DGLabMessage
+            {
+                Type = "error",
+                ClientId = client.Id,
+                TargetId = message.TargetId ?? "",
+                Message = "405"
+            });
+            return;
+        }
+
         var targetId = message.TargetId;
         
         if (string.IsNullOrEmpty(targetId))
@@ -475,7 +502,7 @@ public class DGLabWebSocketServer : IDisposable
                 Type = "msg",
                 ClientId = client.Id,
                 TargetId = targetId,
-                Message = message.Message
+                Message = message.Message ?? string.Empty
             });
         }
         else
@@ -518,6 +545,11 @@ public class DGLabWebSocketServer : IDisposable
             try
             {
                 var json = JsonSerializer.Serialize(message);
+                if (json.Length > MaxMessageLength)
+                {
+                    Logger.Warning("拒绝发送超长消息: client={ClientId}, length={Length}", Id, json.Length);
+                    return;
+                }
                 var buffer = Encoding.UTF8.GetBytes(json);
                 await WebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
             }

@@ -34,8 +34,8 @@ public class DeviceManager : IDisposable
     private static readonly ILogger Logger = Log.ForContext<DeviceManager>();
 
     private readonly ConcurrentDictionary<string, DeviceWrapper> _devices = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _deviceOperationLocks = new();
     private readonly ConnectionDiagnostics _diagnostics = new();
-    private readonly SemaphoreSlim _operationLock = new(1, 1);
     private int _deviceCounter;
     private bool _disposed;
     
@@ -330,8 +330,9 @@ public class DeviceManager : IDisposable
     public async Task ConnectDeviceAsync(string deviceId, CancellationToken ct = default)
     {
         var wrapper = GetDeviceWrapper(deviceId);
+        var deviceLock = GetDeviceOperationLock(deviceId);
 
-        await _operationLock.WaitAsync(ct);
+        await deviceLock.WaitAsync(ct);
         try
         {
             if (wrapper.Status == DeviceStatus.Connected)
@@ -371,7 +372,7 @@ public class DeviceManager : IDisposable
         }
         finally
         {
-            _operationLock.Release();
+            deviceLock.Release();
         }
     }
 
@@ -381,7 +382,8 @@ public class DeviceManager : IDisposable
     public async Task DisconnectDeviceAsync(string deviceId)
     {
         var wrapper = GetDeviceWrapper(deviceId);
-        await _operationLock.WaitAsync();
+        var deviceLock = GetDeviceOperationLock(deviceId);
+        await deviceLock.WaitAsync();
         try
         {
             Logger.Information("正在断开设备: {DeviceId}", deviceId);
@@ -389,7 +391,7 @@ public class DeviceManager : IDisposable
         }
         finally
         {
-            _operationLock.Release();
+            deviceLock.Release();
         }
     }
 
@@ -422,6 +424,8 @@ public class DeviceManager : IDisposable
 
             Logger.Information("设备已移除: {DeviceId}", deviceId);
             InvalidateCache();
+
+            _deviceOperationLocks.TryRemove(deviceId, out _);
         }
     }
 
@@ -866,6 +870,11 @@ public class DeviceManager : IDisposable
         return wrapper;
     }
 
+    private SemaphoreSlim GetDeviceOperationLock(string deviceId)
+    {
+        return _deviceOperationLocks.GetOrAdd(deviceId, _ => new SemaphoreSlim(1, 1));
+    }
+
     private static void ValidateConnectionConfig(DeviceWrapper wrapper)
     {
         if (wrapper.IsVirtual && wrapper.ConnectionMode == ConnectionMode.Bluetooth)
@@ -976,7 +985,12 @@ public class DeviceManager : IDisposable
             }
         }
         _devices.Clear();
-        _operationLock.Dispose();
+
+        foreach (var deviceLock in _deviceOperationLocks.Values)
+        {
+            deviceLock.Dispose();
+        }
+        _deviceOperationLocks.Clear();
 
         GC.SuppressFinalize(this);
     }

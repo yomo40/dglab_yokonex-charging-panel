@@ -542,8 +542,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
             else if (state == BleConnectionState.Disconnected)
             {
                 UpdateStatus(DeviceStatus.Disconnected);
-                // 触发自动重连
-                StartReconnectTimer();
+                // 由底层传输负责自动恢复，避免与适配器重连并发竞争。
+                Console.WriteLine("[YokonexToy] 检测到断开，等待传输层自动恢复");
             }
         }
         

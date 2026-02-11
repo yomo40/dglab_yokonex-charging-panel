@@ -5,7 +5,9 @@ using Serilog;
 
 namespace ChargingPanel.Core.Data.Repositories;
 
+/// <summary>
 /// 设备仓储实现
+/// </summary>
 public class DeviceRepository : IDeviceRepository
 {
     private readonly SqliteConnection _connection;
@@ -168,7 +170,9 @@ public class DeviceRepository : IDeviceRepository
     #endregion
 }
 
+/// <summary>
 /// 事件仓储实现
+/// </summary>
 public class EventRepository : IEventRepository
 {
     private readonly SqliteConnection _connection;
@@ -358,7 +362,9 @@ public class EventRepository : IEventRepository
     #endregion
 }
 
+/// <summary>
 /// 日志仓储实现
+/// </summary>
 public class LogRepository : ILogRepository
 {
     private readonly SqliteConnection _connection;
@@ -518,7 +524,9 @@ public class LogRepository : ILogRepository
     }
     #endregion
 }
+/// <summary>
 /// 波形预设仓储实现
+/// </summary>
 public class WaveformPresetRepository : IWaveformPresetRepository
 {
     private readonly SqliteConnection _connection;

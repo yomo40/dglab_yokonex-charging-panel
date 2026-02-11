@@ -172,9 +172,30 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
     {
         EnsureConnected();
 
-        var safeValue = Math.Clamp(value, 0, 200);
-        var message = BuildStrengthMessage(channel, safeValue, mode);
-        await SendAsync(message);
+        // 协议强度指令仅支持单通道，AB 需要拆分为两条消息。
+        if (channel == Channel.AB)
+        {
+            await SetStrengthAsync(Channel.A, value, mode);
+            await SetStrengthAsync(Channel.B, value, mode);
+            return;
+        }
+
+        var safeValue = NormalizeStrengthCommandValue(channel, value, mode);
+        if (safeValue == 0 && mode != StrengthMode.Set)
+        {
+            Logger.Debug("跳过空增量强度指令: channel={Channel}, mode={Mode}", channel, mode);
+            return;
+        }
+
+        await SendAsync(BuildStrengthMessage(channel, safeValue, mode));
+        ApplyLocalStrength(channel, safeValue, mode);
+        StrengthChanged?.Invoke(this, new StrengthInfo
+        {
+            ChannelA = _strengthA,
+            ChannelB = _strengthB,
+            LimitA = _limitA,
+            LimitB = _limitB
+        });
 
         Logger.Debug("设置强度: channel={Channel}, value={Value}, mode={Mode}", channel, safeValue, mode);
     }
@@ -182,6 +203,13 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
     public async Task SendWaveformAsync(Channel channel, WaveformData data)
     {
         EnsureConnected();
+
+        if (channel == Channel.AB)
+        {
+            await SendWaveformAsync(Channel.A, data);
+            await SendWaveformAsync(Channel.B, data);
+            return;
+        }
 
         var hexArray = WaveformGenerator.GenerateHexArray(data);
 
@@ -231,10 +259,35 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
 
         if (_ws?.State == WebSocketState.Open && _isBound)
         {
-            // socket 文档：strength-channel+mode+value，mode=2 表示设定绝对值
-            await SendAsync(BuildStrengthMessage(Channel.A, _limitA, StrengthMode.Set));
-            await SendAsync(BuildStrengthMessage(Channel.B, _limitB, StrengthMode.Set));
-            Logger.Information("已下发 WebSocket 强度上限: A={LimitA}, B={LimitB}", _limitA, _limitB);
+            // socket 协议不提供“软上限设置”指令。这里只做本地上限约束，
+            // 若当前强度已超限，仅执行“下调到上限”，避免误触发升强。
+            var changed = false;
+            if (_strengthA > _limitA)
+            {
+                await SendAsync(BuildStrengthMessage(Channel.A, _limitA, StrengthMode.Set));
+                _strengthA = _limitA;
+                changed = true;
+            }
+
+            if (_strengthB > _limitB)
+            {
+                await SendAsync(BuildStrengthMessage(Channel.B, _limitB, StrengthMode.Set));
+                _strengthB = _limitB;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                StrengthChanged?.Invoke(this, new StrengthInfo
+                {
+                    ChannelA = _strengthA,
+                    ChannelB = _strengthB,
+                    LimitA = _limitA,
+                    LimitB = _limitB
+                });
+            }
+
+            Logger.Information("WebSocket 强度上限已更新（本地约束）: A={LimitA}, B={LimitB}", _limitA, _limitB);
         }
         else
         {
@@ -323,7 +376,7 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
                     }
                     else
                     {
-                        Logger.Warning("心跳响应异常: {Message}", msg.Message);
+                        Logger.Debug("收到非标准心跳响应: {Message}", msg.Message);
                     }
                     break;
                 case "break":
@@ -471,6 +524,11 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         // strength-channel+mode+value
         // channel: 1=A, 2=B
         // mode: 0=decrease, 1=increase, 2=set
+        if (channel == Channel.AB)
+        {
+            throw new ArgumentException("WebSocket 强度协议不支持 AB 复合通道，请拆分后发送", nameof(channel));
+        }
+
         int channelNum = channel == Channel.A ? 1 : 2;
         int modeNum = (int)mode;
         string message = $"strength-{channelNum}+{modeNum}+{value}";
@@ -490,6 +548,11 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         // 通道: A - A 通道；B - B 通道
         // 波形数据必须是 8 字节的 HEX(16 进制)形式
         // 数组最大长度为 100，超出则 APP 会丢弃全部数据
+        if (channel == Channel.AB)
+        {
+            throw new ArgumentException("WebSocket 波形协议不支持 AB 复合通道，请拆分后发送", nameof(channel));
+        }
+
         string channelChar = channel == Channel.A ? "A" : "B";
         
         // 确保不超过 100 条
@@ -553,8 +616,7 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         // 检查消息长度
         if (message.Length > MaxMessageLength)
         {
-            Logger.Warning("消息长度 {Length} 超过限制 {Max}，APP 可能丢弃此消息", 
-                message.Length, MaxMessageLength);
+            throw new InvalidOperationException($"消息长度 {message.Length} 超过协议上限 {MaxMessageLength}");
         }
 
         var buffer = Encoding.UTF8.GetBytes(message);
@@ -572,6 +634,40 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         {
             _sendLock.Release();
         }
+    }
+
+    private int NormalizeStrengthCommandValue(Channel channel, int value, StrengthMode mode)
+    {
+        var safeInput = Math.Clamp(value, 0, 200);
+        var current = channel == Channel.A ? _strengthA : _strengthB;
+        var limit = channel == Channel.A ? _limitA : _limitB;
+
+        return mode switch
+        {
+            StrengthMode.Set => Math.Min(safeInput, limit),
+            StrengthMode.Increase => Math.Min(safeInput, Math.Max(0, limit - current)),
+            StrengthMode.Decrease => Math.Min(safeInput, Math.Max(0, current)),
+            _ => safeInput
+        };
+    }
+
+    private void ApplyLocalStrength(Channel channel, int value, StrengthMode mode)
+    {
+        if (channel == Channel.AB)
+        {
+            return;
+        }
+
+        ref var current = ref (channel == Channel.A ? ref _strengthA : ref _strengthB);
+        var limit = channel == Channel.A ? _limitA : _limitB;
+
+        current = mode switch
+        {
+            StrengthMode.Set => Math.Clamp(value, 0, limit),
+            StrengthMode.Increase => Math.Clamp(current + value, 0, limit),
+            StrengthMode.Decrease => Math.Clamp(current - value, 0, limit),
+            _ => current
+        };
     }
 
     private void StartHeartbeat()

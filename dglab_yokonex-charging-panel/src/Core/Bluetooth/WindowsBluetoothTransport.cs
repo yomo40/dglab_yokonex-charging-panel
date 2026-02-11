@@ -982,9 +982,15 @@ public class WindowsBluetoothTransport : IBluetoothTransport
         {
             if (!deviceInfo.Pairing.IsPaired && deviceInfo.Pairing.CanPair)
             {
-                var pairResult = await deviceInfo.Pairing.PairAsync(DevicePairingProtectionLevel.None);
+                var pairTask = deviceInfo.Pairing.PairAsync(DevicePairingProtectionLevel.None).AsTask();
+                var pairResult = await pairTask.WaitAsync(TimeSpan.FromSeconds(4));
                 Logger.Information("系统蓝牙配对结果: {Status}", pairResult.Status);
             }
+        }
+        catch (TimeoutException)
+        {
+            // 某些 Win10/11 设备上配对调用可能阻塞较久，不阻塞直连流程。
+            Logger.Warning("系统蓝牙配对超时，将继续直接连接");
         }
         catch (Exception ex)
         {

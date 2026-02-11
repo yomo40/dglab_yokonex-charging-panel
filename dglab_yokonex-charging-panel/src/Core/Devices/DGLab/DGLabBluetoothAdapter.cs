@@ -279,12 +279,12 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             _waitingForResponse = false;
         }
 
-        var seqNo = _protocol.GetNextSequenceNo();
+        var command = _protocol.BuildStrengthCommand(channel, value, mode, true);
+        // 序列号位于 B0 第2字节高4位，确保等待的序列号与实际下发一致。
+        var seqNo = (command[1] >> 4) & 0x0F;
         _pendingSequenceNo = seqNo;
         _waitingForResponse = true;
         _lastStrengthCommandAtMs = Environment.TickCount64;
-
-        var command = _protocol.BuildStrengthCommand(channel, value, mode, true);
         await WriteAsync(GetWriteCharacteristicUuid(), command);
     }
 
@@ -535,8 +535,8 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         if (state == BleConnectionState.Disconnected && Status == DeviceStatus.Connected)
         {
             UpdateStatus(DeviceStatus.Disconnected);
-            // 触发自动重连
-            StartReconnectTimer();
+            // 由 WindowsBluetoothTransport 负责自动恢复，避免双重重连竞争。
+            Logger.Information("检测到蓝牙断开，等待传输层自动恢复: {Version}", Version);
         }
     }
     
