@@ -1,23 +1,28 @@
 namespace ChargingPanel.Core.Data.Entities;
 
+/// <summary>
 /// 实体基类
-
+/// </summary>
 public abstract class BaseEntity
 {
-        /// 唯一标识符
-    
+    /// <summary>
+    /// 唯一标识符
+    /// </summary>
     public string Id { get; set; } = "";
     
-        /// 创建时间
-    
+    /// <summary>
+    /// 创建时间 (ISO 8601)
+    /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
-        /// 更新时间
-    
+    /// <summary>
+    /// 更新时间 (ISO 8601)
+    /// </summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
-        /// 生成新ID
-    
+    /// <summary>
+    /// 生成新ID
+    /// </summary>
     protected static string GenerateId(string prefix = "")
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -28,8 +33,9 @@ public abstract class BaseEntity
     }
 }
 
+/// <summary>
 /// 设备实体
-
+/// </summary>
 public class DeviceEntity : BaseEntity
 {
     public string Name { get; set; } = "";
@@ -53,8 +59,9 @@ public class DeviceEntity : BaseEntity
     }
 }
 
+/// <summary>
 /// 设备类型
-
+/// </summary>
 public enum DeviceType
 {
     DGLab,
@@ -62,59 +69,72 @@ public enum DeviceType
     Custom
 }
 
+/// <summary>
 /// 事件实体
-
+/// </summary>
 public class EventEntity : BaseEntity
 {
-        /// 事件标识符（用于触发）
-    
+    /// <summary>
+    /// 事件标识符（用于触发）
+    /// </summary>
     public string EventId { get; set; } = "";
     
     public string Name { get; set; } = "";
     public string? Description { get; set; }
     
-        /// 类别: system, game, custom
-    
+    /// <summary>
+    /// 类别: system, game, custom
+    /// </summary>
     public EventCategory Category { get; set; } = EventCategory.Custom;
     
-        /// 适用设备类型
-    
+    /// <summary>
+    /// 适用设备类型
+    /// </summary>
     public DeviceType? TargetDeviceType { get; set; }
     
-        /// 目标通道
-    
+    /// <summary>
+    /// 目标通道
+    /// </summary>
     public ChannelTarget Channel { get; set; } = ChannelTarget.A;
     
-        /// 动作类型
-    
+    /// <summary>
+    /// 动作类型
+    /// </summary>
     public EventAction Action { get; set; } = EventAction.Set;
     
-        /// 强度值
-    
+    /// <summary>
+    /// 强度值
+    /// </summary>
     public int Value { get; set; }
     
-        /// 持续时间（毫秒）
-    
+    /// <summary>
+    /// 持续时间（毫秒）
+    /// </summary>
     public int Duration { get; set; }
     
-        /// 波形数据 (JSON)
-    
+    /// <summary>
+    /// 波形数据 (JSON)
+    /// </summary>
     public string? WaveformData { get; set; }
     
-        /// 是否启用
-    
+    /// <summary>
+    /// 是否启用
+    /// </summary>
     public bool Enabled { get; set; } = true;
     
-        /// 优先级
-    
+    /// <summary>
+    /// 优先级
+    /// </summary>
     public int Priority { get; set; } = 10;
     
-        /// 冷却时间（毫秒）
-    
+    /// <summary>
+    /// 冷却时间（毫秒）
+    /// </summary>
     public int Cooldown { get; set; }
     
-        /// 最后触发时间
-    
+    /// <summary>
+    /// 最后触发时间
+    /// </summary>
     public DateTime? LastTriggeredAt { get; set; }
     
     public static EventEntity Create(string eventId, string name, EventCategory category)
@@ -153,8 +173,9 @@ public enum EventAction
     Clear
 }
 
+/// <summary>
 /// 脚本实体
-
+/// </summary>
 public class ScriptEntity : BaseEntity
 {
     public string Name { get; set; } = "";
@@ -177,8 +198,9 @@ public class ScriptEntity : BaseEntity
     }
 }
 
+/// <summary>
 /// 设置实体
-
+/// </summary>
 public class SettingEntity
 {
     public string Key { get; set; } = "";
@@ -187,8 +209,9 @@ public class SettingEntity
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>
 /// 日志实体
-
+/// </summary>
 public class LogEntity
 {
     public long Id { get; set; }
@@ -214,8 +237,9 @@ public enum LogLevel
     Fatal
 }
 
+/// <summary>
 /// 房间实体（用于网络同步）
-
+/// </summary>
 public class RoomEntity : BaseEntity
 {
     public string Code { get; set; } = "";
@@ -253,8 +277,9 @@ public enum RoomMode
     ViewOnly       // 仅观看
 }
 
+/// <summary>
 /// 房间成员实体
-
+/// </summary>
 public class RoomMemberEntity : BaseEntity
 {
     public string RoomId { get; set; } = "";
@@ -275,44 +300,54 @@ public enum MemberRole
     Member,
     Observer
 }
+/// <summary>
 /// 波形预设实体 - 用于存储自定义波形队列
-
+/// </summary>
 public class WaveformPresetEntity : BaseEntity
 {
-        /// 预设名称
-    
+    /// <summary>
+    /// 预设名称
+    /// </summary>
     public string Name { get; set; } = "";
     
-        /// 预设描述
-    
+    /// <summary>
+    /// 预设描述
+    /// </summary>
     public string? Description { get; set; }
     
-        /// 图标 (emoji)
-    
+    /// <summary>
+    /// 图标 (emoji)
+    /// </summary>
     public string Icon { get; set; } = "🌊";
     
-        /// 目标通道
-    
+    /// <summary>
+    /// 目标通道
+    /// </summary>
     public ChannelTarget Channel { get; set; } = ChannelTarget.A;
     
-        /// 波形数据 (HEX 格式，逗号分隔的多段波形)
-    
+    /// <summary>
+    /// 波形数据 (HEX 格式，逗号分隔的多段波形)
+    /// </summary>
     public string WaveformData { get; set; } = "";
     
-        /// 持续时间（毫秒）
-    
+    /// <summary>
+    /// 持续时间（毫秒）
+    /// </summary>
     public int Duration { get; set; } = 1000;
     
-        /// 强度百分比 (0-100)
-    
+    /// <summary>
+    /// 强度百分比 (0-100)
+    /// </summary>
     public int Intensity { get; set; } = 50;
     
-        /// 是否为内置预设
-    
+    /// <summary>
+    /// 是否为内置预设
+    /// </summary>
     public bool IsBuiltIn { get; set; }
     
-        /// 排序顺序
-    
+    /// <summary>
+    /// 排序顺序
+    /// </summary>
     public int SortOrder { get; set; }
     
     public static WaveformPresetEntity Create(string name, string waveformData)

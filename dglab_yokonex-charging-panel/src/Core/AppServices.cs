@@ -134,7 +134,14 @@ public class AppServices : IDisposable
             var wsPort = Database.Instance.GetSetting<int>("server.coyote.port", 9000);
             if (wsAutoStart)
             {
-                await StartWebSocketServerAsync(wsPort);
+                try
+                {
+                    await StartWebSocketServerAsync(wsPort);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "内置 WebSocket 服务启动失败（不阻断主程序）: port={Port}", wsPort);
+                }
             }
 
             // 如果 OCR 配置为启用，则启动
@@ -156,7 +163,14 @@ public class AppServices : IDisposable
             var modBridgeEnabled = Database.Instance.GetSetting<bool>("modbridge.enabled", true);
             if (modBridgeEnabled)
             {
-                await StartModBridgeFixedServersAsync();
+                try
+                {
+                    await StartModBridgeFixedServersAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "MOD 固定端口服务启动失败（不阻断主程序）");
+                }
             }
 
             // 启动多人房间局域网自动发现（固定端口 49152）

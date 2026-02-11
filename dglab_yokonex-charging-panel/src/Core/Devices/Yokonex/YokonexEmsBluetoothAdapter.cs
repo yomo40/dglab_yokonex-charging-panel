@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ChargingPanel.Core.Bluetooth;
@@ -99,6 +100,26 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// 自定义模式编号
         /// </summary>
         public const byte CustomMode = 0x11;
+
+        /// <summary>
+        /// V2.0 通道控制模式：固定模式
+        /// </summary>
+        public const byte V2ChannelModeFixed = 0x01;
+
+        /// <summary>
+        /// V2.0 通道控制模式：实时模式（频率/脉宽）
+        /// </summary>
+        public const byte V2ChannelModeRealtime = 0x02;
+
+        /// <summary>
+        /// V2.0 通道控制模式：频率播放列表模式
+        /// </summary>
+        public const byte V2ChannelModeFrequencySequence = 0x03;
+
+        /// <summary>
+        /// V2.0 频率模式最大点数
+        /// </summary>
+        public const int V2FrequencySequenceMaxPoints = 100;
     }
 
     /// <summary>
@@ -295,54 +316,17 @@ namespace ChargingPanel.Core.Devices.Yokonex
             frequency = Math.Clamp(frequency, 0, 100);
             pulseTime = Math.Clamp(pulseTime, 0, 100);
 
-            // 构建命令
-            // 字节1: 包头 0x35
-            // 字节2: 命令字 0x11
-            // 字节3: 通道号
-            // 字节4: 通道开启状态
-            // 字节5-6: 通道强度 (0x01-0x114)
-            // 字节7: 通道模式
-            // 字节8: 通道频率 (仅自定义模式)
-            // 字节9: 脉冲时间 (仅自定义模式)
-            // 字节10: 校验和
-            
-            var data = new byte[10];
-            data[0] = YokonexEmsProtocol.PacketHeader;
-            data[1] = YokonexEmsProtocol.CmdChannelControl;
-            data[2] = channel;
-            data[3] = enabled ? (byte)0x01 : (byte)0x00;
-            
-            // 强度为双字节，高位在前
-            data[4] = (byte)((strength >> 8) & 0xFF);
-            data[5] = (byte)(strength & 0xFF);
-            
-            data[6] = (byte)mode;
-            data[7] = mode == YokonexEmsProtocol.CustomMode ? (byte)frequency : (byte)0x00;
-            data[8] = mode == YokonexEmsProtocol.CustomMode ? (byte)pulseTime : (byte)0x00;
-            
-            // 计算校验和
-            data[9] = CalculateChecksum(data, 0, 9);
+            ApplyChannelStateUpdate(channel, strength, enabled, mode, frequency, pulseTime);
 
-            await SendCommandAsync(data);
-            
-            // 更新本地状态
-            if ((channel & YokonexEmsProtocol.ChannelA) != 0)
+            if (ProtocolGeneration == YokonexProtocolGeneration.EmsV2_0)
             {
-                _channelA.Enabled = enabled;
-                _channelA.Strength = strength;
-                _channelA.Mode = mode;
-                _channelA.Frequency = frequency;
-                _channelA.PulseTime = pulseTime;
+                await SendV2ChannelCommandAsync(mode);
             }
-            if ((channel & YokonexEmsProtocol.ChannelB) != 0)
+            else
             {
-                _channelB.Enabled = enabled;
-                _channelB.Strength = strength;
-                _channelB.Mode = mode;
-                _channelB.Frequency = frequency;
-                _channelB.PulseTime = pulseTime;
+                await SendV1ChannelCommandAsync(channel, strength, enabled, mode, frequency, pulseTime);
             }
-            
+
             StrengthChanged?.Invoke(this, new StrengthInfo 
             { 
                 ChannelA = _channelA.Strength, 
@@ -700,6 +684,174 @@ namespace ChargingPanel.Core.Devices.Yokonex
             return Math.Max(1, normalized);
         }
 
+        private void ApplyChannelStateUpdate(byte channel, int strength, bool enabled, int mode, int frequency, int pulseTime)
+        {
+            if ((channel & YokonexEmsProtocol.ChannelA) != 0)
+            {
+                _channelA.Enabled = enabled;
+                _channelA.Strength = strength;
+                _channelA.Mode = mode;
+                _channelA.Frequency = frequency;
+                _channelA.PulseTime = pulseTime;
+            }
+
+            if ((channel & YokonexEmsProtocol.ChannelB) != 0)
+            {
+                _channelB.Enabled = enabled;
+                _channelB.Strength = strength;
+                _channelB.Mode = mode;
+                _channelB.Frequency = frequency;
+                _channelB.PulseTime = pulseTime;
+            }
+        }
+
+        private async Task SendV1ChannelCommandAsync(byte channel, int strength, bool enabled, int mode, int frequency, int pulseTime)
+        {
+            // V1.6: 按通道号下发（A/B/AB），支持固定/自定义模式。
+            var data = new byte[10];
+            data[0] = YokonexEmsProtocol.PacketHeader;
+            data[1] = YokonexEmsProtocol.CmdChannelControl;
+            data[2] = channel;
+            data[3] = enabled ? (byte)0x01 : (byte)0x00;
+            data[4] = (byte)((strength >> 8) & 0xFF);
+            data[5] = (byte)(strength & 0xFF);
+            data[6] = (byte)mode;
+            data[7] = mode == YokonexEmsProtocol.CustomMode ? (byte)frequency : (byte)0x00;
+            data[8] = mode == YokonexEmsProtocol.CustomMode ? (byte)pulseTime : (byte)0x00;
+            data[9] = CalculateChecksum(data, 0, 9);
+
+            await SendCommandAsync(data);
+        }
+
+        private async Task SendV2ChannelCommandAsync(int mode)
+        {
+            if (mode == YokonexEmsProtocol.CustomMode)
+            {
+                // V2.0 实时模式：一次同时配置 A/B 的强度+频率+脉宽。
+                var data = new byte[12];
+                data[0] = YokonexEmsProtocol.PacketHeader;
+                data[1] = YokonexEmsProtocol.CmdChannelControl;
+                data[2] = YokonexEmsProtocol.V2ChannelModeRealtime;
+
+                var aStrength = _channelA.Enabled ? _channelA.Strength : 0;
+                var bStrength = _channelB.Enabled ? _channelB.Strength : 0;
+                var aFrequency = _channelA.Enabled ? Math.Clamp(_channelA.Frequency, 1, 100) : 0;
+                var bFrequency = _channelB.Enabled ? Math.Clamp(_channelB.Frequency, 1, 100) : 0;
+                var aPulse = _channelA.Enabled ? Math.Clamp(_channelA.PulseTime, 0, 100) : 0;
+                var bPulse = _channelB.Enabled ? Math.Clamp(_channelB.PulseTime, 0, 100) : 0;
+
+                data[3] = (byte)((aStrength >> 8) & 0xFF);
+                data[4] = (byte)(aStrength & 0xFF);
+                data[5] = (byte)aFrequency;
+                data[6] = (byte)aPulse;
+                data[7] = (byte)((bStrength >> 8) & 0xFF);
+                data[8] = (byte)(bStrength & 0xFF);
+                data[9] = (byte)bFrequency;
+                data[10] = (byte)bPulse;
+                data[11] = CalculateChecksum(data, 0, 11);
+
+                await SendCommandAsync(data);
+                return;
+            }
+
+            // V2.0 固定模式：一次同时配置 A/B 的强度+固定模式。
+            var fixedData = new byte[10];
+            fixedData[0] = YokonexEmsProtocol.PacketHeader;
+            fixedData[1] = YokonexEmsProtocol.CmdChannelControl;
+            fixedData[2] = YokonexEmsProtocol.V2ChannelModeFixed;
+
+            var channelAStrength = _channelA.Enabled ? _channelA.Strength : 0;
+            var channelBStrength = _channelB.Enabled ? _channelB.Strength : 0;
+            var channelAMode = _channelA.Enabled ? Math.Clamp(_channelA.Mode, 1, YokonexEmsProtocol.FixedModeCount) : 0;
+            var channelBMode = _channelB.Enabled ? Math.Clamp(_channelB.Mode, 1, YokonexEmsProtocol.FixedModeCount) : 0;
+
+            fixedData[3] = (byte)((channelAStrength >> 8) & 0xFF);
+            fixedData[4] = (byte)(channelAStrength & 0xFF);
+            fixedData[5] = (byte)channelAMode;
+            fixedData[6] = (byte)((channelBStrength >> 8) & 0xFF);
+            fixedData[7] = (byte)(channelBStrength & 0xFF);
+            fixedData[8] = (byte)channelBMode;
+            fixedData[9] = CalculateChecksum(fixedData, 0, 9);
+
+            await SendCommandAsync(fixedData);
+        }
+
+        private async Task SendV2FrequencyModeAsync(byte channel, int strength, IReadOnlyList<(byte frequency, byte pulseTime)> points)
+        {
+            if (channel != YokonexEmsProtocol.ChannelA && channel != YokonexEmsProtocol.ChannelB)
+            {
+                throw new ArgumentException("V2 频率模式仅支持单通道 A 或 B（AB 需分开发送）", nameof(channel));
+            }
+
+            var safeStrength = Math.Clamp(strength, 0, YokonexEmsProtocol.MaxStrength);
+            var safeCount = Math.Clamp(points.Count, 1, YokonexEmsProtocol.V2FrequencySequenceMaxPoints);
+            var data = new byte[7 + safeCount * 2];
+            data[0] = YokonexEmsProtocol.PacketHeader;
+            data[1] = YokonexEmsProtocol.CmdChannelControl;
+            data[2] = YokonexEmsProtocol.V2ChannelModeFrequencySequence;
+            data[3] = channel;
+            data[4] = (byte)((safeStrength >> 8) & 0xFF);
+            data[5] = (byte)(safeStrength & 0xFF);
+
+            var offset = 6;
+            for (var i = 0; i < safeCount; i++)
+            {
+                data[offset++] = points[i].frequency;
+                data[offset++] = points[i].pulseTime;
+            }
+
+            data[offset] = CalculateChecksum(data, 0, offset);
+            await SendCommandAsync(data);
+        }
+
+        private static bool TryParseV2FrequencySequence(string? raw, out List<(byte frequency, byte pulseTime)> points)
+        {
+            points = new List<(byte frequency, byte pulseTime)>();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            // 允许格式:
+            // 1) "40:10;45:12;50:15"
+            // 2) "40,10,45,12,50,15"
+            var normalized = raw.Trim();
+            var sequenceItems = normalized.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (sequenceItems.Length > 0 && sequenceItems.Any(item => item.Contains(':')))
+            {
+                foreach (var item in sequenceItems)
+                {
+                    var pair = item.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (pair.Length != 2 ||
+                        !int.TryParse(pair[0], out var freq) ||
+                        !int.TryParse(pair[1], out var pulse))
+                    {
+                        continue;
+                    }
+
+                    points.Add(((byte)Math.Clamp(freq, 1, 100), (byte)Math.Clamp(pulse, 0, 100)));
+                }
+            }
+            else
+            {
+                var values = normalized
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(v => int.TryParse(v, out var n) ? n : -1)
+                    .ToArray();
+                for (var i = 0; i + 1 < values.Length; i += 2)
+                {
+                    if (values[i] < 0 || values[i + 1] < 0)
+                    {
+                        continue;
+                    }
+
+                    points.Add(((byte)Math.Clamp(values[i], 1, 100), (byte)Math.Clamp(values[i + 1], 0, 100)));
+                }
+            }
+
+            return points.Count > 0;
+        }
+
         private async Task SendWaveformAsCustomModeAsync(Channel channel, WaveformData waveform)
         {
             if (waveform == null)
@@ -715,6 +867,25 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
             if (strengthPercent <= 0)
             {
+                return;
+            }
+
+            // V2.0 额外支持“频率模式”(0x03)播放列表：
+            // 约定 HexData 可填 "f:p;f:p;..." 或 "f,p,f,p,..."
+            if (ProtocolGeneration == YokonexProtocolGeneration.EmsV2_0 &&
+                TryParseV2FrequencySequence(waveform.HexData, out var points))
+            {
+                var deviceStrength = ToDeviceStrength(strengthPercent);
+                if (channel == Channel.A || channel == Channel.AB)
+                {
+                    await SendV2FrequencyModeAsync(YokonexEmsProtocol.ChannelA, deviceStrength, points);
+                }
+
+                if (channel == Channel.B || channel == Channel.AB)
+                {
+                    await SendV2FrequencyModeAsync(YokonexEmsProtocol.ChannelB, deviceStrength, points);
+                }
+
                 return;
             }
 
@@ -797,8 +968,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
             else if (state == BleConnectionState.Disconnected)
             {
                 UpdateStatus(DeviceStatus.Disconnected);
-                // 触发自动重连
-                StartReconnectTimer();
+                // 由底层传输负责自动恢复，避免与适配器重连并发竞争。
+                Console.WriteLine("[YokonexEMS] 检测到断开，等待传输层自动恢复");
             }
         }
 
@@ -824,7 +995,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
             {
                 case YokonexEmsProtocol.CmdChannelControl:
                     // 通道控制响应 - 包含通道连接状态
-                    if (data.Length >= 5)
+                    if (data.Length >= 4)
                     {
                         // 字节3: A通道连接状态 (0=未连接, 1=已连接)
                         // 字节4: B通道连接状态

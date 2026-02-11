@@ -243,11 +243,8 @@ public sealed class EventProcessor : IDisposable
             {
                 return null;
             }
-
-            if (eventService.GetEvent(mapped) != null)
-            {
-                return mapped;
-            }
+            // 类型映射作为兜底路径，不强依赖缓存命中，避免短暂缓存漂移导致事件丢失。
+            return mapped;
         }
 
         return null;

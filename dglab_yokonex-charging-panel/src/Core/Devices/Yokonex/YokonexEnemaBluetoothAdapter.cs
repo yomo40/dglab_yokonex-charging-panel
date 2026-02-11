@@ -30,12 +30,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         
         /// <summary>
         /// AES-128 加密密钥 (16字节)
-        /// 来源: 协议文档 TDL_YISKJ-003_协议规范-V1.0 image-4.png
+        /// 来源: 协议文档 TDL_YISKJ-003_协议规范-V1.0
         /// </summary>
         public static readonly byte[] AesKey = new byte[] 
         { 
-            0x0F, 0x61, 0x38, 0x2B, 0xC3, 0x9C, 0x4F, 0xA5, 
-            0x47, 0x67, 0x47, 0x80, 0x8A, 0xB9, 0x32, 0x10
+            0xF6, 0x38, 0xBC, 0x9C, 0xFA, 0x47, 0x74, 0x80,
+            0xAB, 0x32, 0x42, 0xF6, 0xB0, 0x45, 0x57, 0xA1
         };
         
         /// <summary>
@@ -53,18 +53,18 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// 文档帧类型
         /// </summary>
         public const byte FrameTypeControl = 0xA0;
-        public const byte FrameTypeQuery = 0xB0;
-        public const byte FrameTypeReport = 0x35;
+        public const byte FrameTypeQuery = FrameTypeControl;
+        public const byte FrameTypeReport = 0xB0;
         
         // 命令字节
         public const byte CmdPeristalticPump = 0x01;  // 蠕动泵控制
         public const byte CmdWaterPump = 0x02;        // 抽水泵控制
         public const byte CmdPause = 0x03;            // 暂停工作
         public const byte CmdQueryStatus = 0x04;      // 查询工作状态
-        public const byte CmdReportStatus = 0x84;     // 上报工作状态
-        public const byte CmdReportPressure = 0x85;   // 上报压力值
-        public const byte CmdGetBattery = 0x06;       // 获取电量
-        public const byte CmdReportBattery = 0x86;    // 上报电量
+        public const byte CmdGetBattery = 0x05;       // 获取电量
+        public const byte CmdReportStatus = 0x01;     // 上报工作状态
+        public const byte CmdReportPressure = 0x02;   // 上报压力值
+        public const byte CmdReportBattery = 0x03;    // 上报电量
     }
 
     /// <summary>
@@ -554,8 +554,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
             else if (state == BleConnectionState.Disconnected)
             {
                 UpdateStatus(DeviceStatus.Disconnected);
-                // 触发自动重连
-                StartReconnectTimer();
+                // 由底层传输负责自动恢复，避免与适配器重连并发竞争。
+                Console.WriteLine("[YokonexEnema] 检测到断开，等待传输层自动恢复");
             }
         }
         
@@ -687,7 +687,13 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
         private void ParseResponse(byte[] plaintext)
         {
-            var (cmd, payloadOffset) = ExtractFrameCommand(plaintext);
+            var (frameType, cmd, payloadOffset) = ExtractFrameCommand(plaintext);
+
+            if (frameType != YokonexEnemaProtocol.FrameTypeReport)
+            {
+                Console.WriteLine($"[YokonexEnema] 忽略非上报帧: type={frameType:X2}, cmd={cmd:X2}");
+                return;
+            }
 
             switch (cmd)
             {
@@ -718,7 +724,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     break;
 
                 default:
-                    Console.WriteLine($"[YokonexEnema] 未知响应命令: {cmd:X2}");
+                    Console.WriteLine($"[YokonexEnema] 未知响应命令: type={frameType:X2}, cmd={cmd:X2}");
                     break;
             }
         }
@@ -733,18 +739,18 @@ namespace ChargingPanel.Core.Devices.Yokonex
             return plaintext;
         }
 
-        private static (byte cmd, int payloadOffset) ExtractFrameCommand(byte[] plaintext)
+        private static (byte frameType, byte cmd, int payloadOffset) ExtractFrameCommand(byte[] plaintext)
         {
             // 文档帧: BF 0F {A0/B0/35} CMD ...
             if (plaintext.Length >= 4 &&
                 plaintext[0] == YokonexEnemaProtocol.FrameHeader0 &&
                 plaintext[1] == YokonexEnemaProtocol.FrameHeader1)
             {
-                return (plaintext[3], 4);
+                return (plaintext[2], plaintext[3], 4);
             }
 
             // 兼容旧实现: CMD 在首字节
-            return (plaintext[0], 1);
+            return (0x00, plaintext[0], 1);
         }
 
         #endregion
