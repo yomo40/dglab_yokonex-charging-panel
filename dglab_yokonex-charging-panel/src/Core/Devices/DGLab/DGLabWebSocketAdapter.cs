@@ -102,7 +102,7 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
         try
         {
             _ws = new ClientWebSocket();
-            _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+            _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
 
             await _ws.ConnectAsync(new Uri(wsUrl), _cts.Token);
             Logger.Information("WebSocket 连接已建立");
@@ -316,8 +316,8 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
                     HandleDataMessage(msg);
                     break;
                 case "heartbeat":
-                    // 心跳响应，官方协议 message 为 "DGLAB" 表示成功
-                    if (msg.Message == "DGLAB")
+                    // 心跳响应兼容 "DGLAB"/"200"，避免不同网关实现差异导致误判。
+                    if (msg.Message is "DGLAB" or "200")
                     {
                         Logger.Debug("心跳响应正常");
                     }
@@ -372,6 +372,19 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
             _targetId = msg.TargetId;
             Logger.Information("已绑定到 APP: TargetId={TargetId}", _targetId);
             UpdateStatus(DeviceStatus.Connected);
+
+            // 绑定成功后立即发送一次心跳，减少首次心跳等待导致的异常提示。
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await SendAsync(BuildHeartbeatMessage());
+                }
+                catch (Exception ex)
+                {
+                    Logger.Debug(ex, "绑定后首次心跳发送失败");
+                }
+            });
         }
         // 处理绑定错误码
         else if (int.TryParse(msg.Message, out int errorCode))
@@ -513,13 +526,13 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
     {
         // 协议要求: 除初始绑定外，所有消息必须包含 type, clientId, targetId, message 四个字段
         // 心跳消息只在绑定后发送，此时 _targetId 已有值
-        // 官方协议: message 应为 "200" 或 "DGLAB"
+        // 官方协议实际更常见为 "DGLAB"，同时接收侧兼容 "200"。
         return JsonSerializer.Serialize(new
         {
             type = "heartbeat",
             clientId = _clientId,
             targetId = _targetId ?? "",  // 绑定前为空字符串，绑定后为 APP ID
-            message = "200"
+            message = "DGLAB"
         });
     }
 
@@ -580,7 +593,7 @@ public class DGLabWebSocketAdapter : IDevice, IDisposable
             {
                 Logger.Warning(ex, "心跳发送失败");
             }
-        }, null, TimeSpan.FromSeconds(HeartbeatIntervalSeconds), TimeSpan.FromSeconds(HeartbeatIntervalSeconds));
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(HeartbeatIntervalSeconds));
     }
 
     private void StopHeartbeat()

@@ -59,10 +59,12 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private int _batteryLevel = 100;
     private int _pendingSequenceNo;
     private bool _waitingForResponse;
+    private long _lastStrengthCommandAtMs;
     private bool _disposed;
     private int _reconnectAttempts;
     private const int MaxReconnectAttempts = 5;
     private const int ReconnectDelayMs = 3000;
+    private const int PendingResponseStaleMs = 180;
     
     // 波形持续发送状态
     private ChannelWaveform? _currentWaveformA;
@@ -271,15 +273,16 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     private async Task SetStrengthV3Async(Channel channel, int value, StrengthMode mode)
     {
-        // 等待上一个强度命令的响应
-        if (_waitingForResponse)
+        // 避免卡死等待响应：响应超时后允许继续发新包，提升体感实时性。
+        if (_waitingForResponse && Environment.TickCount64 - _lastStrengthCommandAtMs > PendingResponseStaleMs)
         {
-            await Task.Delay(50);
+            _waitingForResponse = false;
         }
 
         var seqNo = _protocol.GetNextSequenceNo();
         _pendingSequenceNo = seqNo;
         _waitingForResponse = true;
+        _lastStrengthCommandAtMs = Environment.TickCount64;
 
         var command = _protocol.BuildStrengthCommand(channel, value, mode, true);
         await WriteAsync(GetWriteCharacteristicUuid(), command);
@@ -750,6 +753,11 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
                 {
                     _waitingForResponse = false;
                 }
+                else if (_waitingForResponse &&
+                         Environment.TickCount64 - _lastStrengthCommandAtMs > PendingResponseStaleMs)
+                {
+                    _waitingForResponse = false;
+                }
 
                 StrengthChanged?.Invoke(this, new StrengthInfo
                 {
@@ -805,6 +813,11 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             {
                 if (Version == DGLabVersion.V3)
                 {
+                    if (_waitingForResponse && Environment.TickCount64 - _lastStrengthCommandAtMs < PendingResponseStaleMs)
+                    {
+                        return;
+                    }
+
                     // V3: 每 100ms 发送一次 B0 指令来维持波形
                     if (_currentWaveformA != null || _currentWaveformB != null)
                     {

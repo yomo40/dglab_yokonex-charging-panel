@@ -4,9 +4,8 @@ using System.Threading.Tasks;
 
 namespace ChargingPanel.Core.Bluetooth;
 
-/// <summary>
 /// BLE 设备连接状态
-/// </summary>
+
 public enum BleConnectionState
 {
     Disconnected,
@@ -15,9 +14,8 @@ public enum BleConnectionState
     Disconnecting
 }
 
-/// <summary>
 /// BLE 设备信息
-/// </summary>
+
 public class BleDeviceInfo
 {
     public string Id { get; set; } = string.Empty;
@@ -28,17 +26,15 @@ public class BleDeviceInfo
     public bool IsConnectable { get; set; } = true;
 }
 
-/// <summary>
 /// BLE 扫描结果事件参数
-/// </summary>
+
 public class BleScanResultEventArgs : EventArgs
 {
     public BleDeviceInfo Device { get; set; } = new();
 }
 
-/// <summary>
 /// BLE 数据接收事件参数
-/// </summary>
+
 public class BleDataReceivedEventArgs : EventArgs
 {
     public Guid ServiceUuid { get; set; }
@@ -46,9 +42,8 @@ public class BleDataReceivedEventArgs : EventArgs
     public byte[] Data { get; set; } = Array.Empty<byte>();
 }
 
-/// <summary>
 /// 蓝牙传输层接口
-/// </summary>
+
 public interface IBluetoothTransport : IDisposable
 {
     /// <summary>当前连接状态</summary>
@@ -100,9 +95,8 @@ public interface IBluetoothTransport : IDisposable
     Task<byte[]> ReadAsync(Guid serviceUuid, Guid characteristicUuid);
 }
 
-/// <summary>
 /// 蓝牙适配器状态
-/// </summary>
+
 public class BluetoothAdapterStatus
 {
     public bool IsAvailable { get; set; }

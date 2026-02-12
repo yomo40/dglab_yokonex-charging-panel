@@ -182,8 +182,14 @@ public class AppServices : IDisposable
     {
         if (WebSocketServer != null && WebSocketServer.IsRunning)
         {
-            Log.Warning("WebSocket 服务器已在运行");
-            return;
+            if (WebSocketServer.Port == port)
+            {
+                Log.Warning("WebSocket 服务器已在运行，端口未变化: {Port}", port);
+                return;
+            }
+
+            Log.Information("检测到端口变更，重启 WebSocket 服务器: {OldPort} -> {NewPort}", WebSocketServer.Port, port);
+            await StopWebSocketServerAsync();
         }
         
         WebSocketServer = new DGLabWebSocketServer();

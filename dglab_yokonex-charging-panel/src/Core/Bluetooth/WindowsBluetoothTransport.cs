@@ -46,11 +46,13 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     private string? _lastDeviceId;
     private int _recovering;
     private bool _manualDisconnect;
-    private const int ConnectRetryCount = 2;
-    private const int SubscribeRetryCount = 2;
-    private const int WriteRetryCount = 2;
+    private const int ConnectRetryCount = 4;
+    private const int SubscribeRetryCount = 3;
+    private const int WriteRetryCount = 3;
     private const int RetryDelayMs = 350;
-    private const int ConnectAttemptTimeoutMs = 12000;
+    private const int ConnectRetryDelayMs = 700;
+    private const int ConnectAttemptTimeoutMs = 15000;
+    private const int GattOperationTimeoutMs = 5000;
     private const int RecoverRetryCount = 3;
 
     public BleConnectionState State => _state;
@@ -119,6 +121,26 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     public async Task<BleDeviceInfo[]> ScanAsync(Guid? serviceFilter = null, string? namePrefix = null, 
         int timeoutMs = 10000, CancellationToken ct = default)
     {
+        void OnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
+        {
+            try
+            {
+                ProcessAdvertisement(args, namePrefix);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "处理广播数据失败");
+            }
+        }
+
+        void OnStopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
+        {
+            Logger.Debug("BLE 扫描停止, error={Error}", args.Error);
+        }
+
+        BluetoothLEAdvertisementWatcher? watcher = null;
+        CancellationTokenSource? scanCts = null;
+
         await _connectionLock.WaitAsync(ct);
         try
         {
@@ -137,46 +159,37 @@ public class WindowsBluetoothTransport : IBluetoothTransport
 
             _isScanning = true;
             _scanCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            scanCts = _scanCts;
             _discoveredDevices.Clear();
 
             Logger.Information("开始 BLE 扫描, timeout={Timeout}ms, namePrefix={Prefix}, serviceFilter={Filter}",
                 timeoutMs, namePrefix, serviceFilter);
 
-            _watcher = new BluetoothLEAdvertisementWatcher
+            watcher = new BluetoothLEAdvertisementWatcher
             {
                 ScanningMode = BluetoothLEScanningMode.Active
             };
+            _watcher = watcher;
 
             // 设置服务过滤器
             if (serviceFilter.HasValue)
             {
-                _watcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(serviceFilter.Value);
+                watcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(serviceFilter.Value);
             }
 
-            void OnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
-            {
-                try
-                {
-                    ProcessAdvertisement(args, namePrefix);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning(ex, "处理广播数据失败");
-                }
-            }
+            watcher.Received += OnReceived;
+            watcher.Stopped += OnStopped;
+            watcher.Start();
+        }
+        finally
+        {
+            _connectionLock.Release();
+        }
 
-            void OnStopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
-            {
-                Logger.Debug("BLE 扫描停止, error={Error}", args.Error);
-            }
-
-            _watcher.Received += OnReceived;
-            _watcher.Stopped += OnStopped;
-
-            _watcher.Start();
-
+        try
+        {
             using var timeoutCts = new CancellationTokenSource(timeoutMs);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_scanCts.Token, timeoutCts.Token);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(scanCts?.Token ?? ct, timeoutCts.Token);
 
             try
             {
@@ -186,21 +199,74 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             {
                 Logger.Debug("BLE 扫描被取消或超时");
             }
-
+        }
+        finally
+        {
+            await _connectionLock.WaitAsync();
             try
             {
-                _watcher.Stop();
-            }
-            catch { }
-            _watcher.Received -= OnReceived;
-            _watcher.Stopped -= OnStopped;
-            _watcher = null;
-            _scanCts?.Cancel();
-            _isScanning = false;
+                if (watcher != null)
+                {
+                    try
+                    {
+                        watcher.Stop();
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
 
-            var result = _discoveredDevices.Values.ToArray();
-            Logger.Information("BLE 扫描完成, 发现 {Count} 个设备", result.Length);
-            return result;
+                    watcher.Received -= OnReceived;
+                    watcher.Stopped -= OnStopped;
+                }
+
+                if (ReferenceEquals(_watcher, watcher))
+                {
+                    _watcher = null;
+                }
+
+                if (ReferenceEquals(_scanCts, scanCts))
+                {
+                    _scanCts?.Cancel();
+                    _scanCts?.Dispose();
+                    _scanCts = null;
+                }
+
+                _isScanning = false;
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+        }
+
+        var result = _discoveredDevices.Values.ToArray();
+        Logger.Information("BLE 扫描完成, 发现 {Count} 个设备", result.Length);
+        return result;
+    }
+
+    /// <summary>
+    /// 连接到 BLE 设备
+    /// </summary>
+    public async Task ConnectAsync(string deviceId, CancellationToken ct = default)
+    {
+        // 连接前主动停止扫描，避免扫描与连接争用蓝牙栈导致首连失败或界面卡顿。
+        StopScan();
+
+        await _connectionLock.WaitAsync(ct);
+        try
+        {
+            _manualDisconnect = false;
+            StopRecoveryLoop();
+            _lastDeviceId = deviceId;
+
+            if (_state == BleConnectionState.Connected)
+            {
+                await DisconnectCoreAsync();
+            }
+
+            await ConnectCoreAsync(deviceId, ct);
+            await RestoreSubscriptionsAsync();
         }
         finally
         {
@@ -267,32 +333,6 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 连接到 BLE 设备
-    /// </summary>
-    public async Task ConnectAsync(string deviceId, CancellationToken ct = default)
-    {
-        await _connectionLock.WaitAsync(ct);
-        try
-        {
-            _manualDisconnect = false;
-            StopRecoveryLoop();
-            _lastDeviceId = deviceId;
-
-            if (_state == BleConnectionState.Connected)
-            {
-                await DisconnectCoreAsync();
-            }
-
-            await ConnectCoreAsync(deviceId, ct);
-            await RestoreSubscriptionsAsync();
-        }
-        finally
-        {
-            _connectionLock.Release();
-        }
-    }
-
-    /// <summary>
     /// 断开连接
     /// </summary>
     public async Task DisconnectAsync()
@@ -348,7 +388,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                     characteristic.ValueChanged -= OnCharacteristicValueChanged;
                     characteristic.ValueChanged += OnCharacteristicValueChanged;
 
-                    var status = await characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(descriptorValue);
+                    var status = await characteristic
+                        .WriteClientCharacteristicConfigurationDescriptorAsync(descriptorValue)
+                        .AsTask()
+                        .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
                     if (status == GattCommunicationStatus.Success)
                     {
                         _subscriptionIntents[(serviceUuid, characteristicUuid)] = 1;
@@ -392,8 +435,11 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             if (_characteristics.TryGetValue(key, out var characteristic))
             {
                 characteristic.ValueChanged -= OnCharacteristicValueChanged;
-                await characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                    GattClientCharacteristicConfigurationDescriptorValue.None);
+                await characteristic
+                    .WriteClientCharacteristicConfigurationDescriptorAsync(
+                        GattClientCharacteristicConfigurationDescriptorValue.None)
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
                 _subscriptionIntents.TryRemove(key, out _);
                 Logger.Information("已取消订阅特性通知: {Uuid}", characteristicUuid);
             }
@@ -435,7 +481,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             var characteristic = await GetCharacteristicAsync(serviceUuid, characteristicUuid);
 
             // 优先无响应写，失败自动回退到有响应写。
-            var status = await characteristic.WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithoutResponse);
+            var status = await characteristic
+                .WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithoutResponse)
+                .AsTask()
+                .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
             if (status != GattCommunicationStatus.Success)
             {
                 Logger.Warning("WriteWithoutResponse 失败: {Status}，回退 WriteWithResponse", status);
@@ -461,7 +510,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             EnsureConnected();
             var characteristic = await GetCharacteristicAsync(serviceUuid, characteristicUuid);
 
-            var result = await characteristic.ReadValueAsync();
+            var result = await characteristic
+                .ReadValueAsync()
+                .AsTask()
+                .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
             if (result.Status != GattCommunicationStatus.Success)
             {
                 throw new Exception($"读取失败: {result.Status}");
@@ -508,6 +560,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
 
         Exception? lastException = null;
         ulong address = ParseDeviceId(deviceId);
+        var attemptTimeout = TimeSpan.FromMilliseconds(ConnectAttemptTimeoutMs);
 
         for (var attempt = 1; attempt <= ConnectRetryCount; attempt++)
         {
@@ -519,16 +572,22 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                 if (deviceInfo != null)
                 {
                     await TryPairWithSystemAsync(deviceInfo);
-                    _device = await BluetoothLEDevice.FromIdAsync(deviceInfo.Id);
+                    await Task.Delay(200, ct);
                 }
 
-                _device ??= await BluetoothLEDevice.FromBluetoothAddressAsync(address);
+                _device = await CreateDeviceHandleAsync(address, deviceInfo, ct, attemptTimeout);
+                if (_device == null)
+                {
+                    deviceInfo = await ResolveSystemDeviceInfoAsync(address);
+                    _device = await CreateDeviceHandleAsync(address, deviceInfo, ct, attemptTimeout);
+                }
                 if (_device == null)
                 {
                     throw new Exception($"无法连接到设备: {deviceId}。请确保设备已开启并在范围内。");
                 }
 
                 await EnsureDeviceAccessAsync(_device);
+                await Task.Delay(150, ct);
                 _device.ConnectionStatusChanged += OnConnectionStatusChanged;
                 _deviceName = _device.Name ?? "Unknown";
                 _macAddress = FormatMacAddress(address);
@@ -573,7 +632,8 @@ public class WindowsBluetoothTransport : IBluetoothTransport
 
                 if (attempt < ConnectRetryCount)
                 {
-                    await Task.Delay(RetryDelayMs, ct);
+                    var retryDelay = TimeSpan.FromMilliseconds(ConnectRetryDelayMs * attempt);
+                    await Task.Delay(retryDelay, ct);
                 }
             }
         }
@@ -604,8 +664,11 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                         characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Indicate))
                     {
                         characteristic.ValueChanged -= OnCharacteristicValueChanged;
-                        await characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                            GattClientCharacteristicConfigurationDescriptorValue.None);
+                        await characteristic
+                            .WriteClientCharacteristicConfigurationDescriptorAsync(
+                                GattClientCharacteristicConfigurationDescriptorValue.None)
+                            .AsTask()
+                            .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
                     }
                 }
                 catch (Exception ex)
@@ -749,7 +812,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             throw new Exception($"未找到服务: {serviceUuid}");
         }
 
-        var charResult = await service.GetCharacteristicsForUuidAsync(characteristicUuid);
+        var charResult = await service
+            .GetCharacteristicsForUuidAsync(characteristicUuid)
+            .AsTask()
+            .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
         if (charResult.Status != GattCommunicationStatus.Success || charResult.Characteristics.Count == 0)
         {
             throw new Exception($"未找到特性: {characteristicUuid}");
@@ -770,7 +836,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
         {
             try
             {
-                var status = await characteristic.WriteValueAsync(data.AsBuffer(), writeOption);
+                var status = await characteristic
+                    .WriteValueAsync(data.AsBuffer(), writeOption)
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromMilliseconds(GattOperationTimeoutMs));
                 if (status == GattCommunicationStatus.Success)
                 {
                     return;
@@ -864,6 +933,30 @@ public class WindowsBluetoothTransport : IBluetoothTransport
         var selector = BluetoothLEDevice.GetDeviceSelectorFromBluetoothAddress(address);
         var devices = await DeviceInformation.FindAllAsync(selector);
         return devices.FirstOrDefault();
+    }
+
+    private static async Task<BluetoothLEDevice?> CreateDeviceHandleAsync(
+        ulong address,
+        DeviceInformation? deviceInfo,
+        CancellationToken ct,
+        TimeSpan timeout)
+    {
+        if (deviceInfo != null)
+        {
+            var byId = await BluetoothLEDevice
+                .FromIdAsync(deviceInfo.Id)
+                .AsTask()
+                .WaitAsync(timeout, ct);
+            if (byId != null)
+            {
+                return byId;
+            }
+        }
+
+        return await BluetoothLEDevice
+            .FromBluetoothAddressAsync(address)
+            .AsTask()
+            .WaitAsync(timeout, ct);
     }
 
     private static async Task EnsureDeviceAccessAsync(BluetoothLEDevice device)
@@ -1002,11 +1095,28 @@ public class WindowsBluetoothTransport : IBluetoothTransport
 
         StopRecoveryLoop();
         StopScan();
-        Task.Run(async () =>
+        try
         {
-            try { await DisconnectAsync(); }
-            catch { }
-        }).Wait(TimeSpan.FromSeconds(2));
+            foreach (var characteristic in _characteristics.Values)
+            {
+                try
+                {
+                    characteristic.ValueChanged -= OnCharacteristicValueChanged;
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            _subscriptionIntents.Clear();
+            CleanupPartialConnection();
+            SetState(BleConnectionState.Disconnected);
+        }
+        catch
+        {
+            // ignore
+        }
         _connectionLock.Dispose();
         _gattOperationLock.Dispose();
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -56,16 +57,29 @@ public class DGLabWebSocketServer : IDisposable
             Logger.Warning("WebSocket 服务器已在运行");
             return;
         }
+
+        if (IsPortOccupied(port))
+        {
+            throw new InvalidOperationException($"端口 {port} 已被占用，请更换端口后重试。");
+        }
         
         Port = port;
         _cts = new CancellationTokenSource();
         
         try
         {
-            _httpListener = new HttpListener();
-            _httpListener.Prefixes.Add($"http://localhost:{port}/");
-            _httpListener.Prefixes.Add($"http://127.0.0.1:{port}/");
-            _httpListener.Start();
+            _httpListener = CreateListener(port, includeLanPrefix: true);
+            try
+            {
+                _httpListener.Start();
+            }
+            catch (HttpListenerException ex) when (ex.ErrorCode == 5)
+            {
+                Logger.Warning("监听 LAN 地址需要更高权限，回退到本地回环地址: port={Port}", port);
+                _httpListener.Close();
+                _httpListener = CreateListener(port, includeLanPrefix: false);
+                _httpListener.Start();
+            }
             
             IsRunning = true;
             Logger.Information("郊狼 WebSocket 服务器已启动: ws://localhost:{Port}", port);
@@ -76,6 +90,34 @@ public class DGLabWebSocketServer : IDisposable
         {
             Logger.Error(ex, "启动 WebSocket 服务器失败");
             throw;
+        }
+    }
+
+    private static HttpListener CreateListener(int port, bool includeLanPrefix)
+    {
+        var listener = new HttpListener();
+        if (includeLanPrefix)
+        {
+            listener.Prefixes.Add($"http://+:{port}/");
+        }
+
+        listener.Prefixes.Add($"http://localhost:{port}/");
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        return listener;
+    }
+
+    private static bool IsPortOccupied(int port)
+    {
+        try
+        {
+            using var listener = new TcpListener(IPAddress.Loopback, port);
+            listener.Start();
+            listener.Stop();
+            return false;
+        }
+        catch (SocketException)
+        {
+            return true;
         }
     }
     
