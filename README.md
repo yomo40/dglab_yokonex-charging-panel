@@ -1,7 +1,7 @@
 # 郊狼&役次元游戏适配面板
 
 ⚡ 一个基于 C# + Avalonia 的跨平台桌面应用，用于连接郊狼(DG-LAB)和役次元(Yokonex)设备，实现游戏血量识别与设备控制联动。⚡ 
-![Version](https://img.shields.io/badge/version-0.9.7.3-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-blue)
 
 ## 功能特性
