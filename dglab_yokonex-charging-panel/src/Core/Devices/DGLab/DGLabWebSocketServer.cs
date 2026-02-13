@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -15,7 +16,7 @@ namespace ChargingPanel.Core.Devices.DGLab;
 /// <summary>
 /// 郊狼内置 WebSocket 服务器
 /// 作为官方服务器 (wss://ws.dungeon-lab.cn) 的备选方案
-/// 实现郊狼 WebSocket 协议，支持本地设备连接
+/// 实现郊狼 WebSocket 协议，支持局域网设备连接
 /// </summary>
 public class DGLabWebSocketServer : IDisposable
 {
@@ -35,8 +36,8 @@ public class DGLabWebSocketServer : IDisposable
     /// <summary>是否正在运行</summary>
     public bool IsRunning { get; private set; }
     
-    /// <summary>本地服务器 URL</summary>
-    public string? LocalUrl => IsRunning ? $"ws://localhost:{Port}" : null;
+    /// <summary>服务器 URL（绑定地址视图）</summary>
+    public string? LocalUrl => IsRunning ? $"ws://0.0.0.0:{Port}" : null;
     
     /// <summary>客户端连接事件</summary>
     public event EventHandler<string>? ClientConnected;
@@ -69,21 +70,22 @@ public class DGLabWebSocketServer : IDisposable
         
         try
         {
-            _httpListener = CreateListener(port, includeLanPrefix: true);
+            _httpListener = CreateListener(port);
             try
             {
                 _httpListener.Start();
             }
             catch (HttpListenerException ex) when (ex.ErrorCode == 5)
             {
-                Logger.Warning("监听 LAN 地址需要更高权限，回退到本地回环地址: port={Port}", port);
-                _httpListener.Close();
-                _httpListener = CreateListener(port, includeLanPrefix: false);
-                _httpListener.Start();
+                throw new InvalidOperationException(
+                    $"端口 {port} 的局域网监听启动失败（权限不足）。请以管理员运行，或执行: netsh http add urlacl url=http://+:{port}/ user=Everyone",
+                    ex);
             }
             
             IsRunning = true;
-            Logger.Information("郊狼 WebSocket 服务器已启动: ws://localhost:{Port}", port);
+            var lanUrls = GetLanWebSocketUrls(port);
+            var lanText = lanUrls.Count > 0 ? string.Join(", ", lanUrls) : "未检测到可用局域网 IPv4 地址";
+            Logger.Information("郊狼 WebSocket 服务器已启动: ws://0.0.0.0:{Port}; 局域网地址: {LanUrls}", port, lanText);
             
             _acceptTask = AcceptClientsAsync(_cts.Token);
         }
@@ -94,14 +96,10 @@ public class DGLabWebSocketServer : IDisposable
         }
     }
 
-    private static HttpListener CreateListener(int port, bool includeLanPrefix)
+    private static HttpListener CreateListener(int port)
     {
         var listener = new HttpListener();
-        if (includeLanPrefix)
-        {
-            listener.Prefixes.Add($"http://+:{port}/");
-        }
-
+        listener.Prefixes.Add($"http://+:{port}/");
         listener.Prefixes.Add($"http://localhost:{port}/");
         listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         return listener;
@@ -111,7 +109,7 @@ public class DGLabWebSocketServer : IDisposable
     {
         try
         {
-            using var listener = new TcpListener(IPAddress.Loopback, port);
+            using var listener = new TcpListener(IPAddress.Any, port);
             listener.Start();
             listener.Stop();
             return false;
@@ -119,6 +117,23 @@ public class DGLabWebSocketServer : IDisposable
         catch (SocketException)
         {
             return true;
+        }
+    }
+
+    private static IReadOnlyList<string> GetLanWebSocketUrls(int port)
+    {
+        try
+        {
+            return Dns.GetHostEntry(Dns.GetHostName())
+                .AddressList
+                .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                .Select(ip => $"ws://{ip}:{port}")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
         }
     }
     
@@ -193,6 +208,10 @@ public class DGLabWebSocketServer : IDisposable
                     // 返回简单的状态页面
                     context.Response.StatusCode = 200;
                     context.Response.ContentType = "text/html; charset=utf-8";
+                    var lanList = GetLanWebSocketUrls(Port);
+                    var lanHtml = lanList.Count > 0
+                        ? string.Join("<br/>", lanList.Select(WebUtility.HtmlEncode))
+                        : "未检测到可用局域网 IPv4 地址";
                     var html = $@"<!DOCTYPE html>
 <html>
 <head><title>郊狼 WebSocket 服务器</title></head>
@@ -201,7 +220,8 @@ public class DGLabWebSocketServer : IDisposable
 <p>状态: 运行中</p>
 <p>端口: {Port}</p>
 <p>已连接客户端: {_clients.Count}</p>
-<p>WebSocket URL: ws://localhost:{Port}</p>
+<p>WebSocket URL: ws://0.0.0.0:{Port}</p>
+<p>局域网可用地址:<br/>{lanHtml}</p>
 </body>
 </html>";
                     var buffer = Encoding.UTF8.GetBytes(html);

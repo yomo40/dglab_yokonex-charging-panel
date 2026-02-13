@@ -83,7 +83,7 @@ public partial class WebSocketServicePage : UserControl
             SaveSettings();
             await AppServices.Instance.StartWebSocketServerAsync(port);
             RefreshServerStatus();
-            UpdateHint($"郊狼socket服务器已启动: ws://localhost:{port}");
+            UpdateHint($"郊狼socket服务器已启动: ws://0.0.0.0:{port}（局域网可访问）");
         }
         catch (Exception ex)
         {

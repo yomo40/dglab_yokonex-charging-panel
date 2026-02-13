@@ -26,7 +26,7 @@
                         </StackPanel>
                     </Border>
                     <StackPanel Margin="20" Spacing="14">
-                        <TextBlock Text="用于本地连接 DG-LAB 客户端（默认 9000），可替代官方中转服务。"
+                        <TextBlock Text="用于本地/局域网连接 DG-LAB 客户端（默认 9000），可替代官方中转服务。"
                                    Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" />
 
                         <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">

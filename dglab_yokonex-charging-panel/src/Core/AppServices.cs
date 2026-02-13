@@ -208,7 +208,7 @@ public class AppServices : IDisposable
         
         WebSocketServer = new DGLabWebSocketServer();
         await WebSocketServer.StartAsync(port);
-        Log.Information("内置 WebSocket 服务器已启动: ws://localhost:{Port}", port);
+        Log.Information("内置 WebSocket 服务器已启动: ws://0.0.0.0:{Port}", port);
     }
     
     /// <summary>
