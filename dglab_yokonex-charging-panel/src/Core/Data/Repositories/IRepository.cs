@@ -118,7 +118,7 @@ public interface ISettingRepository
     string? Get(string key);
     
     /// <summary>
-    /// 获取设置值（带类型转换）
+    /// 获取设置值--类型转换
     /// </summary>
     T? Get<T>(string key, T? defaultValue = default);
     
@@ -174,7 +174,7 @@ public interface ILogRepository
     void Clear(int keepDays = 0);
     
     /// <summary>
-    /// 日志轮转（清理超过指定大小的旧日志）
+    /// 日志轮转--清理超过指定大小的旧日志
     /// </summary>
     void Rotate(int maxRecords = 10000);
 }

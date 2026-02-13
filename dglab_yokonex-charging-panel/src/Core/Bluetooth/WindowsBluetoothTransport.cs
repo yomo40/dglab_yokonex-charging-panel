@@ -17,8 +17,8 @@ using Serilog;
 namespace ChargingPanel.Core.Bluetooth;
 
 /// <summary>
-/// Windows BLE 传输层实现
-/// 使用 Windows.Devices.Bluetooth API (Windows 10 1703+)
+/// Windows 下的 BLE 传输封装。
+/// 负责扫描、连接、订阅、读写，以及断线后的自动恢复。
 /// </summary>
 public class WindowsBluetoothTransport : IBluetoothTransport
 {
@@ -64,7 +64,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     public event EventHandler<BleScanResultEventArgs>? DeviceDiscovered;
 
     /// <summary>
-    /// 检查蓝牙适配器状态
+    /// 读取系统蓝牙适配器状态（连接前的快速自检）。
     /// </summary>
     public static async Task<BluetoothAdapterStatus> CheckAdapterStatusAsync()
     {
@@ -116,7 +116,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 扫描 BLE 设备
+    /// 扫描 BLE 设备。
     /// </summary>
     public async Task<BleDeviceInfo[]> ScanAsync(Guid? serviceFilter = null, string? namePrefix = null, 
         int timeoutMs = 10000, CancellationToken ct = default)
@@ -150,7 +150,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                 return _discoveredDevices.Values.ToArray();
             }
 
-            // 检查蓝牙状态
+            // 先确认系统蓝牙可用，再进入扫描流程。
             var status = await CheckAdapterStatusAsync();
             if (!status.IsAvailable)
                 throw new InvalidOperationException(status.ErrorMessage ?? "蓝牙不可用");
@@ -171,7 +171,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             };
             _watcher = watcher;
 
-            // 设置服务过滤器
+            // 指定服务 UUID 时只扫描目标设备，减少噪音。
             if (serviceFilter.HasValue)
             {
                 watcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(serviceFilter.Value);
@@ -213,7 +213,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                     }
                     catch
                     {
-                        // ignore
+                        // 清理阶段忽略 Stop 异常，避免影响主流程。
                     }
 
                     watcher.Received -= OnReceived;
@@ -246,11 +246,11 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 连接到 BLE 设备
+    /// 连接 BLE 设备（包含服务发现和订阅恢复）。
     /// </summary>
     public async Task ConnectAsync(string deviceId, CancellationToken ct = default)
     {
-        // 连接前主动停止扫描，避免扫描与连接争用蓝牙栈导致首连失败或界面卡顿。
+        // 连接前先停扫，避免扫描和连接争用蓝牙栈导致首连失败或 UI 卡顿。
         StopScan();
 
         await _connectionLock.WaitAsync(ct);
@@ -278,7 +278,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     {
         var deviceName = args.Advertisement.LocalName;
 
-        // 名称前缀过滤
+        // 按名称前缀过滤，避免无关设备混入结果。
         if (!string.IsNullOrEmpty(namePrefix) &&
             (string.IsNullOrEmpty(deviceName) || !deviceName.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase)))
         {
@@ -295,7 +295,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             MacAddress = macAddress,
             Rssi = args.RawSignalStrengthInDBm,
             ServiceUuids = args.Advertisement.ServiceUuids.ToArray(),
-            IsConnectable = true // 默认可连接
+            IsConnectable = true // 扫描阶段先按可连接处理，实际以连接结果为准
         };
 
         var isNew = !_discoveredDevices.ContainsKey(deviceId);
@@ -310,7 +310,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 停止扫描
+    /// 主动停止扫描。
     /// </summary>
     public void StopScan()
     {
@@ -333,7 +333,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 断开连接
+    /// 断开当前连接。
     /// </summary>
     public async Task DisconnectAsync()
     {
@@ -351,16 +351,16 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 发现服务（连接时已自动完成）
+    /// 发现服务（已在 ConnectAsync 内完成，这里仅做兼容）。
     /// </summary>
     public Task DiscoverServicesAsync()
     {
-        // 服务在 ConnectAsync 中已经发现
+        // 服务发现已在 ConnectAsync 执行，这里保留接口语义。
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 订阅特性通知
+    /// 订阅特征通知。
     /// </summary>
     public async Task SubscribeAsync(Guid serviceUuid, Guid characteristicUuid)
     {
@@ -423,7 +423,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 取消订阅
+    /// 取消特征通知订阅。
     /// </summary>
     public async Task UnsubscribeAsync(Guid serviceUuid, Guid characteristicUuid)
     {
@@ -451,7 +451,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 写入数据（带响应）
+    /// 写入数据（有响应）。
     /// </summary>
     public async Task WriteAsync(Guid serviceUuid, Guid characteristicUuid, byte[] data)
     {
@@ -470,7 +470,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 写入数据（无响应）
+    /// 写入数据（无响应）。
     /// </summary>
     public async Task WriteWithoutResponseAsync(Guid serviceUuid, Guid characteristicUuid, byte[] data)
     {
@@ -480,7 +480,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             EnsureConnected();
             var characteristic = await GetCharacteristicAsync(serviceUuid, characteristicUuid);
 
-            // 优先无响应写，失败自动回退到有响应写。
+            // 先走无响应写，失败再回退到有响应写。
             var status = await characteristic
                 .WriteValueAsync(data.AsBuffer(), GattWriteOption.WriteWithoutResponse)
                 .AsTask()
@@ -500,7 +500,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
     }
 
     /// <summary>
-    /// 读取数据
+    /// 读取特征值。
     /// </summary>
     public async Task<byte[]> ReadAsync(Guid serviceUuid, Guid characteristicUuid)
     {
@@ -592,7 +592,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                 _deviceName = _device.Name ?? "Unknown";
                 _macAddress = FormatMacAddress(address);
 
-                // Win10/11 兼容策略: 先走 Uncached，失败后回退 Cached。
+                // Win10/11 兼容策略：先 Uncached，失败再回退 Cached。
                 var servicesResult = await _device
                     .GetGattServicesAsync(BluetoothCacheMode.Uncached)
                     .AsTask()
@@ -921,7 +921,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             }
             catch
             {
-                // ignore
+                // 清理阶段不抛错，保证断链流程继续执行。
             }
         }
 
@@ -989,7 +989,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
         }
         catch (TimeoutException)
         {
-            // 某些 Win10/11 设备上配对调用可能阻塞较久，不阻塞直连流程。
+            // 某些 Win10/11 机型配对调用会很慢，这里不阻塞直连流程。
             Logger.Warning("系统蓝牙配对超时，将继续直接连接");
         }
         catch (Exception ex)
@@ -1060,10 +1060,10 @@ public class WindowsBluetoothTransport : IBluetoothTransport
 
         deviceId = deviceId.Trim();
 
-        // 支持多种格式: 十六进制字符串、MAC 地址
+        // 兼容多种地址写法：十六进制字符串或 MAC。
         if (deviceId.Contains(':') || deviceId.Contains('-'))
         {
-            // MAC 地址格式: AA:BB:CC:DD:EE:FF 或 AA-BB-CC-DD-EE-FF
+            // MAC 地址格式：AA:BB:CC:DD:EE:FF 或 AA-BB-CC-DD-EE-FF
             var parts = deviceId.Replace('-', ':').Split(':');
             if (parts.Length != 6)
                 throw new ArgumentException($"无效的 MAC 地址格式: {deviceId}");
@@ -1074,7 +1074,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             return BitConverter.ToUInt64(result, 0);
         }
 
-        // 12位十六进制（无分隔符）或普通十六进制字符串
+        // 12 位十六进制（无分隔符）或普通十六进制字符串。
         var normalized = deviceId.Replace("0x", "", StringComparison.OrdinalIgnoreCase);
         if (ulong.TryParse(normalized, System.Globalization.NumberStyles.HexNumber, null, out var address))
         {
@@ -1111,7 +1111,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
                 }
                 catch
                 {
-                    // ignore
+                    // 清理阶段忽略异常。
                 }
             }
 
@@ -1121,7 +1121,7 @@ public class WindowsBluetoothTransport : IBluetoothTransport
         }
         catch
         {
-            // ignore
+            // 清理阶段忽略异常。
         }
         _connectionLock.Dispose();
         _gattOperationLock.Dispose();

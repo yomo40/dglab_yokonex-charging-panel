@@ -23,8 +23,8 @@ public enum DGLabVersion
 }
 
 /// <summary>
-/// DG-LAB 蓝牙适配器
-/// 支持 V2、V3、按钮版
+/// DG-LAB 蓝牙适配器。
+/// 覆盖 V2、V3，以及预留中的传感器型号。
 /// </summary>
 public class DGLabBluetoothAdapter : IDevice, IDisposable
 {
@@ -66,13 +66,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private const int ReconnectDelayMs = 3000;
     private const int PendingResponseStaleMs = 180;
     
-    // 波形持续发送状态
+    // 当前正在循环发送的波形状态
     private ChannelWaveform? _currentWaveformA;
     private ChannelWaveform? _currentWaveformB;
     private byte[]? _currentV2WaveformA;
     private byte[]? _currentV2WaveformB;
     
-    // V3 电量服务 UUID
+    // V3 电量服务 UUID（0x180A/0x1500）
     private static readonly Guid BatteryServiceUuid = Guid.Parse("0000180A-0000-1000-8000-00805F9B34FB");
     private static readonly Guid BatteryCharacteristicUuid = Guid.Parse("00001500-0000-1000-8000-00805F9B34FB");
 
@@ -93,7 +93,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     };
 
     /// <summary>
-    /// 设置蓝牙传输层
+    /// 注入蓝牙传输层并挂接事件。
     /// </summary>
     public void SetTransport(IBluetoothTransport transport)
     {
@@ -103,7 +103,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
 
     /// <summary>
-    /// 获取设备名称前缀（用于扫描过滤）
+    /// 根据设备版本返回扫描用的名称前缀。
     /// </summary>
     public static string GetDeviceNamePrefix(DGLabVersion version) => version switch
     {
@@ -138,36 +138,36 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
             if (Version == DGLabVersion.V3)
             {
-                // V3: 订阅通知特性
+                // V3 走通知特征。
                 await _transport.SubscribeAsync(GetServiceUuid(), GetNotifyCharacteristicUuid());
                 
                 UpdateStatus(DeviceStatus.Connected);
                 Logger.Information("DG-LAB V3 蓝牙连接成功");
 
-                // 发送初始 BF 指令设置软上限
+                // 连接后先下发 BF，写入软件侧强度上限。
                 await SendBFCommandAsync();
-                // 订阅电量通知
+                // 拉起电量通知。
                 await SubscribeBatteryAsync();
             }
             else
             {
-                // V2: 订阅强度通知 (PWM_AB2 属性是 读/写/通知)
+                // V2 使用 PWM_AB2（读/写/通知）接收强度变化。
                 await _transport.SubscribeAsync(GetServiceUuid(), GetV2StrengthCharacteristicUuid());
                 
                 UpdateStatus(DeviceStatus.Connected);
                 Logger.Information("DG-LAB V2 蓝牙连接成功");
                 
-                // V2: 订阅电量通知
+                // 拉起 V2 电量通知。
                 await SubscribeV2BatteryAsync();
             }
 
-            // 启动波形定时器
+            // 启动波形续发定时器。
             StartWaveformTimer();
             
-            // 启动电量轮询定时器
+            // 启动电量轮询。
             StartBatteryPolling();
             
-            // 重置重连计数
+            // 连接成功后清空重连计数。
             _reconnectAttempts = 0;
         }
         catch (Exception ex)
@@ -198,7 +198,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 手动触发重连
+    /// 手动触发一次重连流程。
     /// </summary>
     public async Task ReconnectAsync()
     {
@@ -242,7 +242,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     public Task ClearWaveformQueueAsync(Channel channel)
     {
-        // 清除波形状态，停止定时器持续发送
+        // 清空波形缓存，后续定时器不会继续发这一通道。
         if (channel == Channel.A || channel == Channel.AB)
         {
             _currentWaveformA = null;
@@ -273,14 +273,14 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     private async Task SetStrengthV3Async(Channel channel, int value, StrengthMode mode)
     {
-        // 避免卡死等待响应：响应超时后允许继续发新包，提升体感实时性。
+        // 防止“卡在等响应”：超时后允许继续发新包，保证控制手感。
         if (_waitingForResponse && Environment.TickCount64 - _lastStrengthCommandAtMs > PendingResponseStaleMs)
         {
             _waitingForResponse = false;
         }
 
         var command = _protocol.BuildStrengthCommand(channel, value, mode, true);
-        // 序列号位于 B0 第2字节高4位，确保等待的序列号与实际下发一致。
+        // B0 第 2 字节高 4 位是序列号，这里同步记录用于匹配响应。
         var seqNo = (command[1] >> 4) & 0x0F;
         _pendingSequenceNo = seqNo;
         _waitingForResponse = true;
@@ -292,7 +292,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     {
         ChannelWaveform waveform;
         
-        // 如果有自定义 HEX 数据，解析它
+        // 有 HexData 就优先按自定义波形解析。
         if (!string.IsNullOrEmpty(data.HexData))
         {
             waveform = ParseHexToWaveform(data.HexData) ?? CreateDefaultWaveform(data);
@@ -302,7 +302,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             waveform = CreateDefaultWaveform(data);
         }
 
-        // 保存当前波形状态，用于定时器持续发送
+        // 缓存当前波形，供定时器持续发送。
         if (channel == Channel.A || channel == Channel.AB)
         {
             _currentWaveformA = waveform;
@@ -317,7 +317,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 创建默认波形
+    /// 根据当前参数生成默认波形。
     /// </summary>
     private static ChannelWaveform CreateDefaultWaveform(WaveformData data)
     {
@@ -330,12 +330,12 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 解析 HEX 字符串为波形数据
-    /// HEX 格式: 16 字符 (8 字节) = 4 频率 + 4 强度
+    /// 把 HEX 字符串解析为波形数据。
+    /// 约定格式：16 个十六进制字符（8 字节）= 4 频率 + 4 强度。
     /// </summary>
     private static ChannelWaveform? ParseHexToWaveform(string hexData)
     {
-        // 取第一段 HEX 数据
+        // 只取第一段（逗号分隔时忽略后续段）。
         var firstHex = hexData.Split(',', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
         if (string.IsNullOrEmpty(firstHex) || firstHex.Length != 16)
         {
@@ -344,7 +344,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         
         try
         {
-            // 解析 8 字节: 前 4 字节是频率，后 4 字节是强度
+            // 8 字节：前 4 字节频率，后 4 字节强度。
             var bytes = new byte[8];
             for (int i = 0; i < 8; i++)
             {
@@ -520,8 +520,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private Guid GetWriteCharacteristicUuid() => Guid.Parse("0000150A-0000-1000-8000-00805F9B34FB");
     private Guid GetNotifyCharacteristicUuid() => Guid.Parse("0000150B-0000-1000-8000-00805F9B34FB");
 
-    // V2 特性
-    // 注意: 官方协议中 PWM_A34 (0x1505) 实际控制 B 通道，PWM_B34 (0x1506) 实际控制 A 通道
+    // V2 特征映射说明：协议里 A34/B34 与实际 A/B 通道是反向对应的。
     private Guid GetV2StrengthCharacteristicUuid() => Guid.Parse("955A1504-0FE2-F5AA-A094-84B8D4F3E8AD");
     private Guid GetV2WaveformACharacteristicUuid() => Guid.Parse("955A1506-0FE2-F5AA-A094-84B8D4F3E8AD");  // A通道用 0x1506
     private Guid GetV2WaveformBCharacteristicUuid() => Guid.Parse("955A1505-0FE2-F5AA-A094-84B8D4F3E8AD");  // B通道用 0x1505
@@ -535,13 +534,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         if (state == BleConnectionState.Disconnected && Status == DeviceStatus.Connected)
         {
             UpdateStatus(DeviceStatus.Disconnected);
-            // 由 WindowsBluetoothTransport 负责自动恢复，避免双重重连竞争。
+            // 断线恢复交给传输层统一处理，避免双重重连互相打架。
             Logger.Information("检测到蓝牙断开，等待传输层自动恢复: {Version}", Version);
         }
     }
     
     /// <summary>
-    /// 订阅 V3 电量通知
+    /// 订阅 V3 电量通知。
     /// </summary>
     private async Task SubscribeBatteryAsync()
     {
@@ -549,11 +548,11 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         
         try
         {
-            // V3 电量服务: 0x180A, 特性: 0x1500
+            // V3 电量服务：0x180A，特征：0x1500。
             await _transport.SubscribeAsync(BatteryServiceUuid, BatteryCharacteristicUuid);
             Logger.Debug("已订阅 V3 电量通知");
             
-            // 立即读取一次电量
+            // 连上后先读一次，避免 UI 初值滞后。
             var batteryData = await _transport.ReadAsync(BatteryServiceUuid, BatteryCharacteristicUuid);
             if (batteryData.Length > 0)
             {
@@ -569,7 +568,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 订阅 V2 电量通知
+    /// 订阅 V2 电量通知。
     /// </summary>
     private async Task SubscribeV2BatteryAsync()
     {
@@ -577,14 +576,12 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         
         try
         {
-            // V2 电量服务: 955A180A, 特性: 955A1500
-            // 官方文档: Battery_Level 属性是 读/通知
-            
-            // 订阅电量通知
+            // V2 电量服务：955A180A，特征：955A1500（读/通知）。
+            // 先订阅通知，避免首次变化丢失。
             await _transport.SubscribeAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
             Logger.Debug("已订阅 V2 电量通知");
             
-            // 立即读取一次电量
+            // 连接后立即读一次电量。
             var batteryData = await _transport.ReadAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
             if (batteryData.Length > 0)
             {
@@ -604,13 +601,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private static readonly Guid V2BatteryCharacteristicUuid = Guid.Parse("955A1500-0FE2-F5AA-A094-84B8D4F3E8AD");
     
     /// <summary>
-    /// 启动电量轮询定时器
+    /// 启动电量轮询定时器。
     /// </summary>
     private void StartBatteryPolling()
     {
         StopBatteryPolling();
         
-        // 每 60 秒轮询一次电量
+        // 每 60 秒兜底读一次电量。
         _batteryTimer = new Timer(async _ =>
         {
             if (Status != DeviceStatus.Connected || _transport == null) return;
@@ -629,7 +626,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
                 }
                 else
                 {
-                    // V2: 读取电量特性 (官方文档: 服务0x180A, 特性0x1500)
+                    // V2: 读取电量特性 (服务0x180A, 特性0x1500)
                     var batteryData = await _transport.ReadAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
                     if (batteryData.Length > 0)
                     {

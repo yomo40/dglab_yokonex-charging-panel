@@ -9,23 +9,23 @@ using Serilog;
 namespace ChargingPanel.Core.Devices.Yokonex
 {
     /// <summary>
-    /// 役次元电击器蓝牙协议常量
-    /// 基于 YSKJ_EMS_BLE 通信协议 V1.6
+    /// 役次元 EMS 蓝牙协议常量。
+    /// 兼容 V1.6 与 V2.0 的核心命令定义。
     /// </summary>
     public static class YokonexEmsProtocol
     {
         /// <summary>
-        /// 服务 UUID (用于设备过滤)
+        /// 服务 UUID（扫描过滤用）。
         /// </summary>
         public static readonly Guid ServiceUuid = Guid.Parse("0000ff30-0000-1000-8000-00805f9b34fb");
         
         /// <summary>
-        /// 写入特性 UUID (WRITE_WITHOUT_RESPONSE)
+        /// 写入特征 UUID（WriteWithoutResponse）。
         /// </summary>
         public static readonly Guid WriteCharacteristic = Guid.Parse("0000ff31-0000-1000-8000-00805f9b34fb");
         
         /// <summary>
-        /// 通知特性 UUID (NOTIFY)
+        /// 通知特征 UUID（Notify）。
         /// </summary>
         public static readonly Guid NotifyCharacteristic = Guid.Parse("0000ff32-0000-1000-8000-00805f9b34fb");
         
@@ -65,12 +65,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public const byte CmdQueryV2 = 0x71;
 
         /// <summary>
-        /// 兼容历史实现的旧查询命令（非文档推荐）
+        /// 兼容旧版本实现的查询命令（文档未推荐，仅兜底）。
         /// </summary>
         public const byte CmdQueryLegacy = 0x15;
 
         /// <summary>
-        /// 查询类型定义（文档 0x71 子命令）
+        /// 查询类型（0x71 子命令）。
         /// </summary>
         public const byte QueryChannelAStatus = 0x01;
         public const byte QueryChannelBStatus = 0x02;
@@ -87,12 +87,12 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public const byte ChannelAB = 0x03;
         
         /// <summary>
-        /// 最大强度等级 (276级: 0x01-0x114)
+        /// 协议最大强度（276 级，0x01~0x114）。
         /// </summary>
         public const int MaxStrength = 276;
         
         /// <summary>
-        /// 固定模式数量 (16种)
+        /// 固定模式数量（16 种）。
         /// </summary>
         public const int FixedModeCount = 16;
         
@@ -159,8 +159,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
     }
 
     /// <summary>
-    /// 役次元电击器蓝牙适配器
-    /// 支持双通道 EMS 控制、马达控制、计步功能、角度功能
+    /// 役次元 EMS 蓝牙适配器。
+    /// 包含双通道、电机、计步、角度上报等能力。
     /// </summary>
     public class YokonexEmsBluetoothAdapter : IDevice, IYokonexEmsDevice
     {
@@ -168,28 +168,28 @@ namespace ChargingPanel.Core.Devices.Yokonex
         private bool _isConnected;
         private bool _disposed;
         
-        // 通道状态
+        // 当前通道状态
         private readonly YokonexEmsChannelState _channelA = new();
         private readonly YokonexEmsChannelState _channelB = new();
         private int _batteryLevel = 100;
         private int _limitA = YokonexEmsProtocol.MaxStrength;
         private int _limitB = YokonexEmsProtocol.MaxStrength;
         
-        // 计步器状态
+        // 计步/角度相关状态
         private int _stepCount = 0;
         private bool _angleEnabled = false;
         private (float X, float Y, float Z) _currentAngle = (0, 0, 0);
         private (bool A, bool B) _channelConnectionState = (false, false);
         private YokonexMotorState _motorState = YokonexMotorState.Off;
         
-        // 重连和电量轮询
+        // 定时任务：重连 + 电量轮询
         private Timer? _batteryTimer;
         private Timer? _reconnectTimer;
         private int _reconnectAttempts;
         private const int MaxReconnectAttempts = 5;
         private const int ReconnectDelayMs = 3000;
 
-        // IDevice 属性
+        // IDevice 基础字段
         public string Id { get; }
         public string Name { get; set; }
         public DeviceType Type => DeviceType.Yokonex;
@@ -198,10 +198,10 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public ConnectionConfig? Config { get; private set; }
         public YokonexProtocolGeneration ProtocolGeneration { get; }
         
-        // IYokonexDevice 属性
+        // IYokonexDevice 扩展字段
         public YokonexDeviceType YokonexType => YokonexDeviceType.Estim;
         
-        // IYokonexEmsDevice 属性
+        // EMS 扩展字段
         public int StepCount => _stepCount;
         public (float X, float Y, float Z) CurrentAngle => _currentAngle;
         public (bool ChannelA, bool ChannelB) ChannelConnectionState => _channelConnectionState;
@@ -212,7 +212,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public event EventHandler<int>? BatteryChanged;
         public event EventHandler<Exception>? ErrorOccurred;
 
-        // IYokonexEmsDevice 事件
+        // EMS 扩展事件
         public event EventHandler<int>? StepCountChanged;
         public event EventHandler<(float X, float Y, float Z)>? AngleChanged;
         public event EventHandler<(bool ChannelA, bool ChannelB)>? ChannelConnectionChanged;
@@ -235,7 +235,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
 
         /// <summary>
-        /// 扫描役次元电击器设备
+        /// 扫描可用的役次元 EMS 设备。
         /// </summary>
         public async Task<BleDeviceInfo[]> ScanDevicesAsync(int timeoutMs = 10000)
         {
@@ -243,7 +243,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
 
         /// <summary>
-        /// 连接到设备 (IDevice 接口)
+        /// 实现 IDevice.ConnectAsync。
         /// </summary>
         public async Task ConnectAsync(ConnectionConfig config, CancellationToken cancellationToken = default)
         {
@@ -259,10 +259,10 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     YokonexEmsProtocol.NotifyCharacteristic);
                 UpdateStatus(DeviceStatus.Connected);
                 
-                // 启动电量轮询
+                // 连接成功后拉起电量轮询。
                 StartBatteryPolling();
                 
-                // 重置重连计数
+                // 重连计数归零。
                 _reconnectAttempts = 0;
             }
             catch (Exception ex)
@@ -274,7 +274,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
 
         /// <summary>
-        /// 断开连接
+        /// 断开连接。
         /// </summary>
         public async Task DisconnectAsync()
         {
@@ -284,7 +284,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 手动触发重连
+        /// 手动触发重连。
         /// </summary>
         public async Task ReconnectAsync()
         {
@@ -299,7 +299,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
 
         /// <summary>
-        /// 设置通道强度
+        /// 设置通道输出参数。
         /// </summary>
         /// <param name="channel">通道: 1=A, 2=B, 3=AB</param>
         /// <param name="strength">强度: 1-276</param>
@@ -310,7 +310,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public async Task SetChannelAsync(byte channel, int strength, bool enabled = true, 
             int mode = 1, int frequency = 0, int pulseTime = 0)
         {
-            // 参数验证
+            // 入参保护，避免下发非法值。
             strength = Math.Clamp(strength, 0, YokonexEmsProtocol.MaxStrength);
             mode = Math.Clamp(mode, 1, YokonexEmsProtocol.CustomMode);
             frequency = Math.Clamp(frequency, 0, 100);
@@ -492,7 +492,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 查询设备状态 (通道状态、计步、角度等)
+        /// 查询设备状态（通道、计步、角度等）。
         /// </summary>
         /// <param name="queryType">查询类型: 0x01=A状态, 0x02=B状态, 0x03=马达, 0x04=电量, 0x05=计步, 0x06=角度</param>
         public async Task QueryStatusAsync(byte queryType = 0x01)
@@ -507,7 +507,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 查询通道连接状态 (电极片是否接入)
+        /// 查询通道连接状态（电极片是否接入）。
         /// </summary>
         public async Task QueryChannelConnectionAsync()
         {
@@ -529,16 +529,15 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
         public async Task SetStrengthAsync(Channel channel, int value, StrengthMode mode = StrengthMode.Set)
         {
-            // 归一化强度语义：
-            // - 0-100: 视为归一化百分比输入
-            // - 101-276: 视为协议绝对强度输入（自动换算为百分比）
-            // 输出统一映射到设备协议范围 0-276。
+            // 强度输入兼容两种语义：
+            // 1) 0~100：按百分比输入。
+            // 2) 101~276：按协议绝对值输入（内部会换算回百分比状态）。
             var normalizedDelta = NormalizeDeltaInput(value);
             int targetValue;
             switch (mode)
             {
                 case StrengthMode.Increase:
-                    // 增加：基于当前值增加
+                    // Increase 模式：在当前值基础上叠加。
                     if (channel == Channel.A || channel == Channel.AB)
                     {
                         var currentA = ToNormalizedPercent(_channelA.Strength);
@@ -551,7 +550,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     }
                     break;
                 case StrengthMode.Decrease:
-                    // 减少：基于当前值减少
+                    // Decrease 模式：在当前值基础上递减。
                     if (channel == Channel.A || channel == Channel.AB)
                     {
                         var currentA = ToNormalizedPercent(_channelA.Strength);
@@ -569,7 +568,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     break;
             }
             
-            // 将 0-100 映射到 0-276
+            // 把 0~100 的通用强度映射到协议 0~276。
             var mappedValue = ToDeviceStrength(targetValue);
             
             switch (channel)
@@ -581,7 +580,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     await SetChannelBAsync(mappedValue, targetValue > 0);
                     break;
                 case Channel.AB:
-                    // AB 通道需要分别计算
+                    // AB 需要拆开分别计算。
                     if (mode == StrengthMode.Increase || mode == StrengthMode.Decrease)
                     {
                         var currentA = ToNormalizedPercent(_channelA.Strength);
@@ -605,8 +604,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
         public Task SendWaveformAsync(Channel channel, WaveformData data)
         {
-            // EMS 设备无 DG-LAB 队列波形概念，统一映射为厂商文档中的“自定义模式”(模式17)：
-            // 强度 -> 先按通用 0-100 设置；波形 -> 频率/脉宽参数。
+            // EMS 没有 DG-LAB 的“波形队列”概念。
+            // 这里统一映射为厂商协议的自定义模式（模式 17）：强度 + 频率/脉宽。
             return SendWaveformAsCustomModeAsync(channel, data);
         }
 
@@ -707,7 +706,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
         private async Task SendV1ChannelCommandAsync(byte channel, int strength, bool enabled, int mode, int frequency, int pulseTime)
         {
-            // V1.6: 按通道号下发（A/B/AB），支持固定/自定义模式。
+            // V1.6：按 A/B/AB 通道直接下发，支持固定/自定义模式。
             var data = new byte[10];
             data[0] = YokonexEmsProtocol.PacketHeader;
             data[1] = YokonexEmsProtocol.CmdChannelControl;
@@ -727,7 +726,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         {
             if (mode == YokonexEmsProtocol.CustomMode)
             {
-                // V2.0 实时模式：一次同时配置 A/B 的强度+频率+脉宽。
+                // V2.0 实时模式：一次写入 A/B 的强度 + 频率 + 脉宽。
                 var data = new byte[12];
                 data[0] = YokonexEmsProtocol.PacketHeader;
                 data[1] = YokonexEmsProtocol.CmdChannelControl;
@@ -754,7 +753,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                 return;
             }
 
-            // V2.0 固定模式：一次同时配置 A/B 的强度+固定模式。
+            // V2.0 固定模式：一次写入 A/B 的强度 + 固定模式。
             var fixedData = new byte[10];
             fixedData[0] = YokonexEmsProtocol.PacketHeader;
             fixedData[1] = YokonexEmsProtocol.CmdChannelControl;
@@ -812,7 +811,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                 return false;
             }
 
-            // 允许格式:
+            // 支持两种配置写法：
             // 1) "40:10;45:12;50:15"
             // 2) "40,10,45,12,50,15"
             var normalized = raw.Trim();
@@ -862,7 +861,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
             var (frequency, pulseTime) = ResolveCustomWaveformParameters(waveform);
             var strengthPercent = Math.Clamp(waveform.Strength, 0, 100);
 
-            // 先设置目标强度，确保通道状态中的强度与后续自定义模式一致。
+            // 先同步目标强度，避免后续自定义模式和状态缓存不一致。
             await SetStrengthAsync(channel, strengthPercent, StrengthMode.Set);
 
             if (strengthPercent <= 0)
@@ -870,8 +869,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
                 return;
             }
 
-            // V2.0 额外支持“频率模式”(0x03)播放列表：
-            // 约定 HexData 可填 "f:p;f:p;..." 或 "f,p,f,p,..."
+            // V2.0 额外支持频率播放列表（0x03）：
+            // 约定 HexData 可写成 "f:p;f:p;..." 或 "f,p,f,p,..."。
             if (ProtocolGeneration == YokonexProtocolGeneration.EmsV2_0 &&
                 TryParseV2FrequencySequence(waveform.HexData, out var points))
             {
@@ -968,7 +967,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
             else if (state == BleConnectionState.Disconnected)
             {
                 UpdateStatus(DeviceStatus.Disconnected);
-                // 由底层传输负责自动恢复，避免与适配器重连并发竞争。
+                // 自动恢复由传输层统一处理，避免适配器和传输层同时重连。
                 Console.WriteLine("[YokonexEMS] 检测到断开，等待传输层自动恢复");
             }
         }
@@ -988,17 +987,16 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
             var cmd = data[1];
             
-            // 解析不同类型的响应
+            // 按命令类型拆分解析响应。
             Console.WriteLine($"[YokonexEMS] 收到响应: 命令={cmd:X2}, 数据={BitConverter.ToString(data)}");
             
             switch (cmd)
             {
                 case YokonexEmsProtocol.CmdChannelControl:
-                    // 通道控制响应 - 包含通道连接状态
+                    // 通道控制响应：同时带通道连接状态。
                     if (data.Length >= 4)
                     {
-                        // 字节3: A通道连接状态 (0=未连接, 1=已连接)
-                        // 字节4: B通道连接状态
+                        // byte3=A 通道连接状态（0/1），byte4=B 通道连接状态。
                         var connA = data[2] == 0x01;
                         var connB = data[3] == 0x01;
                         if (_channelConnectionState != (connA, connB))
@@ -1014,7 +1012,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     // 计步响应
                     if (data.Length >= 6)
                     {
-                        // 字节3-6: 计步数 (4字节，高位在前)
+                        // byte3~6：步数（4 字节，大端）。
                         _stepCount = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
                         StepCountChanged?.Invoke(this, _stepCount);
                         Console.WriteLine($"[YokonexEMS] 计步: {_stepCount}");
@@ -1025,13 +1023,11 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     // 角度响应
                     if (data.Length >= 8)
                     {
-                        // 字节3-4: X轴原始值
-                        // 字节5-6: Y轴原始值
-                        // 字节7-8: Z轴原始值
+                        // byte3~4=X，byte5~6=Y，byte7~8=Z。
                         var rawX = (short)((data[2] << 8) | data[3]);
                         var rawY = (short)((data[4] << 8) | data[5]);
                         var rawZ = (short)((data[6] << 8) | data[7]);
-                        // 转换为角度 (需要根据实际传感器校准)
+                        // 转成角度值（后续可按机型做标定）。
                         _currentAngle = (rawX / 100.0f, rawY / 100.0f, rawZ / 100.0f);
                         AngleChanged?.Invoke(this, _currentAngle);
                         Console.WriteLine($"[YokonexEMS] 角度: X={_currentAngle.X:F2}, Y={_currentAngle.Y:F2}, Z={_currentAngle.Z:F2}");
@@ -1040,7 +1036,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
                     
                 case YokonexEmsProtocol.CmdQueryV1:
                 case YokonexEmsProtocol.CmdQueryLegacy:
-                    // 查询响应 - 根据查询类型解析
+                    // 查询响应：按 queryType 进一步分发解析。
                     if (data.Length >= 4)
                     {
                         var queryType = data[2];
@@ -1104,13 +1100,13 @@ namespace ChargingPanel.Core.Devices.Yokonex
         #region 电量轮询和自动重连
         
         /// <summary>
-        /// 启动电量轮询定时器
+        /// 启动电量轮询定时器。
         /// </summary>
         private void StartBatteryPolling()
         {
             StopBatteryPolling();
             
-            // 每 60 秒轮询一次电量
+            // 每 60 秒兜底轮询一次电量。
             _batteryTimer = new Timer(async _ =>
             {
                 if (!IsConnected) return;
@@ -1127,7 +1123,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 停止电量轮询定时器
+        /// 停止电量轮询定时器。
         /// </summary>
         private void StopBatteryPolling()
         {
@@ -1136,7 +1132,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 启动重连定时器
+        /// 启动重连定时器。
         /// </summary>
         private void StartReconnectTimer()
         {
@@ -1155,7 +1151,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 停止重连定时器
+        /// 停止重连定时器。
         /// </summary>
         private void StopReconnectTimer()
         {
@@ -1164,7 +1160,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
         
         /// <summary>
-        /// 尝试重连
+        /// 尝试执行重连。
         /// </summary>
         private async Task TryReconnectAsync()
         {

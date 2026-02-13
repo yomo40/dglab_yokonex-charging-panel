@@ -8,7 +8,7 @@ using Serilog;
 namespace ChargingPanel.Core.Devices.DGLab;
 
 /// <summary>
-/// DG-LAB 配件类型（预留）
+/// DG-LAB 配件类型（暂无相关协议，预留）
 /// </summary>
 public enum DGLabAccessoryType
 {
@@ -37,7 +37,7 @@ public interface IDGLabExternalVoltageSensorDevice : IDGLabAccessoryDevice
 
 /// <summary>
 /// DG-LAB 配件占位适配器
-/// 当前厂商未开放完整协议，先固化模块边界，后续补真实链路。
+/// 厂商未开放完整协议
 /// </summary>
 public sealed class DGLabAccessoryPlaceholderAdapter : IDGLabExternalVoltageSensorDevice
 {
