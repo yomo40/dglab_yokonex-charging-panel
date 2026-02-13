@@ -43,6 +43,8 @@ public class DeviceManager : IDisposable
     private List<DeviceInfo>? _deviceInfoCache;
     private DateTime _cacheExpiry = DateTime.MinValue;
     private const int CacheExpiryMs = 500;
+    private const int DefaultStrengthDeltaLimit = 30;
+    private const int MaxStrengthDeltaLimit = 30;
 
     /// <summary>连接诊断服务</summary>
     public ConnectionDiagnostics Diagnostics => _diagnostics;
@@ -353,6 +355,7 @@ public class DeviceManager : IDisposable
                 {
                     Logger.Information("正在连接设备: {DeviceId}, attempt={Attempt}/{Max}", deviceId, attempt, maxAttempts);
                     await wrapper.Device.ConnectAsync(wrapper.Config, ct);
+                    await ApplyDeviceDefaultLimitsAsync(wrapper);
                     Logger.Information("设备连接成功: {DeviceId}", deviceId);
                     return;
                 }
@@ -560,12 +563,19 @@ public class DeviceManager : IDisposable
         StrengthMode mode = StrengthMode.Set, string? source = null)
     {
         var device = GetDevice(deviceId);
-        await device.SetStrengthAsync(channel, value, mode);
+        var normalizedValue = NormalizeStrengthRequest(device, channel, value, mode);
+        if (mode != StrengthMode.Set && normalizedValue <= 0)
+        {
+            Logger.Debug("Skip empty delta strength command: device={DeviceId}, channel={Channel}, mode={Mode}", deviceId, channel, mode);
+            return;
+        }
+
+        await device.SetStrengthAsync(channel, normalizedValue, mode);
 
         RecordDeviceAction(
             deviceId,
             "设置强度",
-            new { channel = channel.ToString(), value, mode = mode.ToString() },
+            new { channel = channel.ToString(), value = normalizedValue, mode = mode.ToString() },
             source ?? "DeviceManager");
     }
 
@@ -873,6 +883,126 @@ public class DeviceManager : IDisposable
     private SemaphoreSlim GetDeviceOperationLock(string deviceId)
     {
         return _deviceOperationLocks.GetOrAdd(deviceId, _ => new SemaphoreSlim(1, 1));
+    }
+
+    private async Task ApplyDeviceDefaultLimitsAsync(DeviceWrapper wrapper)
+    {
+        try
+        {
+            var settings = Database.Instance.GetAllSettings();
+            var (limitA, limitB, shouldApply) = ResolveDefaultLimits(wrapper, settings);
+            if (!shouldApply)
+            {
+                return;
+            }
+
+            await wrapper.Device.SetLimitsAsync(limitA, limitB);
+            Logger.Information("Applied default limits for {DeviceId}: A={LimitA}, B={LimitB}", wrapper.Id, limitA, limitB);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning(ex, "Failed to apply default limits for {DeviceId}", wrapper.Id);
+        }
+    }
+
+    private static (int limitA, int limitB, bool shouldApply) ResolveDefaultLimits(
+        DeviceWrapper wrapper,
+        IReadOnlyDictionary<string, string> settings)
+    {
+        if (wrapper.Type == DeviceType.DGLab || wrapper.Type == DeviceType.Virtual)
+        {
+            var limitA = GetIntSetting(settings, "device.defaults.dglab.limitA", 200, 0, 200);
+            var limitB = GetIntSetting(settings, "device.defaults.dglab.limitB", 200, 0, 200);
+            return (limitA, limitB, true);
+        }
+
+        if (wrapper.Type != DeviceType.Yokonex)
+        {
+            return (0, 0, false);
+        }
+
+        var yokonexType = wrapper.YokonexType ?? YokonexDeviceType.Estim;
+        return yokonexType switch
+        {
+            YokonexDeviceType.Estim => (
+                GetIntSetting(settings, "device.defaults.yokonex.ems.maxStrength", 276, 0, 276),
+                GetIntSetting(settings, "device.defaults.yokonex.ems.maxStrength", 276, 0, 276),
+                true),
+            YokonexDeviceType.Enema => (
+                GetIntSetting(settings, "device.defaults.yokonex.enema.maxInjection", 100, 0, 100),
+                GetIntSetting(settings, "device.defaults.yokonex.motor.maxStrength", 20, 0, 100),
+                true),
+            YokonexDeviceType.Vibrator or YokonexDeviceType.Cup => (
+                GetIntSetting(settings, "device.defaults.yokonex.motor.maxStrength", 20, 0, 100),
+                GetIntSetting(settings, "device.defaults.yokonex.motor.maxStrength", 20, 0, 100),
+                true),
+            _ => (0, 0, false)
+        };
+    }
+
+    private int NormalizeStrengthRequest(IDevice device, Channel channel, int value, StrengthMode mode)
+    {
+        var safeInput = Math.Max(0, value);
+        if (safeInput == 0)
+        {
+            return 0;
+        }
+
+        if (mode == StrengthMode.Set)
+        {
+            var limit = ResolveChannelLimit(device.State.Strength, channel);
+            return limit <= 0 ? safeInput : Math.Min(safeInput, limit);
+        }
+
+        var configuredDeltaCap = GetStrengthDeltaLimit();
+        return Math.Min(safeInput, configuredDeltaCap);
+    }
+
+    private static int ResolveChannelLimit(StrengthInfo info, Channel channel)
+    {
+        var limitA = info.LimitA > 0 ? info.LimitA : int.MaxValue;
+        var limitB = info.LimitB > 0 ? info.LimitB : int.MaxValue;
+        return channel switch
+        {
+            Channel.A => limitA,
+            Channel.B => limitB,
+            _ => Math.Min(limitA, limitB)
+        };
+    }
+
+    private static int GetStrengthDeltaLimit()
+    {
+        try
+        {
+            var settings = Database.Instance.GetAllSettings();
+            if (settings.TryGetValue("device.defaults.maxDeltaPerAction", out var configured) &&
+                int.TryParse(configured, out var parsed))
+            {
+                return Math.Clamp(parsed, 0, MaxStrengthDeltaLimit);
+            }
+
+            if (settings.TryGetValue("device.maxDeltaPerAction", out var legacyConfigured) &&
+                int.TryParse(legacyConfigured, out parsed))
+            {
+                return Math.Clamp(parsed, 0, MaxStrengthDeltaLimit);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug(ex, "Failed to read max delta setting, fallback to default");
+        }
+
+        return DefaultStrengthDeltaLimit;
+    }
+
+    private static int GetIntSetting(IReadOnlyDictionary<string, string> settings, string key, int defaultValue, int min, int max)
+    {
+        if (settings.TryGetValue(key, out var value) && int.TryParse(value, out var parsed))
+        {
+            return Math.Clamp(parsed, min, max);
+        }
+
+        return Math.Clamp(defaultValue, min, max);
     }
 
     private static void ValidateConnectionConfig(DeviceWrapper wrapper)

@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,23 +9,23 @@ using Serilog;
 namespace ChargingPanel.Core.Devices.DGLab;
 
 /// <summary>
-/// DG-LAB 蓝牙版本枚举
+/// DG-LAB 钃濈墮鐗堟湰鏋氫妇
 /// </summary>
 public enum DGLabVersion
 {
-    /// <summary>V2 版本 (D-LAB ESTIM01)</summary>
+    /// <summary>V2 鐗堟湰 (D-LAB ESTIM01)</summary>
     V2,
-    /// <summary>V3 版本 (47L121000)</summary>
+    /// <summary>V3 鐗堟湰 (47L121000)</summary>
     V3,
-    /// <summary>V3 无线传感器 (47L120100，预留)</summary>
+    /// <summary>V3 鏃犵嚎浼犳劅鍣?(47L120100锛岄鐣?</summary>
     V3WirelessSensor,
-    /// <summary>爪印按钮传感器（外部电压，预留）</summary>
+    /// <summary>鐖嵃鎸夐挳浼犳劅鍣紙澶栭儴鐢靛帇锛岄鐣欙級</summary>
     PawPrints
 }
 
 /// <summary>
-/// DG-LAB 蓝牙适配器。
-/// 覆盖 V2、V3，以及预留中的传感器型号。
+/// DG-LAB 钃濈墮閫傞厤鍣ㄣ€?
+/// 瑕嗙洊 V2銆乂3锛屼互鍙婇鐣欎腑鐨勪紶鎰熷櫒鍨嬪彿銆?
 /// </summary>
 public class DGLabBluetoothAdapter : IDevice, IDisposable
 {
@@ -37,7 +38,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     public DeviceState State => GetState();
     public ConnectionConfig? Config { get; private set; }
 
-    /// <summary>设备版本</summary>
+    /// <summary>璁惧鐗堟湰</summary>
     public DGLabVersion Version { get; }
 
     public event EventHandler<DeviceStatus>? StatusChanged;
@@ -65,14 +66,24 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private const int MaxReconnectAttempts = 5;
     private const int ReconnectDelayMs = 3000;
     private const int PendingResponseStaleMs = 180;
+    private const int MaxUiStrength = 200;
+    private const int MaxV2RawStrength = 2047;
     
-    // 当前正在循环发送的波形状态
+    // 褰撳墠姝ｅ湪寰幆鍙戦€佺殑娉㈠舰鐘舵€?
     private ChannelWaveform? _currentWaveformA;
     private ChannelWaveform? _currentWaveformB;
     private byte[]? _currentV2WaveformA;
     private byte[]? _currentV2WaveformB;
+    private List<ChannelWaveform>? _waveformSequenceA;
+    private List<ChannelWaveform>? _waveformSequenceB;
+    private int _waveformSequenceIndexA;
+    private int _waveformSequenceIndexB;
+    private List<byte[]>? _v2WaveformSequenceA;
+    private List<byte[]>? _v2WaveformSequenceB;
+    private int _v2WaveformSequenceIndexA;
+    private int _v2WaveformSequenceIndexB;
     
-    // V3 电量服务 UUID（0x180A/0x1500）
+    // V3 鐢甸噺鏈嶅姟 UUID锛?x180A/0x1500锛?
     private static readonly Guid BatteryServiceUuid = Guid.Parse("0000180A-0000-1000-8000-00805F9B34FB");
     private static readonly Guid BatteryCharacteristicUuid = Guid.Parse("00001500-0000-1000-8000-00805F9B34FB");
 
@@ -80,7 +91,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     {
         Version = version;
         Id = id ?? $"dglab_bt_{Guid.NewGuid():N}"[..20];
-        Name = name ?? $"郊狼 {GetVersionName()}";
+        Name = name ?? $"閮婄嫾 {GetVersionName()}";
     }
 
     private string GetVersionName() => Version switch
@@ -88,12 +99,12 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         DGLabVersion.V2 => "V2",
         DGLabVersion.V3 => "V3",
         DGLabVersion.V3WirelessSensor => "V3 无线传感器",
-        DGLabVersion.PawPrints => "爪印按钮",
-        _ => "未知"
+        DGLabVersion.PawPrints => "鐖嵃鎸夐挳",
+        _ => "鏈煡"
     };
 
     /// <summary>
-    /// 注入蓝牙传输层并挂接事件。
+    /// 娉ㄥ叆钃濈墮浼犺緭灞傚苟鎸傛帴浜嬩欢銆?
     /// </summary>
     public void SetTransport(IBluetoothTransport transport)
     {
@@ -103,7 +114,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
 
     /// <summary>
-    /// 根据设备版本返回扫描用的名称前缀。
+    /// 鏍规嵁璁惧鐗堟湰杩斿洖鎵弿鐢ㄧ殑鍚嶇О鍓嶇紑銆?
     /// </summary>
     public static string GetDeviceNamePrefix(DGLabVersion version) => version switch
     {
@@ -121,16 +132,16 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
         if (_transport == null)
         {
-            throw new InvalidOperationException("蓝牙传输层未设置，请先调用 SetTransport()");
+            throw new InvalidOperationException("钃濈墮浼犺緭灞傛湭璁剧疆锛岃鍏堣皟鐢?SetTransport()");
         }
 
         if (string.IsNullOrEmpty(config.Address))
         {
-            throw new ArgumentException("蓝牙地址不能为空");
+            throw new ArgumentException("钃濈墮鍦板潃涓嶈兘涓虹┖");
         }
 
         UpdateStatus(DeviceStatus.Connecting);
-        Logger.Information("正在连接 DG-LAB {Version} 蓝牙设备: {Address}", Version, config.Address);
+        Logger.Information("姝ｅ湪杩炴帴 DG-LAB {Version} 钃濈墮璁惧: {Address}", Version, config.Address);
 
         try
         {
@@ -138,41 +149,41 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
             if (Version == DGLabVersion.V3)
             {
-                // V3 走通知特征。
+                // V3 璧伴€氱煡鐗瑰緛銆?
                 await _transport.SubscribeAsync(GetServiceUuid(), GetNotifyCharacteristicUuid());
                 
                 UpdateStatus(DeviceStatus.Connected);
-                Logger.Information("DG-LAB V3 蓝牙连接成功");
+                Logger.Information("DG-LAB V3 钃濈墮杩炴帴鎴愬姛");
 
-                // 连接后先下发 BF，写入软件侧强度上限。
+                // 杩炴帴鍚庡厛涓嬪彂 BF锛屽啓鍏ヨ蒋浠朵晶寮哄害涓婇檺銆?
                 await SendBFCommandAsync();
-                // 拉起电量通知。
+                // 鎷夎捣鐢甸噺閫氱煡銆?
                 await SubscribeBatteryAsync();
             }
             else
             {
-                // V2 使用 PWM_AB2（读/写/通知）接收强度变化。
+                // V2 浣跨敤 PWM_AB2锛堣/鍐?閫氱煡锛夋帴鏀跺己搴﹀彉鍖栥€?
                 await _transport.SubscribeAsync(GetServiceUuid(), GetV2StrengthCharacteristicUuid());
                 
                 UpdateStatus(DeviceStatus.Connected);
-                Logger.Information("DG-LAB V2 蓝牙连接成功");
+                Logger.Information("DG-LAB V2 钃濈墮杩炴帴鎴愬姛");
                 
-                // 拉起 V2 电量通知。
+                // 鎷夎捣 V2 鐢甸噺閫氱煡銆?
                 await SubscribeV2BatteryAsync();
             }
 
-            // 启动波形续发定时器。
+            // 鍚姩娉㈠舰缁彂瀹氭椂鍣ㄣ€?
             StartWaveformTimer();
             
-            // 启动电量轮询。
+            // 鍚姩鐢甸噺杞銆?
             StartBatteryPolling();
             
-            // 连接成功后清空重连计数。
+            // 杩炴帴鎴愬姛鍚庢竻绌洪噸杩炶鏁般€?
             _reconnectAttempts = 0;
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "DG-LAB 蓝牙连接失败");
+            Logger.Error(ex, "DG-LAB 钃濈墮杩炴帴澶辫触");
             UpdateStatus(DeviceStatus.Error);
             ErrorOccurred?.Invoke(this, ex);
             throw;
@@ -194,11 +205,11 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         _strengthA = 0;
         _strengthB = 0;
         UpdateStatus(DeviceStatus.Disconnected);
-        Logger.Information("DG-LAB {Version} 已断开连接", Version);
+        Logger.Information("DG-LAB {Version} 宸叉柇寮€杩炴帴", Version);
     }
     
     /// <summary>
-    /// 手动触发一次重连流程。
+    /// 鎵嬪姩瑙﹀彂涓€娆￠噸杩炴祦绋嬨€?
     /// </summary>
     public async Task ReconnectAsync()
     {
@@ -207,7 +218,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             throw new InvalidOperationException("没有保存的连接配置");
         }
         
-        Logger.Information("手动触发重连 DG-LAB {Version}", Version);
+        Logger.Information("鎵嬪姩瑙﹀彂閲嶈繛 DG-LAB {Version}", Version);
         _reconnectAttempts = 0;
         await TryReconnectAsync();
     }
@@ -242,30 +253,53 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     public Task ClearWaveformQueueAsync(Channel channel)
     {
-        // 清空波形缓存，后续定时器不会继续发这一通道。
+        // 娓呯┖娉㈠舰缂撳瓨锛屽悗缁畾鏃跺櫒涓嶄細缁х画鍙戣繖涓€閫氶亾銆?
         if (channel == Channel.A || channel == Channel.AB)
         {
             _currentWaveformA = null;
             _currentV2WaveformA = null;
+            _waveformSequenceA = null;
+            _v2WaveformSequenceA = null;
+            _waveformSequenceIndexA = 0;
+            _v2WaveformSequenceIndexA = 0;
         }
         if (channel == Channel.B || channel == Channel.AB)
         {
             _currentWaveformB = null;
             _currentV2WaveformB = null;
+            _waveformSequenceB = null;
+            _v2WaveformSequenceB = null;
+            _waveformSequenceIndexB = 0;
+            _v2WaveformSequenceIndexB = 0;
         }
         
-        Logger.Debug("清除波形队列: channel={Channel}", channel);
+        Logger.Debug("娓呴櫎娉㈠舰闃熷垪: channel={Channel}", channel);
         return Task.CompletedTask;
     }
 
     public async Task SetLimitsAsync(int limitA, int limitB)
     {
-        _limitA = Math.Clamp(limitA, 0, 200);
-        _limitB = Math.Clamp(limitB, 0, 200);
+        _limitA = Math.Clamp(limitA, 0, MaxUiStrength);
+        _limitB = Math.Clamp(limitB, 0, MaxUiStrength);
 
-        if (Version == DGLabVersion.V3 && Status == DeviceStatus.Connected)
+        if (Status != DeviceStatus.Connected)
+        {
+            return;
+        }
+
+        if (Version == DGLabVersion.V3)
         {
             await SendBFCommandAsync();
+        }
+
+        if (_strengthA > _limitA)
+        {
+            await SetStrengthAsync(Channel.A, _limitA, StrengthMode.Set);
+        }
+
+        if (_strengthB > _limitB)
+        {
+            await SetStrengthAsync(Channel.B, _limitB, StrengthMode.Set);
         }
     }
 
@@ -273,14 +307,20 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     private async Task SetStrengthV3Async(Channel channel, int value, StrengthMode mode)
     {
-        // 防止“卡在等响应”：超时后允许继续发新包，保证控制手感。
+        // 闃叉鈥滃崱鍦ㄧ瓑鍝嶅簲鈥濓細瓒呮椂鍚庡厑璁哥户缁彂鏂板寘锛屼繚璇佹帶鍒舵墜鎰熴€?
         if (_waitingForResponse && Environment.TickCount64 - _lastStrengthCommandAtMs > PendingResponseStaleMs)
         {
             _waitingForResponse = false;
         }
 
-        var command = _protocol.BuildStrengthCommand(channel, value, mode, true);
-        // B0 第 2 字节高 4 位是序列号，这里同步记录用于匹配响应。
+        var safeValue = NormalizeStrengthValue(channel, value, mode);
+        if (mode != StrengthMode.Set && safeValue <= 0)
+        {
+            return;
+        }
+
+        var command = _protocol.BuildStrengthCommand(channel, safeValue, mode, true);
+        // B0 绗?2 瀛楄妭楂?4 浣嶆槸搴忓垪鍙凤紝杩欓噷鍚屾璁板綍鐢ㄤ簬鍖归厤鍝嶅簲銆?
         var seqNo = (command[1] >> 4) & 0x0F;
         _pendingSequenceNo = seqNo;
         _waitingForResponse = true;
@@ -290,77 +330,140 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     private async Task SendWaveformV3Async(Channel channel, WaveformData data)
     {
-        ChannelWaveform waveform;
-        
-        // 有 HexData 就优先按自定义波形解析。
-        if (!string.IsNullOrEmpty(data.HexData))
+        var sequence = ParseHexToWaveformSequence(data.HexData);
+        if (sequence.Count == 0)
         {
-            waveform = ParseHexToWaveform(data.HexData) ?? CreateDefaultWaveform(data);
-        }
-        else
-        {
-            waveform = CreateDefaultWaveform(data);
+            sequence.Add(CreateDefaultWaveform(data));
         }
 
-        // 缓存当前波形，供定时器持续发送。
-        if (channel == Channel.A || channel == Channel.AB)
+        if (channel is Channel.A or Channel.AB)
         {
-            _currentWaveformA = waveform;
-        }
-        if (channel == Channel.B || channel == Channel.AB)
-        {
-            _currentWaveformB = waveform;
+            _waveformSequenceA = sequence;
+            _waveformSequenceIndexA = 0;
+            _currentWaveformA = _waveformSequenceA[0];
         }
 
-        var command = _protocol.BuildWaveformCommand(channel, waveform);
+        if (channel is Channel.B or Channel.AB)
+        {
+            _waveformSequenceB = sequence;
+            _waveformSequenceIndexB = 0;
+            _currentWaveformB = _waveformSequenceB[0];
+        }
+
+        var command = BuildCurrentV3WaveformCommand();
         await WriteAsync(GetWriteCharacteristicUuid(), command);
     }
     
     /// <summary>
-    /// 根据当前参数生成默认波形。
+    /// 鏍规嵁褰撳墠鍙傛暟鐢熸垚榛樿娉㈠舰銆?
     /// </summary>
     private static ChannelWaveform CreateDefaultWaveform(WaveformData data)
     {
         var freq = DGLabBluetoothProtocol.ConvertFrequency(data.Frequency);
+        var strength = Math.Clamp(data.Strength, 0, 100);
         return new ChannelWaveform
         {
             Frequency = new[] { freq, freq, freq, freq },
-            Strength = new[] { data.Strength, data.Strength, data.Strength, data.Strength }
+            Strength = new[] { strength, strength, strength, strength }
         };
     }
     
     /// <summary>
-    /// 把 HEX 字符串解析为波形数据。
-    /// 约定格式：16 个十六进制字符（8 字节）= 4 频率 + 4 强度。
+    /// 鎶?HEX 瀛楃涓茶В鏋愪负娉㈠舰鏁版嵁銆?
+    /// 绾﹀畾鏍煎紡锛?6 涓崄鍏繘鍒跺瓧绗︼紙8 瀛楄妭锛? 4 棰戠巼 + 4 寮哄害銆?
     /// </summary>
-    private static ChannelWaveform? ParseHexToWaveform(string hexData)
+    private static List<ChannelWaveform> ParseHexToWaveformSequence(string? hexData)
     {
-        // 只取第一段（逗号分隔时忽略后续段）。
-        var firstHex = hexData.Split(',', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
-        if (string.IsNullOrEmpty(firstHex) || firstHex.Length != 16)
+        if (string.IsNullOrWhiteSpace(hexData))
         {
-            return null;
+            return new List<ChannelWaveform>();
         }
-        
-        try
+
+        var result = new List<ChannelWaveform>();
+        foreach (var segment in SplitHexSegments(hexData))
         {
-            // 8 字节：前 4 字节频率，后 4 字节强度。
-            var bytes = new byte[8];
-            for (int i = 0; i < 8; i++)
+            if (segment.Length != 16)
             {
-                bytes[i] = Convert.ToByte(firstHex.Substring(i * 2, 2), 16);
+                continue;
             }
-            
-            return new ChannelWaveform
+
+            try
             {
-                Frequency = new int[] { bytes[0], bytes[1], bytes[2], bytes[3] },
-                Strength = new int[] { bytes[4], bytes[5], bytes[6], bytes[7] }
-            };
+                var bytes = new byte[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    bytes[i] = Convert.ToByte(segment.Substring(i * 2, 2), 16);
+                }
+
+                result.Add(new ChannelWaveform
+                {
+                    Frequency = new[] { (int)bytes[0], (int)bytes[1], (int)bytes[2], (int)bytes[3] },
+                    Strength = new[]
+                    {
+                        Math.Clamp((int)bytes[4], 0, 100),
+                        Math.Clamp((int)bytes[5], 0, 100),
+                        Math.Clamp((int)bytes[6], 0, 100),
+                        Math.Clamp((int)bytes[7], 0, 100)
+                    }
+                });
+            }
+            catch
+            {
+                // ignore invalid segment
+            }
         }
-        catch
+
+        return result;
+    }
+
+    private static IEnumerable<string> SplitHexSegments(string rawHex)
+    {
+        var parts = rawHex
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+        if (parts.Count == 1)
         {
-            return null;
+            var merged = parts[0];
+            if (merged.Length > 16 && merged.Length % 16 == 0)
+            {
+                for (var i = 0; i < merged.Length; i += 16)
+                {
+                    yield return merged.Substring(i, 16);
+                }
+
+                yield break;
+            }
         }
+
+        foreach (var part in parts)
+        {
+            yield return part;
+        }
+    }
+
+    private byte[] BuildCurrentV3WaveformCommand()
+    {
+        var invalidWaveform = new ChannelWaveform
+        {
+            Frequency = new[] { 0, 0, 0, 0 },
+            Strength = new[] { 0, 0, 0, 101 }
+        };
+
+        var data = new B0CommandData
+        {
+            SequenceNo = 0,
+            StrengthModeA = StrengthParsingMode.NoChange,
+            StrengthModeB = StrengthParsingMode.NoChange,
+            StrengthValueA = 0,
+            StrengthValueB = 0,
+            WaveformA = _currentWaveformA ?? invalidWaveform,
+            WaveformB = _currentWaveformB ?? invalidWaveform
+        };
+
+        return _protocol.BuildB0Command(data);
     }
 
     private async Task SendBFCommandAsync()
@@ -377,7 +480,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
         var command = _protocol.BuildBFCommand(data);
         await WriteAsync(GetWriteCharacteristicUuid(), command);
-        Logger.Debug("发送 BF 指令: LimitA={A}, LimitB={B}", _limitA, _limitB);
+        Logger.Debug("鍙戦€?BF 鎸囦护: LimitA={A}, LimitB={B}", _limitA, _limitB);
     }
 
     #endregion
@@ -386,41 +489,70 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     private async Task SetStrengthV2Async(Channel channel, int value, StrengthMode mode)
     {
-        // V2 协议: PWM_AB2 特性，3字节，小端序
-        // 官方文档: 23-22bit(保留) + 21-11bit(A通道强度) + 10-0bit(B通道强度)
-        int targetA = _strengthA * 7; // 当前值转为 V2 原始值 (0-2047)
-        int targetB = _strengthB * 7;
-        int rawValue = value * 7; // 输入值转为 V2 协议值
+        var safeValue = NormalizeStrengthValue(channel, value, mode);
+        if (mode != StrengthMode.Set && safeValue <= 0)
+        {
+            return;
+        }
+
+        var limitRawA = ConvertUiStrengthToV2Raw(_limitA);
+        var limitRawB = ConvertUiStrengthToV2Raw(_limitB);
+        var targetA = ConvertUiStrengthToV2Raw(_strengthA);
+        var targetB = ConvertUiStrengthToV2Raw(_strengthB);
+        var inputRaw = ConvertUiStrengthToV2Raw(safeValue);
 
         switch (mode)
         {
             case StrengthMode.Set:
-                if (channel == Channel.A || channel == Channel.AB) targetA = rawValue;
-                if (channel == Channel.B || channel == Channel.AB) targetB = rawValue;
+                if (channel is Channel.A or Channel.AB)
+                {
+                    targetA = Math.Min(inputRaw, limitRawA);
+                }
+
+                if (channel is Channel.B or Channel.AB)
+                {
+                    targetB = Math.Min(inputRaw, limitRawB);
+                }
                 break;
+
             case StrengthMode.Increase:
-                if (channel == Channel.A || channel == Channel.AB) targetA = Math.Min(targetA + rawValue, 2047);
-                if (channel == Channel.B || channel == Channel.AB) targetB = Math.Min(targetB + rawValue, 2047);
+                if (channel is Channel.A or Channel.AB)
+                {
+                    targetA = Math.Min(targetA + inputRaw, limitRawA);
+                }
+
+                if (channel is Channel.B or Channel.AB)
+                {
+                    targetB = Math.Min(targetB + inputRaw, limitRawB);
+                }
                 break;
+
             case StrengthMode.Decrease:
-                if (channel == Channel.A || channel == Channel.AB) targetA = Math.Max(targetA - rawValue, 0);
-                if (channel == Channel.B || channel == Channel.AB) targetB = Math.Max(targetB - rawValue, 0);
+                if (channel is Channel.A or Channel.AB)
+                {
+                    targetA = Math.Max(targetA - inputRaw, 0);
+                }
+
+                if (channel is Channel.B or Channel.AB)
+                {
+                    targetB = Math.Max(targetB - inputRaw, 0);
+                }
                 break;
         }
 
-        // 构建 3 字节数据 (小端序: 低字节在前)
-        // 官方文档: 21-11bit(A通道) + 10-0bit(B通道)
-        // combined = (A << 11) | B
-        int combined = ((targetA & 0x7FF) << 11) | (targetB & 0x7FF);
-        var data = new byte[3];
-        data[0] = (byte)(combined & 0xFF);          // 低字节
-        data[1] = (byte)((combined >> 8) & 0xFF);   // 中字节
-        data[2] = (byte)((combined >> 16) & 0xFF);  // 高字节
+        targetA = Math.Clamp(targetA, 0, limitRawA);
+        targetB = Math.Clamp(targetB, 0, limitRawB);
 
-        await WriteAsync(GetV2StrengthCharacteristicUuid(), data);
+        var combined = ((targetA & 0x7FF) << 11) | (targetB & 0x7FF);
+        var payload = new byte[3];
+        payload[0] = (byte)(combined & 0xFF);
+        payload[1] = (byte)((combined >> 8) & 0xFF);
+        payload[2] = (byte)((combined >> 16) & 0xFF);
 
-        _strengthA = targetA / 7;
-        _strengthB = targetB / 7;
+        await WriteAsync(GetV2StrengthCharacteristicUuid(), payload);
+
+        _strengthA = ConvertV2RawToUiStrength(targetA);
+        _strengthB = ConvertV2RawToUiStrength(targetB);
 
         StrengthChanged?.Invoke(this, new StrengthInfo
         {
@@ -429,82 +561,191 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             LimitA = _limitA,
             LimitB = _limitB
         });
-        
-        Logger.Debug("V2 设置强度: A={A}, B={B}, raw=[{D0:X2},{D1:X2},{D2:X2}]", 
-            _strengthA, _strengthB, data[0], data[1], data[2]);
+
+        Logger.Debug("V2 璁剧疆寮哄害: A={A}, B={B}, raw=[{D0:X2},{D1:X2},{D2:X2}]",
+            _strengthA, _strengthB, payload[0], payload[1], payload[2]);
     }
 
     private async Task SendWaveformV2Async(Channel channel, WaveformData data)
     {
-        // V2 波形格式: PWM_x34，小端序
-        // 19-15bit(Z) + 14-5bit(Y) + 4-0bit(X)
-        // X: 脉冲数量 (1-31)，连续发出的脉冲数
-        // Y: 间隔时间 (0-1023)，X个脉冲后的间隔毫秒数
-        // Z: 脉冲宽度 (0-31), 实际宽度 = Z * 5us
-        // 波形频率(周期) = X + Y (ms)
-        
-        // 输入的 Frequency 是脉冲频率 (Hz)，需要转换为波形频率 (ms)
-        // 脉冲频率 = 1000 / 波形频率
-        // 例如: 100Hz → 波形频率 = 10ms, 10Hz → 波形频率 = 100ms
-        int pulseFreqHz = Math.Clamp(data.Frequency, 1, 1000);
-        int waveformPeriodMs = 1000 / pulseFreqHz;  // 波形周期 (ms)
-        
-        // 根据官方文档示例:
-        // 参数【1,9】代表每隔9ms发出1个脉冲，总共耗时10ms，脉冲频率100Hz
-        // 参数【5,95】代表每隔95ms发出5个脉冲，总共耗时100ms，体感脉冲频率10Hz
-        // 
-        // 策略: 对于高频(>50Hz)使用 X=1，对于低频使用较大的 X 来产生"合并脉冲"效果
-        int x, y;
+        var sequence = ParseV2WaveformSequence(data.HexData);
+        if (sequence.Count == 0)
+        {
+            sequence.Add(BuildV2WaveformPacket(data));
+        }
+
+        if (channel is Channel.A or Channel.AB)
+        {
+            _v2WaveformSequenceA = sequence;
+            _v2WaveformSequenceIndexA = 0;
+            _currentV2WaveformA = _v2WaveformSequenceA[0];
+            await WriteAsync(GetV2WaveformACharacteristicUuid(), _currentV2WaveformA);
+        }
+
+        if (channel is Channel.B or Channel.AB)
+        {
+            _v2WaveformSequenceB = sequence;
+            _v2WaveformSequenceIndexB = 0;
+            _currentV2WaveformB = _v2WaveformSequenceB[0];
+            await WriteAsync(GetV2WaveformBCharacteristicUuid(), _currentV2WaveformB);
+        }
+
+        Logger.Debug("V2 鍙戦€佹尝褰? channel={Channel}, sequenceCount={Count}", channel, sequence.Count);
+    }
+
+    private static byte[] BuildV2WaveformPacket(WaveformData data)
+    {
+        var pulseFreqHz = Math.Clamp(data.Frequency, 1, 1000);
+        var z = Math.Clamp(data.Strength * 20 / 100, 0, 20);
+
+        if (TryParseFrequencyPulseHint(data.HexData, out var hintedFrequency, out var hintedPulseWidthUs))
+        {
+            pulseFreqHz = hintedFrequency;
+            z = Math.Clamp((int)Math.Round(hintedPulseWidthUs / 5d), 0, 31);
+        }
+
+        var waveformPeriodMs = Math.Max(1, 1000 / pulseFreqHz);
+
+        int x;
+        int y;
         if (waveformPeriodMs <= 20)
         {
-            // 高频 (>=50Hz): X=1, Y=周期-1
             x = 1;
             y = Math.Max(waveformPeriodMs - 1, 0);
         }
         else if (waveformPeriodMs <= 100)
         {
-            // 中频 (10-50Hz): X=1-5, Y=周期-X
             x = Math.Min(waveformPeriodMs / 20, 5);
             y = waveformPeriodMs - x;
         }
         else
         {
-            // 低频 (<10Hz): X=5-10, Y=周期-X，产生"合并脉冲"效果
             x = Math.Min(waveformPeriodMs / 20, 10);
             y = waveformPeriodMs - x;
         }
-        
-        // V2 的 Z 参数控制脉冲宽度，范围 0-31，实际宽度 = Z * 5us
-        // 官方建议: Z > 20 时容易引起刺痛，所以默认使用 Z=20 (100us)
-        // 将 Strength (0-100) 映射到 Z (0-20)，避免刺痛
-        int z = Math.Clamp(data.Strength * 20 / 100, 0, 20);
 
         x = Math.Clamp(x, 1, 31);
         y = Math.Clamp(y, 0, 1023);
 
-        // 官方文档: 19-15bit(Z) + 14-5bit(Y) + 4-0bit(X)
-        // 示例: x=1,y=9,z=20 → combined=0x0A0121 → bytes=[0x21,0x01,0x0A]
-        int combined = ((z & 0x1F) << 15) | ((y & 0x3FF) << 5) | (x & 0x1F);
-        var waveData = new byte[3];
-        // 小端序: 低字节在前
-        waveData[0] = (byte)(combined & 0xFF);          // 低字节
-        waveData[1] = (byte)((combined >> 8) & 0xFF);   // 中字节
-        waveData[2] = (byte)((combined >> 16) & 0xFF);  // 高字节
+        var combined = ((z & 0x1F) << 15) | ((y & 0x3FF) << 5) | (x & 0x1F);
+        return new[]
+        {
+            (byte)(combined & 0xFF),
+            (byte)((combined >> 8) & 0xFF),
+            (byte)((combined >> 16) & 0xFF)
+        };
+    }
 
-        // 保存当前波形状态，用于定时器持续发送
-        if (channel == Channel.A || channel == Channel.AB)
+    private static List<byte[]> ParseV2WaveformSequence(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
         {
-            _currentV2WaveformA = waveData;
-            await WriteAsync(GetV2WaveformACharacteristicUuid(), waveData);
+            return new List<byte[]>();
         }
-        if (channel == Channel.B || channel == Channel.AB)
+
+        var result = new List<byte[]>();
+        foreach (var segment in SplitV2WaveformSegments(raw))
         {
-            _currentV2WaveformB = waveData;
-            await WriteAsync(GetV2WaveformBCharacteristicUuid(), waveData);
+            if (segment.Length != 6 || !IsHex(segment))
+            {
+                continue;
+            }
+
+            try
+            {
+                result.Add(new[]
+                {
+                    Convert.ToByte(segment.Substring(0, 2), 16),
+                    Convert.ToByte(segment.Substring(2, 2), 16),
+                    Convert.ToByte(segment.Substring(4, 2), 16)
+                });
+            }
+            catch
+            {
+                // ignore invalid segment
+            }
         }
-        
-        Logger.Debug("V2 发送波形: channel={Channel}, X={X}, Y={Y}, Z={Z}, raw=[{D0:X2},{D1:X2},{D2:X2}]", 
-            channel, x, y, z, waveData[0], waveData[1], waveData[2]);
+
+        return result;
+    }
+
+    private static IEnumerable<string> SplitV2WaveformSegments(string raw)
+    {
+        var parts = raw
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+        if (parts.Count == 1)
+        {
+            var merged = parts[0];
+            if (merged.Length > 6 && merged.Length % 6 == 0 && IsHex(merged))
+            {
+                for (var i = 0; i < merged.Length; i += 6)
+                {
+                    yield return merged.Substring(i, 6);
+                }
+
+                yield break;
+            }
+        }
+
+        foreach (var part in parts)
+        {
+            yield return part;
+        }
+    }
+
+    private static bool TryParseFrequencyPulseHint(string? raw, out int frequency, out int pulseWidthUs)
+    {
+        frequency = 0;
+        pulseWidthUs = 0;
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var parts = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[0], out var parsedFrequency) || !int.TryParse(parts[1], out var parsedPulseWidthUs))
+        {
+            return false;
+        }
+
+        frequency = Math.Clamp(parsedFrequency, 1, 1000);
+        pulseWidthUs = Math.Clamp(parsedPulseWidthUs, 5, 155);
+        return true;
+    }
+
+    private static bool IsHex(string input)
+    {
+        foreach (var c in input)
+        {
+            if (!Uri.IsHexDigit(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int ConvertUiStrengthToV2Raw(int uiStrength)
+    {
+        var safeUi = Math.Clamp(uiStrength, 0, MaxUiStrength);
+        return (int)Math.Round(safeUi / (double)MaxUiStrength * MaxV2RawStrength);
+    }
+
+    private static int ConvertV2RawToUiStrength(int rawStrength)
+    {
+        var safeRaw = Math.Clamp(rawStrength, 0, MaxV2RawStrength);
+        return (int)Math.Round(safeRaw / (double)MaxV2RawStrength * MaxUiStrength);
     }
 
     #endregion
@@ -520,10 +761,10 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     private Guid GetWriteCharacteristicUuid() => Guid.Parse("0000150A-0000-1000-8000-00805F9B34FB");
     private Guid GetNotifyCharacteristicUuid() => Guid.Parse("0000150B-0000-1000-8000-00805F9B34FB");
 
-    // V2 特征映射说明：协议里 A34/B34 与实际 A/B 通道是反向对应的。
+    // V2 鐗瑰緛鏄犲皠璇存槑锛氬崗璁噷 A34/B34 涓庡疄闄?A/B 閫氶亾鏄弽鍚戝搴旂殑銆?
     private Guid GetV2StrengthCharacteristicUuid() => Guid.Parse("955A1504-0FE2-F5AA-A094-84B8D4F3E8AD");
-    private Guid GetV2WaveformACharacteristicUuid() => Guid.Parse("955A1506-0FE2-F5AA-A094-84B8D4F3E8AD");  // A通道用 0x1506
-    private Guid GetV2WaveformBCharacteristicUuid() => Guid.Parse("955A1505-0FE2-F5AA-A094-84B8D4F3E8AD");  // B通道用 0x1505
+    private Guid GetV2WaveformACharacteristicUuid() => Guid.Parse("955A1506-0FE2-F5AA-A094-84B8D4F3E8AD");  // A閫氶亾鐢?0x1506
+    private Guid GetV2WaveformBCharacteristicUuid() => Guid.Parse("955A1505-0FE2-F5AA-A094-84B8D4F3E8AD");  // B閫氶亾鐢?0x1505
 
     #endregion
 
@@ -534,13 +775,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         if (state == BleConnectionState.Disconnected && Status == DeviceStatus.Connected)
         {
             UpdateStatus(DeviceStatus.Disconnected);
-            // 断线恢复交给传输层统一处理，避免双重重连互相打架。
-            Logger.Information("检测到蓝牙断开，等待传输层自动恢复: {Version}", Version);
+            // 鏂嚎鎭㈠浜ょ粰浼犺緭灞傜粺涓€澶勭悊锛岄伩鍏嶅弻閲嶉噸杩炰簰鐩告墦鏋躲€?
+            Logger.Information("妫€娴嬪埌钃濈墮鏂紑锛岀瓑寰呬紶杈撳眰鑷姩鎭㈠: {Version}", Version);
         }
     }
     
     /// <summary>
-    /// 订阅 V3 电量通知。
+    /// 璁㈤槄 V3 鐢甸噺閫氱煡銆?
     /// </summary>
     private async Task SubscribeBatteryAsync()
     {
@@ -548,27 +789,27 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         
         try
         {
-            // V3 电量服务：0x180A，特征：0x1500。
+            // V3 鐢甸噺鏈嶅姟锛?x180A锛岀壒寰侊細0x1500銆?
             await _transport.SubscribeAsync(BatteryServiceUuid, BatteryCharacteristicUuid);
-            Logger.Debug("已订阅 V3 电量通知");
+            Logger.Debug("宸茶闃?V3 鐢甸噺閫氱煡");
             
-            // 连上后先读一次，避免 UI 初值滞后。
+            // 杩炰笂鍚庡厛璇讳竴娆★紝閬垮厤 UI 鍒濆€兼粸鍚庛€?
             var batteryData = await _transport.ReadAsync(BatteryServiceUuid, BatteryCharacteristicUuid);
             if (batteryData.Length > 0)
             {
                 _batteryLevel = batteryData[0];
                 BatteryChanged?.Invoke(this, _batteryLevel);
-                Logger.Information("V3 电量: {Battery}%", _batteryLevel);
+                Logger.Information("V3 鐢甸噺: {Battery}%", _batteryLevel);
             }
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "订阅 V3 电量通知失败");
+            Logger.Warning(ex, "璁㈤槄 V3 鐢甸噺閫氱煡澶辫触");
         }
     }
     
     /// <summary>
-    /// 订阅 V2 电量通知。
+    /// 璁㈤槄 V2 鐢甸噺閫氱煡銆?
     /// </summary>
     private async Task SubscribeV2BatteryAsync()
     {
@@ -576,38 +817,38 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         
         try
         {
-            // V2 电量服务：955A180A，特征：955A1500（读/通知）。
-            // 先订阅通知，避免首次变化丢失。
+            // V2 鐢甸噺鏈嶅姟锛?55A180A锛岀壒寰侊細955A1500锛堣/閫氱煡锛夈€?
+            // 鍏堣闃呴€氱煡锛岄伩鍏嶉娆″彉鍖栦涪澶便€?
             await _transport.SubscribeAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
-            Logger.Debug("已订阅 V2 电量通知");
+            Logger.Debug("宸茶闃?V2 鐢甸噺閫氱煡");
             
-            // 连接后立即读一次电量。
+            // 杩炴帴鍚庣珛鍗宠涓€娆＄數閲忋€?
             var batteryData = await _transport.ReadAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
             if (batteryData.Length > 0)
             {
                 _batteryLevel = batteryData[0];
                 BatteryChanged?.Invoke(this, _batteryLevel);
-                Logger.Information("V2 电量: {Battery}%", _batteryLevel);
+                Logger.Information("V2 鐢甸噺: {Battery}%", _batteryLevel);
             }
         }
         catch (Exception ex)
         {
-            Logger.Debug(ex, "订阅/读取 V2 电量失败（可能不支持）");
+            Logger.Debug(ex, "订阅/读取 V2 电量失败（设备可能不支持）");
         }
     }
     
-    // V2 电量服务 UUID
+    // V2 鐢甸噺鏈嶅姟 UUID
     private static readonly Guid V2BatteryServiceUuid = Guid.Parse("955A180A-0FE2-F5AA-A094-84B8D4F3E8AD");
     private static readonly Guid V2BatteryCharacteristicUuid = Guid.Parse("955A1500-0FE2-F5AA-A094-84B8D4F3E8AD");
     
     /// <summary>
-    /// 启动电量轮询定时器。
+    /// 鍚姩鐢甸噺杞瀹氭椂鍣ㄣ€?
     /// </summary>
     private void StartBatteryPolling()
     {
         StopBatteryPolling();
         
-        // 每 60 秒兜底读一次电量。
+        // 姣?60 绉掑厹搴曡涓€娆＄數閲忋€?
         _batteryTimer = new Timer(async _ =>
         {
             if (Status != DeviceStatus.Connected || _transport == null) return;
@@ -616,7 +857,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             {
                 if (Version == DGLabVersion.V3)
                 {
-                    // V3: 直接读取电量特性
+                    // V3: 鐩存帴璇诲彇鐢甸噺鐗规€?
                     var batteryData = await _transport.ReadAsync(BatteryServiceUuid, BatteryCharacteristicUuid);
                     if (batteryData.Length > 0)
                     {
@@ -626,7 +867,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
                 }
                 else
                 {
-                    // V2: 读取电量特性 (服务0x180A, 特性0x1500)
+                    // V2: 璇诲彇鐢甸噺鐗规€?(鏈嶅姟0x180A, 鐗规€?x1500)
                     var batteryData = await _transport.ReadAsync(V2BatteryServiceUuid, V2BatteryCharacteristicUuid);
                     if (batteryData.Length > 0)
                     {
@@ -637,13 +878,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             }
             catch (Exception ex)
             {
-                Logger.Warning(ex, "电量轮询失败");
+                Logger.Warning(ex, "鐢甸噺杞澶辫触");
             }
         }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60));
     }
     
     /// <summary>
-    /// 停止电量轮询定时器
+    /// 鍋滄鐢甸噺杞瀹氭椂鍣?
     /// </summary>
     private void StopBatteryPolling()
     {
@@ -652,13 +893,13 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 启动重连定时器
+    /// 鍚姩閲嶈繛瀹氭椂鍣?
     /// </summary>
     private void StartReconnectTimer()
     {
         if (_reconnectAttempts >= MaxReconnectAttempts)
         {
-            Logger.Warning("已达到最大重连次数 ({Max})，停止重连", MaxReconnectAttempts);
+            Logger.Warning("已达到最大重连次数({Max})，停止重连", MaxReconnectAttempts);
             return;
         }
         
@@ -671,7 +912,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 停止重连定时器
+    /// 鍋滄閲嶈繛瀹氭椂鍣?
     /// </summary>
     private void StopReconnectTimer()
     {
@@ -680,7 +921,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     }
     
     /// <summary>
-    /// 尝试重连
+    /// 灏濊瘯閲嶈繛
     /// </summary>
     private async Task TryReconnectAsync()
     {
@@ -690,18 +931,18 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         }
         
         _reconnectAttempts++;
-        Logger.Information("尝试重连 DG-LAB {Version} (第 {Attempt}/{Max} 次)", 
+        Logger.Information("灏濊瘯閲嶈繛 DG-LAB {Version} (绗?{Attempt}/{Max} 娆?", 
             Version, _reconnectAttempts, MaxReconnectAttempts);
         
         try
         {
             await ConnectAsync(Config, CancellationToken.None);
-            Logger.Information("DG-LAB {Version} 重连成功", Version);
+            Logger.Information("DG-LAB {Version} 閲嶈繛鎴愬姛", Version);
             _reconnectAttempts = 0;
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "DG-LAB {Version} 重连失败", Version);
+            Logger.Warning(ex, "DG-LAB {Version} 閲嶈繛澶辫触", Version);
             
             if (_reconnectAttempts < MaxReconnectAttempts)
             {
@@ -732,7 +973,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "解析蓝牙响应失败");
+            Logger.Warning(ex, "瑙ｆ瀽钃濈墮鍝嶅簲澶辫触");
         }
     }
 
@@ -773,15 +1014,17 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
         {
             _batteryLevel = data[0];
             BatteryChanged?.Invoke(this, _batteryLevel);
-            Logger.Debug("V2 电量: {Battery}%", _batteryLevel);
+            Logger.Debug("V2 鐢甸噺: {Battery}%", _batteryLevel);
         }
         else if (data.Length == 3)
         {
-            // V2 响应数据是小端序
-            // 官方文档: 21-11bit(A通道) + 10-0bit(B通道)
+            // V2 鍝嶅簲鏁版嵁鏄皬绔簭
+            // 瀹樻柟鏂囨。: 21-11bit(A閫氶亾) + 10-0bit(B閫氶亾)
             int combined = data[0] | (data[1] << 8) | (data[2] << 16);
-            _strengthA = ((combined >> 11) & 0x7FF) / 7;
-            _strengthB = (combined & 0x7FF) / 7;
+            var rawA = (combined >> 11) & 0x7FF;
+            var rawB = combined & 0x7FF;
+            _strengthA = ConvertV2RawToUiStrength(rawA);
+            _strengthB = ConvertV2RawToUiStrength(rawB);
 
             StrengthChanged?.Invoke(this, new StrengthInfo
             {
@@ -791,7 +1034,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
                 LimitB = _limitB
             });
 
-            Logger.Debug("V2 强度响应: A={A}, B={B}", _strengthA, _strengthB);
+            Logger.Debug("V2 寮哄害鍝嶅簲: A={A}, B={B}", _strengthA, _strengthB);
         }
     }
 
@@ -799,13 +1042,59 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     #region Helpers
 
+    private int NormalizeStrengthValue(Channel channel, int value, StrengthMode mode)
+    {
+        var safeValue = Math.Clamp(value, 0, MaxUiStrength);
+
+        if (mode == StrengthMode.Set)
+        {
+            var channelLimit = channel switch
+            {
+                Channel.A => _limitA,
+                Channel.B => _limitB,
+                _ => Math.Min(_limitA, _limitB)
+            };
+
+            return Math.Clamp(safeValue, 0, Math.Max(0, channelLimit));
+        }
+
+        var current = channel switch
+        {
+            Channel.A => _strengthA,
+            Channel.B => _strengthB,
+            _ => Math.Min(_strengthA, _strengthB)
+        };
+
+        if (mode == StrengthMode.Increase)
+        {
+            var room = channel switch
+            {
+                Channel.A => Math.Max(0, _limitA - _strengthA),
+                Channel.B => Math.Max(0, _limitB - _strengthB),
+                _ => Math.Max(0, Math.Min(_limitA - _strengthA, _limitB - _strengthB))
+            };
+
+            return Math.Min(safeValue, room);
+        }
+
+        if (mode == StrengthMode.Decrease)
+        {
+            return Math.Min(safeValue, Math.Max(0, current));
+        }
+
+        return safeValue;
+    }
+
     private void StartWaveformTimer()
     {
         _waveformTimer?.Dispose();
         _waveformTimer = new Timer(async _ =>
         {
-            if (Status != DeviceStatus.Connected || _transport == null) return;
-            
+            if (Status != DeviceStatus.Connected || _transport == null)
+            {
+                return;
+            }
+
             try
             {
                 if (Version == DGLabVersion.V3)
@@ -815,39 +1104,43 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
                         return;
                     }
 
-                    // V3: 每 100ms 发送一次 B0 指令来维持波形
+                    if (_waveformSequenceA is { Count: > 0 })
+                    {
+                        _currentWaveformA = _waveformSequenceA[_waveformSequenceIndexA];
+                        _waveformSequenceIndexA = (_waveformSequenceIndexA + 1) % _waveformSequenceA.Count;
+                    }
+
+                    if (_waveformSequenceB is { Count: > 0 })
+                    {
+                        _currentWaveformB = _waveformSequenceB[_waveformSequenceIndexB];
+                        _waveformSequenceIndexB = (_waveformSequenceIndexB + 1) % _waveformSequenceB.Count;
+                    }
+
                     if (_currentWaveformA != null || _currentWaveformB != null)
                     {
-                        // 官方示例: 频率{0,0,0,0} + 强度{0,0,0,101} 使该通道放弃全部4组数据
-                        var invalidWaveform = new ChannelWaveform
-                        {
-                            Frequency = new[] { 0, 0, 0, 0 },
-                            Strength = new[] { 0, 0, 0, 101 }
-                        };
-                        
-                        var data = new B0CommandData
-                        {
-                            SequenceNo = 0,
-                            StrengthModeA = StrengthParsingMode.NoChange,
-                            StrengthModeB = StrengthParsingMode.NoChange,
-                            StrengthValueA = 0,
-                            StrengthValueB = 0,
-                            WaveformA = _currentWaveformA ?? invalidWaveform,
-                            WaveformB = _currentWaveformB ?? invalidWaveform
-                        };
-                        
-                        var command = _protocol.BuildB0Command(data);
+                        var command = BuildCurrentV3WaveformCommand();
                         await _transport.WriteWithoutResponseAsync(GetServiceUuid(), GetWriteCharacteristicUuid(), command);
                     }
                 }
                 else
                 {
-                    // V2: 每 100ms 发送波形数据来维持输出
-                    // 注意: V2 的 PWM_A34/B34 特性是 读/写 属性，需要使用 WriteAsync
+                    if (_v2WaveformSequenceA is { Count: > 0 })
+                    {
+                        _currentV2WaveformA = _v2WaveformSequenceA[_v2WaveformSequenceIndexA];
+                        _v2WaveformSequenceIndexA = (_v2WaveformSequenceIndexA + 1) % _v2WaveformSequenceA.Count;
+                    }
+
+                    if (_v2WaveformSequenceB is { Count: > 0 })
+                    {
+                        _currentV2WaveformB = _v2WaveformSequenceB[_v2WaveformSequenceIndexB];
+                        _v2WaveformSequenceIndexB = (_v2WaveformSequenceIndexB + 1) % _v2WaveformSequenceB.Count;
+                    }
+
                     if (_currentV2WaveformA != null)
                     {
                         await _transport.WriteAsync(GetServiceUuid(), GetV2WaveformACharacteristicUuid(), _currentV2WaveformA);
                     }
+
                     if (_currentV2WaveformB != null)
                     {
                         await _transport.WriteAsync(GetServiceUuid(), GetV2WaveformBCharacteristicUuid(), _currentV2WaveformB);
@@ -856,7 +1149,7 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
             }
             catch (Exception ex)
             {
-                Logger.Warning(ex, "波形定时发送失败");
+                Logger.Warning(ex, "娉㈠舰瀹氭椂鍙戦€佸け璐?");
             }
         }, null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
     }
@@ -879,17 +1172,17 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
     {
         if (_transport == null)
         {
-            throw new InvalidOperationException("蓝牙传输层未设置");
+            throw new InvalidOperationException("钃濈墮浼犺緭灞傛湭璁剧疆");
         }
 
         if (Version == DGLabVersion.V3)
         {
-            // V3: 0x150A 特性属性是 "写"，使用 WriteWithoutResponse
+            // V3: 0x150A 鐗规€у睘鎬ф槸 "鍐?锛屼娇鐢?WriteWithoutResponse
             await _transport.WriteWithoutResponseAsync(GetServiceUuid(), characteristicUuid, data);
         }
         else
         {
-            // V2: PWM_AB2/A34/B34 特性属性是 "读/写"，需要使用 WriteAsync (带响应)
+            // V2: PWM_AB2/A34/B34 鐗规€у睘鎬ф槸 "璇?鍐?锛岄渶瑕佷娇鐢?WriteAsync (甯﹀搷搴?
             await _transport.WriteAsync(GetServiceUuid(), characteristicUuid, data);
         }
         Logger.Debug("BLE Write [{Uuid}]: {Data}", characteristicUuid, DGLabBluetoothProtocol.ToHexString(data));
@@ -944,3 +1237,8 @@ public class DGLabBluetoothAdapter : IDevice, IDisposable
 
     #endregion
 }
+
+
+
+
+

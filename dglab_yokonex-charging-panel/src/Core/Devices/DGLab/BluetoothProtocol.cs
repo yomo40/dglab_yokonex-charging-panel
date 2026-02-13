@@ -18,7 +18,7 @@ public class DGLabBluetoothProtocol
     public const string BLE_BATTERY_CHARACTERISTIC = "00001500-0000-1000-8000-00805f9b34fb";
 
     // 蓝牙设备名称前缀
-    public const string DEVICE_NAME_PREFIX_V3 = "47L121000";  // 主机v3.0
+    public const string DEVICE_NAME_PREFIX_V3 = "47L121000";  // 脉冲主机 3.0
 
     private int _sequenceNo = 0;
 

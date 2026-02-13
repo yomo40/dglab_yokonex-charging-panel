@@ -15,7 +15,7 @@ public class DGLabV2Protocol
     public const string BLE_BATTERY_CHARACTERISTIC = "955a1500-0fe2-f5aa-a094-84b8d4f3e8ad";
     public const string BLE_PWM_SERVICE = "955a180b-0fe2-f5aa-a094-84b8d4f3e8ad";
     public const string BLE_PWM_AB2 = "955a1504-0fe2-f5aa-a094-84b8d4f3e8ad";  // AB两通道强度
-    // 注意: 官方协议中名称与实际控制通道相反
+    // 注意: 官方协议中名称与实际控制通道相反！
     // PWM_A34 (0x1505) 实际控制 B 通道，PWM_B34 (0x1506) 实际控制 A 通道
     public const string BLE_PWM_A34 = "955a1505-0fe2-f5aa-a094-84b8d4f3e8ad";  // 实际控制 B 通道波形
     public const string BLE_PWM_B34 = "955a1506-0fe2-f5aa-a094-84b8d4f3e8ad";  // 实际控制 A 通道波形

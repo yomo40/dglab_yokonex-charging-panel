@@ -8,7 +8,8 @@ using Serilog;
 namespace ChargingPanel.Core.Data;
 
 /// <summary>
-/// SQLite 数据库管理器
+/// SQLite 数据库管理器 - 优化版
+/// 使用连接池、预编译语句和批量操作提升性能
 /// </summary>
 public class Database : IDisposable
 {
@@ -65,7 +66,7 @@ public class Database : IDisposable
 
         // 先创建基础表结构
         InitializeBaseTables();
-        // 然后迁移旧表--添加缺失的列
+        // 然后迁移旧表（添加缺失的列）
         MigrateTables();
         // 最后创建索引和初始化数据
         InitializeIndexesAndData();
@@ -413,7 +414,7 @@ public class Database : IDisposable
     }
 
     /// <summary>
-    /// 创建基础表结构--不包含可能依赖新列的索引
+    /// 创建基础表结构（不包含可能依赖新列的索引）
     /// </summary>
     private void InitializeBaseTables()
     {

@@ -28,6 +28,7 @@ public partial class ControlPage : UserControl
     private const int YokonexMotorStrengthMax = 20;
     private const int YokonexInjectionStrengthMax = 100;
     private const int HeartbeatIntervalMinimumMs = 1000;
+    private const int StrengthDeltaMaxDefault = 30;
 
     private string? _selectedDeviceId;
     private bool _updatingSliders;
@@ -1402,6 +1403,11 @@ public partial class ControlPage : UserControl
             var yokonexEmsMax = GetIntSetting(settings, "device.defaults.yokonex.ems.maxStrength", YokonexEmsStrengthMax);
             var yokonexMotorMax = GetIntSetting(settings, "device.defaults.yokonex.motor.maxStrength", YokonexMotorStrengthMax);
             var yokonexInjectionMax = GetIntSetting(settings, "device.defaults.yokonex.enema.maxInjection", YokonexInjectionStrengthMax);
+            var stepDeltaMax = GetIntSetting(
+                settings,
+                "device.defaults.maxDeltaPerAction",
+                GetIntSetting(settings, "device.maxDeltaPerAction", StrengthDeltaMaxDefault));
+            stepDeltaMax = Math.Clamp(stepDeltaMax, 1, StrengthDeltaMaxDefault);
 
             _updatingDefaultSliders = true;
             DefaultDGLabLimitASlider.Value = ConvertAbsoluteToPercent(dglabLimitA, DGLabStrengthMax);
@@ -1409,6 +1415,7 @@ public partial class ControlPage : UserControl
             DefaultYokonexEmsMaxSlider.Value = ConvertAbsoluteToPercent(yokonexEmsMax, YokonexEmsStrengthMax);
             DefaultYokonexMotorMaxSlider.Value = ConvertAbsoluteToPercent(yokonexMotorMax, YokonexMotorStrengthMax);
             DefaultYokonexInjectionMaxSlider.Value = ConvertAbsoluteToPercent(yokonexInjectionMax, YokonexInjectionStrengthMax);
+            DefaultStepDeltaSlider.Value = stepDeltaMax;
             _updatingDefaultSliders = false;
 
             UpdateDefaultSliderText(DefaultDGLabLimitAValueText, DefaultDGLabLimitASlider.Value, DGLabStrengthMax);
@@ -1416,6 +1423,7 @@ public partial class ControlPage : UserControl
             UpdateDefaultSliderText(DefaultYokonexEmsMaxValueText, DefaultYokonexEmsMaxSlider.Value, YokonexEmsStrengthMax);
             UpdateDefaultSliderText(DefaultYokonexMotorMaxValueText, DefaultYokonexMotorMaxSlider.Value, YokonexMotorStrengthMax);
             UpdateDefaultSliderText(DefaultYokonexInjectionMaxValueText, DefaultYokonexInjectionMaxSlider.Value, YokonexInjectionStrengthMax);
+            UpdateStepDeltaSliderText(DefaultStepDeltaSlider.Value);
 
             AutoReconnectDefault.IsChecked = GetBoolSetting(settings, "device.autoReconnect", true);
             Database.Instance.SetSetting("device.heartbeatInterval", HeartbeatIntervalMinimumMs.ToString());
@@ -1475,6 +1483,12 @@ public partial class ControlPage : UserControl
         target.Text = $"{safePercent}%（{absolute}）";
     }
 
+    private void UpdateStepDeltaSliderText(double value)
+    {
+        var safeValue = Math.Clamp((int)Math.Round(value), 1, StrengthDeltaMaxDefault);
+        DefaultStepDeltaValueText.Text = safeValue.ToString();
+    }
+
     private void OnDefaultDGLabLimitASliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (_updatingDefaultSliders)
@@ -1525,6 +1539,16 @@ public partial class ControlPage : UserControl
         UpdateDefaultSliderText(DefaultYokonexInjectionMaxValueText, e.NewValue, YokonexInjectionStrengthMax);
     }
 
+    private void OnDefaultStepDeltaSliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_updatingDefaultSliders)
+        {
+            return;
+        }
+
+        UpdateStepDeltaSliderText(e.NewValue);
+    }
+
     public void SaveDeviceDefaults()
     {
         if (!AppServices.IsInitialized)
@@ -1537,6 +1561,7 @@ public partial class ControlPage : UserControl
         var yokonexEmsMax = ConvertPercentToAbsolute(DefaultYokonexEmsMaxSlider.Value, YokonexEmsStrengthMax);
         var yokonexMotorMax = ConvertPercentToAbsolute(DefaultYokonexMotorMaxSlider.Value, YokonexMotorStrengthMax);
         var yokonexInjectionMax = ConvertPercentToAbsolute(DefaultYokonexInjectionMaxSlider.Value, YokonexInjectionStrengthMax);
+        var maxDeltaPerAction = Math.Clamp((int)Math.Round(DefaultStepDeltaSlider.Value), 1, StrengthDeltaMaxDefault);
 
         Database.Instance.SetSetting("device.defaults.dglab.limitA", dglabLimitA.ToString());
         Database.Instance.SetSetting("device.defaults.dglab.limitB", dglabLimitB.ToString());
@@ -1545,6 +1570,7 @@ public partial class ControlPage : UserControl
         Database.Instance.SetSetting("device.defaults.yokonex.ems.maxStrength", yokonexEmsMax.ToString());
         Database.Instance.SetSetting("device.defaults.yokonex.motor.maxStrength", yokonexMotorMax.ToString());
         Database.Instance.SetSetting("device.defaults.yokonex.enema.maxInjection", yokonexInjectionMax.ToString());
+        Database.Instance.SetSetting("device.defaults.maxDeltaPerAction", maxDeltaPerAction.ToString());
 
         Database.Instance.SetSetting("device.autoReconnect", (AutoReconnectDefault.IsChecked ?? true).ToString().ToLowerInvariant());
         Database.Instance.SetSetting("device.heartbeatInterval", HeartbeatIntervalMinimumMs.ToString());
@@ -1552,6 +1578,7 @@ public partial class ControlPage : UserControl
         // 兼容旧逻辑：同步维护历史全局参数键
         Database.Instance.SetSetting("device.maxStrength", dglabLimitA.ToString());
         Database.Instance.SetSetting("device.maxWaveformQueue", DefaultDGLabQueue.Text ?? "500");
+        Database.Instance.SetSetting("device.maxDeltaPerAction", maxDeltaPerAction.ToString());
     }
 
     private void OnSaveDeviceDefaults(object? sender, RoutedEventArgs e)

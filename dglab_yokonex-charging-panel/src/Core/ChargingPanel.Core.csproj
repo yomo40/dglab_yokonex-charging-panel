@@ -8,7 +8,7 @@
     <LangVersion>12.0</LangVersion>
     <RootNamespace>ChargingPanel.Core</RootNamespace>
     <AssemblyName>ChargingPanel.Core</AssemblyName>
-    <Version>1.0.1-alpha</Version>
+    <Version>1.0.1</Version>
     <Authors>dglab_yokonex</Authors>
     <Description>郊狼&amp;役次元游戏适配面板 - 核心库</Description>
     

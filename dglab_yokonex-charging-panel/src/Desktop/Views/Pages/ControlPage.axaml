@@ -150,6 +150,21 @@
                         </Grid>
 
                         <Border Background="#172033" CornerRadius="10" Padding="14">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="单次变化强度上限" Foreground="White" />
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Slider x:Name="DefaultStepDeltaSlider" Minimum="1" Maximum="30" Value="30"
+                                            ValueChanged="OnDefaultStepDeltaSliderChanged" />
+                                    <TextBlock x:Name="DefaultStepDeltaValueText" Grid.Column="1"
+                                               Foreground="White" FontWeight="SemiBold" Margin="12,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock Text="用于限制每次增减操作的最大变化值。默认 30，可按个人偏好调小。"
+                                           Foreground="#8091A8" FontSize="11" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#172033" CornerRadius="10" Padding="14">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="自动重连" Foreground="White" />
