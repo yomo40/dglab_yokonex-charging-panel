@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ChargingPanel.Core.Bluetooth;
@@ -100,6 +101,26 @@ namespace ChargingPanel.Core.Devices.Yokonex
         /// 自定义模式编号
         /// </summary>
         public const byte CustomMode = 0x11;
+
+        /// <summary>
+        /// V2.0 通道控制模式：固定模式
+        /// </summary>
+        public const byte V2ChannelModeFixed = 0x01;
+
+        /// <summary>
+        /// V2.0 通道控制模式：实时模式（频率/脉宽）
+        /// </summary>
+        public const byte V2ChannelModeRealtime = 0x02;
+
+        /// <summary>
+        /// V2.0 通道控制模式：频率播放列表模式
+        /// </summary>
+        public const byte V2ChannelModeFrequencySequence = 0x03;
+
+        /// <summary>
+        /// V2.0 频率模式最大点数
+        /// </summary>
+        public const int V2FrequencySequenceMaxPoints = 100;
 
         /// <summary>
         /// V2.0 通道控制模式：固定模式
@@ -325,7 +346,17 @@ namespace ChargingPanel.Core.Devices.Yokonex
             else
             {
                 await SendV1ChannelCommandAsync(channel, strength, enabled, mode, frequency, pulseTime);
+            ApplyChannelStateUpdate(channel, strength, enabled, mode, frequency, pulseTime);
+
+            if (ProtocolGeneration == YokonexProtocolGeneration.EmsV2_0)
+            {
+                await SendV2ChannelCommandAsync(mode);
             }
+            else
+            {
+                await SendV1ChannelCommandAsync(channel, strength, enabled, mode, frequency, pulseTime);
+            }
+
 
             StrengthChanged?.Invoke(this, new StrengthInfo 
             { 

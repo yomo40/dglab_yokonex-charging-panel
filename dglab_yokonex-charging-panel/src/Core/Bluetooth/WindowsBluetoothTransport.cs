@@ -984,6 +984,8 @@ public class WindowsBluetoothTransport : IBluetoothTransport
             {
                 var pairTask = deviceInfo.Pairing.PairAsync(DevicePairingProtectionLevel.None).AsTask();
                 var pairResult = await pairTask.WaitAsync(TimeSpan.FromSeconds(4));
+                var pairTask = deviceInfo.Pairing.PairAsync(DevicePairingProtectionLevel.None).AsTask();
+                var pairResult = await pairTask.WaitAsync(TimeSpan.FromSeconds(4));
                 Logger.Information("系统蓝牙配对结果: {Status}", pairResult.Status);
             }
         }

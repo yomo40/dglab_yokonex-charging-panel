@@ -35,6 +35,8 @@ namespace ChargingPanel.Core.Devices.Yokonex
         { 
             0xF6, 0x38, 0xBC, 0x9C, 0xFA, 0x47, 0x74, 0x80,
             0xAB, 0x32, 0x42, 0xF6, 0xB0, 0x45, 0x57, 0xA1
+            0xF6, 0x38, 0xBC, 0x9C, 0xFA, 0x47, 0x74, 0x80,
+            0xAB, 0x32, 0x42, 0xF6, 0xB0, 0x45, 0x57, 0xA1
         };
         
         /// <summary>
@@ -54,12 +56,18 @@ namespace ChargingPanel.Core.Devices.Yokonex
         public const byte FrameTypeControl = 0xA0;
         public const byte FrameTypeQuery = FrameTypeControl;
         public const byte FrameTypeReport = 0xB0;
+        public const byte FrameTypeQuery = FrameTypeControl;
+        public const byte FrameTypeReport = 0xB0;
         
         // 命令字定义
         public const byte CmdPeristalticPump = 0x01;  // 蠕动泵控制
         public const byte CmdWaterPump = 0x02;        // 抽水泵控制
         public const byte CmdPause = 0x03;            // 暂停工作
         public const byte CmdQueryStatus = 0x04;      // 查询工作状态
+        public const byte CmdGetBattery = 0x05;       // 获取电量
+        public const byte CmdReportStatus = 0x01;     // 上报工作状态
+        public const byte CmdReportPressure = 0x02;   // 上报压力值
+        public const byte CmdReportBattery = 0x03;    // 上报电量
         public const byte CmdGetBattery = 0x05;       // 获取电量
         public const byte CmdReportStatus = 0x01;     // 上报工作状态
         public const byte CmdReportPressure = 0x02;   // 上报压力值
@@ -693,6 +701,13 @@ namespace ChargingPanel.Core.Devices.Yokonex
                 Console.WriteLine($"[YokonexEnema] 忽略非上报帧: type={frameType:X2}, cmd={cmd:X2}");
                 return;
             }
+            var (frameType, cmd, payloadOffset) = ExtractFrameCommand(plaintext);
+
+            if (frameType != YokonexEnemaProtocol.FrameTypeReport)
+            {
+                Console.WriteLine($"[YokonexEnema] 忽略非上报帧: type={frameType:X2}, cmd={cmd:X2}");
+                return;
+            }
 
             switch (cmd)
             {
@@ -724,6 +739,7 @@ namespace ChargingPanel.Core.Devices.Yokonex
 
                 default:
                     Console.WriteLine($"[YokonexEnema] 未知响应命令: type={frameType:X2}, cmd={cmd:X2}");
+                    Console.WriteLine($"[YokonexEnema] 未知响应命令: type={frameType:X2}, cmd={cmd:X2}");
                     break;
             }
         }
@@ -739,12 +755,14 @@ namespace ChargingPanel.Core.Devices.Yokonex
         }
 
         private static (byte frameType, byte cmd, int payloadOffset) ExtractFrameCommand(byte[] plaintext)
+        private static (byte frameType, byte cmd, int payloadOffset) ExtractFrameCommand(byte[] plaintext)
         {
             // 兼容帧格式：BF 0F {A0/B0/35} CMD ...
             if (plaintext.Length >= 4 &&
                 plaintext[0] == YokonexEnemaProtocol.FrameHeader0 &&
                 plaintext[1] == YokonexEnemaProtocol.FrameHeader1)
             {
+                return (plaintext[2], plaintext[3], 4);
                 return (plaintext[2], plaintext[3], 4);
             }
 

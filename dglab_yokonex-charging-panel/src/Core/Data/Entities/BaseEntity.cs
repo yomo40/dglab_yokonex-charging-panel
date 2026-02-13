@@ -1,10 +1,15 @@
 namespace ChargingPanel.Core.Data.Entities;
 
 /// <summary>
+/// <summary>
 /// 实体基类
+/// </summary>
 /// </summary>
 public abstract class BaseEntity
 {
+    /// <summary>
+    /// 唯一标识符
+    /// </summary>
     /// <summary>
     /// 唯一标识符
     /// </summary>
@@ -23,6 +28,9 @@ public abstract class BaseEntity
     /// <summary>
     /// 生成新ID
     /// </summary>
+    /// <summary>
+    /// 生成新ID
+    /// </summary>
     protected static string GenerateId(string prefix = "")
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -34,7 +42,9 @@ public abstract class BaseEntity
 }
 
 /// <summary>
+/// <summary>
 /// 设备实体
+/// </summary>
 /// </summary>
 public class DeviceEntity : BaseEntity
 {
@@ -60,7 +70,9 @@ public class DeviceEntity : BaseEntity
 }
 
 /// <summary>
+/// <summary>
 /// 设备类型
+/// </summary>
 /// </summary>
 public enum DeviceType
 {
@@ -70,10 +82,15 @@ public enum DeviceType
 }
 
 /// <summary>
+/// <summary>
 /// 事件实体
+/// </summary>
 /// </summary>
 public class EventEntity : BaseEntity
 {
+    /// <summary>
+    /// 事件标识符（用于触发）
+    /// </summary>
     /// <summary>
     /// 事件标识符（用于触发）
     /// </summary>
@@ -85,8 +102,14 @@ public class EventEntity : BaseEntity
     /// <summary>
     /// 类别: system, game, custom
     /// </summary>
+    /// <summary>
+    /// 类别: system, game, custom
+    /// </summary>
     public EventCategory Category { get; set; } = EventCategory.Custom;
     
+    /// <summary>
+    /// 适用设备类型
+    /// </summary>
     /// <summary>
     /// 适用设备类型
     /// </summary>
@@ -95,8 +118,14 @@ public class EventEntity : BaseEntity
     /// <summary>
     /// 目标通道
     /// </summary>
+    /// <summary>
+    /// 目标通道
+    /// </summary>
     public ChannelTarget Channel { get; set; } = ChannelTarget.A;
     
+    /// <summary>
+    /// 动作类型
+    /// </summary>
     /// <summary>
     /// 动作类型
     /// </summary>
@@ -105,8 +134,14 @@ public class EventEntity : BaseEntity
     /// <summary>
     /// 强度值
     /// </summary>
+    /// <summary>
+    /// 强度值
+    /// </summary>
     public int Value { get; set; }
     
+    /// <summary>
+    /// 持续时间（毫秒）
+    /// </summary>
     /// <summary>
     /// 持续时间（毫秒）
     /// </summary>
@@ -115,8 +150,14 @@ public class EventEntity : BaseEntity
     /// <summary>
     /// 波形数据 (JSON)
     /// </summary>
+    /// <summary>
+    /// 波形数据 (JSON)
+    /// </summary>
     public string? WaveformData { get; set; }
     
+    /// <summary>
+    /// 是否启用
+    /// </summary>
     /// <summary>
     /// 是否启用
     /// </summary>
@@ -125,13 +166,22 @@ public class EventEntity : BaseEntity
     /// <summary>
     /// 优先级
     /// </summary>
+    /// <summary>
+    /// 优先级
+    /// </summary>
     public int Priority { get; set; } = 10;
     
     /// <summary>
     /// 冷却时间（毫秒）
     /// </summary>
+    /// <summary>
+    /// 冷却时间（毫秒）
+    /// </summary>
     public int Cooldown { get; set; }
     
+    /// <summary>
+    /// 最后触发时间
+    /// </summary>
     /// <summary>
     /// 最后触发时间
     /// </summary>
@@ -174,7 +224,9 @@ public enum EventAction
 }
 
 /// <summary>
+/// <summary>
 /// 脚本实体
+/// </summary>
 /// </summary>
 public class ScriptEntity : BaseEntity
 {
@@ -199,7 +251,9 @@ public class ScriptEntity : BaseEntity
 }
 
 /// <summary>
+/// <summary>
 /// 设置实体
+/// </summary>
 /// </summary>
 public class SettingEntity
 {
@@ -210,7 +264,9 @@ public class SettingEntity
 }
 
 /// <summary>
+/// <summary>
 /// 日志实体
+/// </summary>
 /// </summary>
 public class LogEntity
 {
@@ -238,7 +294,9 @@ public enum LogLevel
 }
 
 /// <summary>
+/// <summary>
 /// 房间实体（用于网络同步）
+/// </summary>
 /// </summary>
 public class RoomEntity : BaseEntity
 {
@@ -278,7 +336,9 @@ public enum RoomMode
 }
 
 /// <summary>
+/// <summary>
 /// 房间成员实体
+/// </summary>
 /// </summary>
 public class RoomMemberEntity : BaseEntity
 {
@@ -301,10 +361,15 @@ public enum MemberRole
     Observer
 }
 /// <summary>
+/// <summary>
 /// 波形预设实体 - 用于存储自定义波形队列
+/// </summary>
 /// </summary>
 public class WaveformPresetEntity : BaseEntity
 {
+    /// <summary>
+    /// 预设名称
+    /// </summary>
     /// <summary>
     /// 预设名称
     /// </summary>
@@ -313,8 +378,14 @@ public class WaveformPresetEntity : BaseEntity
     /// <summary>
     /// 预设描述
     /// </summary>
+    /// <summary>
+    /// 预设描述
+    /// </summary>
     public string? Description { get; set; }
     
+    /// <summary>
+    /// 图标 (emoji)
+    /// </summary>
     /// <summary>
     /// 图标 (emoji)
     /// </summary>
@@ -323,8 +394,14 @@ public class WaveformPresetEntity : BaseEntity
     /// <summary>
     /// 目标通道
     /// </summary>
+    /// <summary>
+    /// 目标通道
+    /// </summary>
     public ChannelTarget Channel { get; set; } = ChannelTarget.A;
     
+    /// <summary>
+    /// 波形数据 (HEX 格式，逗号分隔的多段波形)
+    /// </summary>
     /// <summary>
     /// 波形数据 (HEX 格式，逗号分隔的多段波形)
     /// </summary>
@@ -333,8 +410,14 @@ public class WaveformPresetEntity : BaseEntity
     /// <summary>
     /// 持续时间（毫秒）
     /// </summary>
+    /// <summary>
+    /// 持续时间（毫秒）
+    /// </summary>
     public int Duration { get; set; } = 1000;
     
+    /// <summary>
+    /// 强度百分比 (0-100)
+    /// </summary>
     /// <summary>
     /// 强度百分比 (0-100)
     /// </summary>
@@ -343,8 +426,14 @@ public class WaveformPresetEntity : BaseEntity
     /// <summary>
     /// 是否为内置预设
     /// </summary>
+    /// <summary>
+    /// 是否为内置预设
+    /// </summary>
     public bool IsBuiltIn { get; set; }
     
+    /// <summary>
+    /// 排序顺序
+    /// </summary>
     /// <summary>
     /// 排序顺序
     /// </summary>
