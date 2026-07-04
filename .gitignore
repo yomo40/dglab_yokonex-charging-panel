@@ -26,6 +26,7 @@ release/
 
 # Logs
 *.log
+*.sln
 
 # Build artifacts
 *.pdb

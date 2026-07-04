@@ -86,9 +86,7 @@ public class YokonexSensorService : IDisposable
                 };
                 
                 // 订阅事件
-                emsDevice.StepCountChanged += OnStepCountChanged;
-                emsDevice.AngleChanged += OnAngleChanged;
-                emsDevice.ChannelConnectionChanged += OnChannelConnectionChanged;
+                SubscribeEmsSensorEvents(emsDevice);
                 
                 _logger.Information("Subscribed to Yokonex device {DeviceId} sensor events", e.DeviceId);
             }
@@ -123,7 +121,11 @@ public class YokonexSensorService : IDisposable
             try
             {
                 var device = _deviceManager.GetDevice(e.DeviceId);
-                if (device is YokonexEnemaBluetoothAdapter enemaDevice)
+                if (device is IYokonexEmsDevice emsDevice)
+                {
+                    UnsubscribeEmsSensorEvents(emsDevice);
+                }
+                else if (device is YokonexEnemaBluetoothAdapter enemaDevice)
                 {
                     enemaDevice.PressureChanged -= OnPressureChanged;
                     enemaDevice.EnemaStatusChanged -= OnEnemaStatusChanged;
@@ -141,6 +143,21 @@ public class YokonexSensorService : IDisposable
             }
             _deviceStates.Remove(e.DeviceId);
         }
+    }
+
+    private void SubscribeEmsSensorEvents(IYokonexEmsDevice emsDevice)
+    {
+        UnsubscribeEmsSensorEvents(emsDevice);
+        emsDevice.StepCountChanged += OnStepCountChanged;
+        emsDevice.AngleChanged += OnAngleChanged;
+        emsDevice.ChannelConnectionChanged += OnChannelConnectionChanged;
+    }
+
+    private void UnsubscribeEmsSensorEvents(IYokonexEmsDevice emsDevice)
+    {
+        emsDevice.StepCountChanged -= OnStepCountChanged;
+        emsDevice.AngleChanged -= OnAngleChanged;
+        emsDevice.ChannelConnectionChanged -= OnChannelConnectionChanged;
     }
     
     private void OnStepCountChanged(object? sender, int stepCount)
@@ -553,9 +570,7 @@ public class YokonexSensorService : IDisposable
                 var device = _deviceManager.GetDevice(deviceId);
                 if (device is IYokonexEmsDevice emsDevice)
                 {
-                    emsDevice.StepCountChanged -= OnStepCountChanged;
-                    emsDevice.AngleChanged -= OnAngleChanged;
-                    emsDevice.ChannelConnectionChanged -= OnChannelConnectionChanged;
+                    UnsubscribeEmsSensorEvents(emsDevice);
                 }
                 else if (device is YokonexEnemaBluetoothAdapter enemaDevice)
                 {

@@ -1,27 +1,31 @@
-# 郊狼&役次元游戏适配面板
+# 郊狼&役次元游戏适配器
 
-⚡ 一个基于 C# + Avalonia 的跨平台桌面应用，用于连接郊狼(DG-LAB)和役次元(Yokonex)设备，实现游戏血量识别与设备控制联动。⚡ 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+⚡ 一个基于 C# + Avalonia 的跨平台桌面应用，用于连接郊狼(DG-LAB)和役次元(Yokonex)设备，实现游戏血量识别与设备控制联动。⚡
+![Version](https://img.shields.io/badge/version-0.9.0-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-blue)
 
 ## 功能特性
 
 ### 设备适配
-- **郊狼 (DG-LAB)**: 通过 WebSocket 协议连接郊狼APP，支持扫码绑定
-- **役次元 (Yokonex)**: 通过 HTTP API 连接役次元设备
+
+- **郊狼 (DG-LAB)**: 通过 WebSocket 与蓝牙连接郊狼APP，支持扫码绑定
+- **役次元 (Yokonex)**: 通过 IM 协议连接役次元设备
 
 ### OCR 血量识别
+
 - 屏幕区域截图识别
 - 血条颜色分析
 - 护甲等级检测
 - 实时血量变化监测
 
 ### 多人房间系统
+
 - P2P 直连模式
 - 房间创建与加入
 - 用户权限管理
 
 ### 对战模式
+
 - 伤害同步：受伤 → 电击
 - 血量竞速：血量低者受惩罚
 - 互相控制：各自控制对方设备
@@ -29,31 +33,34 @@
 ## 使用说明
 
 ### 连接郊狼
+
 1. 点击"连接郊狼"按钮
 2. 应用会连接到郊狼 WebSocket 服务器
 3. 打开郊狼APP，扫描显示的二维码
 4. 绑定成功后即可控制设备
 
 ### 连接役次元
+
 1. 在役次元APP中获取 UID 和 Token
 2. 点击"连接役次元"按钮
 3. 输入 UID 和 Token
 4. 连接成功后即可控制设备
 
 ### OCR 识别
+
 1. 切换到 OCR 页面
 2. 设置识别区域（血量条位置）
 3. 选择识别模式
 4. 点击"开始识别"
 
 ### 多人对战
+
 1. 创建房间或加入房间
 2. 设置对战绑定
 3. 开始对战
 4. 游戏中受伤时会触发对手设备
 
-
-## 项目架构  用户关系模型
+## 关系模型
 
 ## 场景1: 远程控制
 
@@ -140,25 +147,27 @@ dglab_yokonex-charging-panel/
 ## 构建与运行
 
 ### 开发环境要求
+
 - .NET 8.0 SDK
-- Visual Studio 2022 或 VS Code
 
 ### 构建
+
 ```bash
 cd dglab_yokonex-charging-panel
 dotnet build
 ```
 
 ### 运行
+
 ```bash
 dotnet run --project src/Desktop
 ```
 
 ### 发布
+
 ```bash
 dotnet publish src/Desktop -c Release -r win-x64 --self-contained
 ```
-
 
 ## 致谢
 
