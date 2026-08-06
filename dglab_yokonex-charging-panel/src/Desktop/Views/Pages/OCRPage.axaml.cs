@@ -6,6 +6,7 @@ using ChargingPanel.Core.Data;
 using ChargingPanel.Core.OCR;
 using ChargingPanel.Desktop.Views;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -47,9 +48,9 @@ public partial class OCRPage : UserControl
         };
         
         // 绑定OCR事件
-        if (AppServices.IsInitialized)
+        if (ApplicationHost.Instance is not null)
         {
-            AppServices.Instance.OCRService.BloodChanged += OnBloodChanged;
+            ApplicationHost.TryGetService<OCRService>()!.BloodChanged += OnBloodChanged;
             LoadConfig();
             
             // 启动定时器定期更新识别次数
@@ -59,9 +60,9 @@ public partial class OCRPage : UserControl
             };
             _updateTimer.Tick += (s, e) =>
             {
-                if (AppServices.IsInitialized && AppServices.Instance.OCRService.IsRunning)
+                if (ApplicationHost.Instance is not null && ApplicationHost.TryGetService<OCRService>()!.IsRunning)
                 {
-                    RecognitionCount.Text = AppServices.Instance.OCRService.RecognitionCount.ToString();
+                    RecognitionCount.Text = ApplicationHost.TryGetService<OCRService>()!.RecognitionCount.ToString();
                 }
             };
             _updateTimer.Start();
@@ -315,7 +316,7 @@ public partial class OCRPage : UserControl
 
     private void LoadConfig()
     {
-        var config = AppServices.Instance.OCRService.Config;
+        var config = ApplicationHost.TryGetService<OCRService>()!.Config;
         
         // 血量配置
         AreaX.Text = config.Area.X.ToString();
@@ -406,9 +407,9 @@ public partial class OCRPage : UserControl
 
     private void SaveConfig()
     {
-        if (!AppServices.IsInitialized) return;
+        if (ApplicationHost.Instance is null) return;
         
-        var config = AppServices.Instance.OCRService.Config;
+        var config = ApplicationHost.TryGetService<OCRService>()!.Config;
         
         if (int.TryParse(AreaX.Text, out var x)) config.Area = config.Area with { X = x };
         if (int.TryParse(AreaY.Text, out var y)) config.Area = config.Area with { Y = y };
@@ -465,7 +466,7 @@ public partial class OCRPage : UserControl
         config.UseGPU = UseGPU.IsChecked ?? true;
         config.GPUDeviceId = GPUDevice.SelectedIndex;
         
-        AppServices.Instance.OCRService.UpdateConfig(config);
+        ApplicationHost.TryGetService<OCRService>()!.UpdateConfig(config);
     }
 
     private void OnBloodChanged(object? sender, BloodChangedEventArgs e)
@@ -473,9 +474,9 @@ public partial class OCRPage : UserControl
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             // 从 OCRService 获取识别次数
-            if (AppServices.IsInitialized)
+            if (ApplicationHost.Instance is not null)
             {
-                RecognitionCount.Text = AppServices.Instance.OCRService.RecognitionCount.ToString();
+                RecognitionCount.Text = ApplicationHost.TryGetService<OCRService>()!.RecognitionCount.ToString();
             }
             CurrentBlood.Text = e.CurrentBlood.ToString();
             
@@ -492,10 +493,10 @@ public partial class OCRPage : UserControl
 
     private void OnStartClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized) return;
+        if (ApplicationHost.Instance is null) return;
         
         SaveConfig();
-        AppServices.Instance.OCRService.Start();
+        ApplicationHost.TryGetService<OCRService>()!.Start();
         
         StatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#10B981"));
         StatusText.Text = "识别中...";
@@ -507,9 +508,9 @@ public partial class OCRPage : UserControl
 
     private void OnStopClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized) return;
+        if (ApplicationHost.Instance is null) return;
         
-        AppServices.Instance.OCRService.Stop();
+        ApplicationHost.TryGetService<OCRService>()!.Stop();
         
         StatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#8091A8"));
         StatusText.Text = "已停止";
@@ -575,9 +576,9 @@ public partial class OCRPage : UserControl
 
     private void OnRecalibrateClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized) return;
+        if (ApplicationHost.Instance is null) return;
         
-        AppServices.Instance.OCRService.Recalibrate();
+        ApplicationHost.TryGetService<OCRService>()!.Recalibrate();
         Logger.Information("OCR recalibrated");
     }
 
@@ -764,14 +765,14 @@ public partial class OCRPage : UserControl
     
     private async void OnTestRecognitionClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized) return;
+        if (ApplicationHost.Instance is null) return;
         
         try
         {
             SaveConfig();
             ShowStatus("正在测试识别...");
             
-            var result = await AppServices.Instance.OCRService.RecognizeOnceAsync();
+            var result = await ApplicationHost.TryGetService<OCRService>()!.RecognizeOnceAsync();
             if (result != null)
             {
                 CurrentBlood.Text = result.Blood.ToString();

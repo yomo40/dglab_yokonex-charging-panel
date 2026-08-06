@@ -1,13 +1,16 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Contracts.Identifiers;
 using ChargingPanel.Core;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
-using ChargingPanel.Core.Devices.Yokonex;
 using ChargingPanel.Core.Events;
 using ChargingPanel.Core.Protocols;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -18,8 +21,7 @@ namespace ChargingPanel.Desktop.Views.Pages;
 public partial class EventsPage : UserControl
 {
     private static readonly ILogger Logger = Log.ForContext<EventsPage>();
-    private readonly DeviceActionTranslatorRegistry _translatorRegistry = new();
-    
+
     public ObservableCollection<EventViewModel> Events { get; } = new();
     private EventViewModel? _selectedEvent;
 
@@ -28,7 +30,7 @@ public partial class EventsPage : UserControl
         InitializeComponent();
         EventList.ItemsSource = Events;
         
-        if (AppServices.IsInitialized)
+        if (ApplicationHost.Instance is not null)
         {
             LoadEvents();
         }
@@ -350,13 +352,6 @@ public partial class EventsPage : UserControl
                 ActionType.Items.Add(new ComboBoxItem { Content = "查询设备信息", Tag = "query_device_info" });
                 break;
 
-            case "Yokonex_SmartLock":
-                ActionType.Items.Add(new ComboBoxItem { Content = "上锁", Tag = "smart_lock" });
-                ActionType.Items.Add(new ComboBoxItem { Content = "解锁", Tag = "smart_unlock" });
-                ActionType.Items.Add(new ComboBoxItem { Content = "临时解锁", Tag = "smart_temp_unlock" });
-                ActionType.Items.Add(new ComboBoxItem { Content = "查询锁状态", Tag = "smart_query_state" });
-                break;
-                
             default: // All - 只显示通用动作
                 ActionType.Items.Add(new ComboBoxItem { Content = "设置强度", Tag = "set" });
                 ActionType.Items.Add(new ComboBoxItem { Content = "增加强度", Tag = "increase" });
@@ -410,7 +405,6 @@ public partial class EventsPage : UserControl
             "Yokonex_Estim" => "强度值 (1-276)",
             "Yokonex_Vibrator" or "Yokonex_Cup" => "力度 (0-20)",
             "Yokonex_Enema" => "持续时间 (秒)",
-            "Yokonex_SmartLock" => "临时解锁时长 (秒)",
             _ => "强度值"
         };
     }
@@ -740,34 +734,41 @@ public partial class EventsPage : UserControl
 
     private async void OnTestEventClick(object? sender, RoutedEventArgs e)
     {
-        if (_selectedEvent == null || !AppServices.IsInitialized) return;
-        
+        if (_selectedEvent == null || ApplicationHost.Instance is null) return;
+
         try
         {
             var deviceType = (TargetDeviceType?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "All";
             var actionType = (ActionType?.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "set";
-            var connectedDevices = AppServices.Instance.DeviceManager.GetConnectedDevices();
-            
-            // 根据目标设备类型过滤设备
-            var filteredDevices = deviceType == "All" 
-                ? connectedDevices 
-                : connectedDevices.Where(d => MatchesDeviceType(d, deviceType)).ToList();
-            
-            if (filteredDevices.Count == 0)
+
+            var query = ApplicationHost.TryGetService<IDeviceQueryService>();
+            var appService = ApplicationHost.TryGetService<IDeviceApplicationService>();
+            var mapper = ApplicationHost.TryGetService<DeviceActionMapperRegistry>();
+            if (query is null || appService is null || mapper is null)
             {
-                Logger.Warning("No connected devices matching type {DeviceType} for test", deviceType);
+                ShowStatus("设备命令管线未就绪，无法执行测试触发");
                 return;
             }
-            
-            var device = filteredDevices.First();
-            var deviceId = device.Id;
-            var channel = (ActionChannel.SelectedItem as ComboBoxItem)?.Tag?.ToString() switch
+
+            // v2 只暴露活动会话，绝不伪造连接。
+            var activeDevices = query.GetActiveDevices();
+            var filteredDevices = deviceType == "All"
+                ? activeDevices
+                : activeDevices
+                    .Where(device => DeviceViewClassifier.ResolveLegacyType(device) == deviceType)
+                    .ToArray();
+
+            if (filteredDevices.Count == 0)
             {
-                "A" => Channel.A,
-                "B" => Channel.B,
-                _ => Channel.AB
-            };
-            
+                Logger.Warning("No active devices matching type {DeviceType} for test", deviceType);
+                ShowStatus("没有匹配目标类型的活动设备");
+                return;
+            }
+
+            var target = filteredDevices[0];
+            var channelTag = (ActionChannel.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "AB";
+            var channel = ResolveChannel(channelTag);
+
             var strength = int.TryParse(ActionStrength.Text, out var s) ? s : 50;
             var duration = int.TryParse(ActionDuration.Text, out var d) ? d : 1000;
             var waveformData = "";
@@ -818,9 +819,8 @@ public partial class EventsPage : UserControl
                 duration = 0;
             }
 
-            var target = AppServices.Instance.DeviceManager.GetDevice(deviceId);
-            var channels = channel == Channel.AB
-                ? new[] { Channel.A, Channel.B }
+            var channels = channel == ResolveChannel("AB")
+                ? new[] { ResolveChannel("A"), ResolveChannel("B") }
                 : new[] { channel };
 
             var request = new DeviceActionRequest
@@ -834,14 +834,62 @@ public partial class EventsPage : UserControl
                 Channels = channels
             };
 
-            await _translatorRegistry.ExecuteAsync(target, request);
-            
-            Logger.Information("Event test triggered: action={Action}, strength={Strength}, channel={Channel}", 
-                actionType, strength, channel);
+            var envelopes = mapper.Map(
+                request,
+                target,
+                new CommandSource(CommandSourceKind.UserInterface, "desktop.test"),
+                appService.CurrentSafetyEpoch,
+                TimeProvider.System);
+            if (envelopes.Count == 0)
+            {
+                ShowStatus("该活动设备不支持该动作");
+                return;
+            }
+
+            foreach (var envelope in envelopes)
+            {
+                var result = await appService.DispatchAsync(envelope, System.Threading.CancellationToken.None);
+                if (result.Status is not DeviceCommandStatus.AcceptedByTransport and not DeviceCommandStatus.Executed)
+                {
+                    ShowStatus($"测试触发被拒绝: {result.Message ?? result.ReasonCode}");
+                    Logger.Warning("Event test rejected: {Reason}", result.ReasonCode);
+                    return;
+                }
+            }
+
+            ShowStatus("测试触发已执行");
+            Logger.Information("Event test triggered: action={Action}, strength={Strength}, channel={Channel}",
+                actionType, strength, channelTag);
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "Event test failed");
+            ShowStatus($"测试触发失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 把通道标签解析为 legacy 规则实体需要的 Channel 值。
+    /// 仅用于数据实体构造，不参与设备决策。
+    /// </summary>
+    private static Channel ResolveChannel(string value) => value switch
+    {
+        "B" => (Channel)2,
+        "AB" => (Channel)3,
+        _ => (Channel)1
+    };
+
+    private void ShowStatus(string message)
+    {
+        var parent = this.Parent;
+        while (parent != null && parent is not MainWindow)
+        {
+            parent = (parent as Control)?.Parent;
+        }
+
+        if (parent is MainWindow mainWindow)
+        {
+            mainWindow.ShowStatus(message);
         }
     }
 
@@ -860,20 +908,6 @@ public partial class EventsPage : UserControl
         return double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out value)
             ? value
             : null;
-    }
-     
-    private static bool MatchesDeviceType(DeviceInfo device, string targetType)
-    {
-        return targetType switch
-        {
-            "DGLab" => device.Type == DeviceType.DGLab,
-            "Yokonex_Estim" => device.Type == DeviceType.Yokonex && device.YokonexType == YokonexDeviceType.Estim,
-            "Yokonex_Enema" => device.Type == DeviceType.Yokonex && device.YokonexType == YokonexDeviceType.Enema,
-            "Yokonex_Vibrator" => device.Type == DeviceType.Yokonex && device.YokonexType == YokonexDeviceType.Vibrator,
-            "Yokonex_Cup" => device.Type == DeviceType.Yokonex && device.YokonexType == YokonexDeviceType.Cup,
-            "Yokonex_SmartLock" => device.Type == DeviceType.Yokonex && device.YokonexType == YokonexDeviceType.SmartLock,
-            _ => true
-        };
     }
 
     private static bool LooksLikeHexWaveform(string? raw)

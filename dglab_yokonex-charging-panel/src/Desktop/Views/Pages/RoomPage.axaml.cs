@@ -2,9 +2,12 @@
 using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Core.Application.Devices;
 using ChargingPanel.Core.Events;
 using ChargingPanel.Core.Network;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -1037,109 +1040,144 @@ public partial class RoomPage : UserControl
             return;
         }
 
-        if (Core.AppServices.IsInitialized)
+        if (ApplicationHost.Instance is not null)
         {
-            var deviceManager = Core.AppServices.Instance.DeviceManager;
-            var devices = deviceManager.GetAllDevices().Where(d => d.Status == Core.Devices.DeviceStatus.Connected).ToList();
-            var channel = e.Command.Channel switch
+            var query = ApplicationHost.TryGetService<IDeviceQueryService>();
+            var appService = ApplicationHost.TryGetService<IDeviceApplicationService>();
+            if (query is null || appService is null)
             {
-                "A" => Core.Devices.Channel.A,
-                "B" => Core.Devices.Channel.B,
-                _ => Core.Devices.Channel.AB
-            };
-
-            Core.Devices.DGLab.WaveformData? waveData = null;
-            if (e.Command.Action == "send_waveform" && !string.IsNullOrWhiteSpace(e.Command.WaveformData))
-            {
-                try
-                {
-                    waveData = System.Text.Json.JsonSerializer.Deserialize<Core.Devices.DGLab.WaveformData>(e.Command.WaveformData);
-                }
-                catch (Exception wex)
-                {
-                    Logger.Warning(wex, "Failed to parse waveform data");
-                }
+                ShowStatus("设备命令管线未就绪，忽略远控");
+                return;
             }
+
+            var devices = query.GetActiveDevices();
+            var source = new CommandSource(CommandSourceKind.Lan, e.SenderId);
 
             if (e.Command.Action == "emergency_stop")
             {
+                await appService.EmergencyStopAsync("房间远控急停", System.Threading.CancellationToken.None);
+                ShowStatus("已执行房间远控急停");
+                return;
+            }
+
+            var successCount = 0;
+            var failedCount = 0;
+            foreach (var device in devices)
+            {
                 try
                 {
-                    await deviceManager.EmergencyStopAllAsync();
+                    if (await ExecuteRemoteCommandAsync(appService, device, e.Command, source))
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        failedCount++;
+                    }
                 }
-                catch (Exception ex)
+                catch (Exception dex)
                 {
-                    Logger.Warning(ex, "Failed to execute emergency stop");
+                    failedCount++;
+                    Logger.Warning(dex,
+                        "Failed to execute remote command on device {DeviceId}: {Action}",
+                        device.InstanceId,
+                        e.Command.Action);
                 }
+            }
+
+            if (failedCount > 0)
+            {
+                ShowStatus($"远控执行完成：成功 {successCount} 台，失败 {failedCount} 台");
             }
             else
             {
-                var successCount = 0;
-                var failedCount = 0;
-
-                foreach (var device in devices)
-                {
-                    try
-                    {
-                        switch (e.Command.Action)
-                        {
-                            case "set_strength":
-                                await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 0, Core.Devices.StrengthMode.Set);
-                                successCount++;
-                                break;
-
-                            case "increase_strength":
-                                await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 1, Core.Devices.StrengthMode.Increase);
-                                successCount++;
-                                break;
-
-                            case "decrease_strength":
-                                await deviceManager.SetStrengthAsync(device.Id, channel, e.Command.Value ?? 1, Core.Devices.StrengthMode.Decrease);
-                                successCount++;
-                                break;
-
-                            case "send_waveform":
-                                if (waveData != null)
-                                {
-                                    await deviceManager.SendWaveformAsync(device.Id, channel, waveData);
-                                }
-                                successCount++;
-                                break;
-
-                            case "clear_queue":
-                                await deviceManager.ClearWaveformQueueAsync(device.Id, channel);
-                                successCount++;
-                                break;
-
-                            case "trigger_event":
-                                if (!string.IsNullOrEmpty(e.Command.WaveformData))
-                                {
-                                    var eventService = Core.AppServices.Instance.EventService;
-                                    await eventService.TriggerEventAsync(e.Command.WaveformData, device.Id);
-                                }
-                                successCount++;
-                                break;
-                        }
-                    }
-                    catch (Exception dex)
-                    {
-                        failedCount++;
-                        Logger.Warning(dex,
-                            "Failed to execute remote command on device {DeviceId}: {Action}",
-                            device.Id,
-                            e.Command.Action);
-                    }
-                }
-
-                if (failedCount > 0)
-                {
-                    ShowStatus($"远控执行完成：成功 {successCount} 台，失败 {failedCount} 台");
-                }
+                ShowStatus($"远控执行完成：成功 {successCount} 台");
             }
 
             var member = RoomService.Instance.Members.FirstOrDefault(m => m.Id == e.SenderId);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 ShowStatus($"收到 {member?.Nickname ?? e.SenderId} 的控制: {e.Command.Action} = {e.Command.Value}"));
+        }
+    }
+
+    /// <summary>
+    /// 把远控动作转为标准能力命令派发。设备不声明对应能力时如实拒绝，
+    /// 绝不伪造"已执行"。
+    /// </summary>
+    private static async Task<bool> ExecuteRemoteCommandAsync(
+        IDeviceApplicationService appService,
+        ActiveDeviceView device,
+        ControlCommand command,
+        CommandSource source)
+    {
+        switch (command.Action)
+        {
+            case "set_strength":
+            case "increase_strength":
+            case "decrease_strength":
+            {
+                var value = Math.Max(0, command.Value ?? 0);
+                var result = await appService.SetIntensityAsync(
+                    new SetIntensityRequest(device.InstanceId, "main", value, source),
+                    System.Threading.CancellationToken.None);
+                return result.Status is DeviceCommandStatus.AcceptedByTransport or DeviceCommandStatus.Executed;
+            }
+
+            case "send_waveform":
+            {
+                var capability = device.Capabilities.FirstOrDefault(item => item.Id.Value == "waveform.stream");
+                if (capability is null)
+                {
+                    return false;
+                }
+
+                using var payload = System.Text.Json.JsonDocument.Parse(
+                    $"{{\"action\":\"send\",\"waveform\":\"{System.Text.Json.JsonEncodedText.Encode(command.WaveformData ?? string.Empty)}\"}}");
+                var request = new CapabilityCommandRequest(
+                    device.InstanceId,
+                    capability.Id,
+                    "send",
+                    payload.RootElement.Clone(),
+                    source,
+                    capability.CommandPolicy.Delivery);
+                var sendResult = await appService.ExecuteCapabilityAsync(request, System.Threading.CancellationToken.None);
+                return sendResult.Status is DeviceCommandStatus.AcceptedByTransport or DeviceCommandStatus.Executed;
+            }
+
+            case "clear_queue":
+            {
+                var capability = device.Capabilities.FirstOrDefault(item => item.Id.Value == "waveform.clear");
+                if (capability is null)
+                {
+                    return false;
+                }
+
+                using var payload = System.Text.Json.JsonDocument.Parse("{}");
+                var request = new CapabilityCommandRequest(
+                    device.InstanceId,
+                    capability.Id,
+                    "clear",
+                    payload.RootElement.Clone(),
+                    source,
+                    capability.CommandPolicy.Delivery);
+                var clearResult = await appService.ExecuteCapabilityAsync(request, System.Threading.CancellationToken.None);
+                return clearResult.Status is DeviceCommandStatus.AcceptedByTransport or DeviceCommandStatus.Executed;
+            }
+
+            case "trigger_event":
+            {
+                if (string.IsNullOrEmpty(command.WaveformData) ||
+                    ApplicationHost.TryGetService<Core.Events.EventService>() is not { } eventService)
+                {
+                    return false;
+                }
+
+                await eventService.TriggerEventAsync(command.WaveformData, device.InstanceId.Value.ToString("D"));
+                return true;
+            }
+
+            default:
+                return false;
         }
     }
 
@@ -1427,7 +1465,7 @@ public partial class RoomPage : UserControl
 
     private async Task ExecuteDeathPunishmentAsync()
     {
-        if (!Core.AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             return;
         }
@@ -1438,21 +1476,30 @@ public partial class RoomPage : UserControl
             var duration = int.TryParse(PvpPunishDuration.Text, out var d) ? d : 3;
             var durationMs = Math.Clamp(duration * 1000, 300, 15000);
 
-            var deviceManager = Core.AppServices.Instance.DeviceManager;
-            var devices = deviceManager.GetAllDevices()
-                .Where(dev => dev.Status == Core.Devices.DeviceStatus.Connected)
-                .ToList();
+            var appService = ApplicationHost.TryGetService<IDeviceApplicationService>();
+            var query = ApplicationHost.TryGetService<IDeviceQueryService>();
+            if (appService is null || query is null)
+            {
+                return;
+            }
+
+            var devices = query.GetActiveDevices();
+            var source = new CommandSource(CommandSourceKind.Automation, "pvp.death");
 
             foreach (var device in devices)
             {
-                await deviceManager.SetStrengthAsync(device.Id, Core.Devices.Channel.AB, strength, Core.Devices.StrengthMode.Set);
+                await appService.SetIntensityAsync(
+                    new SetIntensityRequest(device.InstanceId, "main", strength, source),
+                    System.Threading.CancellationToken.None);
             }
 
             await Task.Delay(durationMs);
 
             foreach (var device in devices)
             {
-                await deviceManager.SetStrengthAsync(device.Id, Core.Devices.Channel.AB, 0, Core.Devices.StrengthMode.Set);
+                await appService.SetIntensityAsync(
+                    new SetIntensityRequest(device.InstanceId, "main", 0, source),
+                    System.Threading.CancellationToken.None);
             }
         }
         catch (Exception ex)
@@ -1463,28 +1510,37 @@ public partial class RoomPage : UserControl
 
     private async Task ApplyShortPvpPunishmentAsync(int deltaStrength, int durationMs)
     {
-        if (!Core.AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             return;
         }
 
         try
         {
-            var deviceManager = Core.AppServices.Instance.DeviceManager;
-            var devices = deviceManager.GetAllDevices()
-                .Where(dev => dev.Status == Core.Devices.DeviceStatus.Connected)
-                .ToList();
+            var appService = ApplicationHost.TryGetService<IDeviceApplicationService>();
+            var query = ApplicationHost.TryGetService<IDeviceQueryService>();
+            if (appService is null || query is null)
+            {
+                return;
+            }
+
+            var devices = query.GetActiveDevices();
+            var source = new CommandSource(CommandSourceKind.Automation, "pvp.short");
 
             foreach (var device in devices)
             {
-                await deviceManager.SetStrengthAsync(device.Id, Core.Devices.Channel.AB, deltaStrength, Core.Devices.StrengthMode.Increase);
+                await appService.SetIntensityAsync(
+                    new SetIntensityRequest(device.InstanceId, "main", Math.Max(0, deltaStrength), source),
+                    System.Threading.CancellationToken.None);
             }
 
             await Task.Delay(Math.Clamp(durationMs, 100, 5000));
 
             foreach (var device in devices)
             {
-                await deviceManager.SetStrengthAsync(device.Id, Core.Devices.Channel.AB, deltaStrength, Core.Devices.StrengthMode.Decrease);
+                await appService.SetIntensityAsync(
+                    new SetIntensityRequest(device.InstanceId, "main", 0, source),
+                    System.Threading.CancellationToken.None);
             }
         }
         catch (Exception ex)

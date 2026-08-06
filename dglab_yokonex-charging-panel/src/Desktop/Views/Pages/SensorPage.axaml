@@ -147,12 +147,6 @@
                                         </Border>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Row="1" Grid.Column="1" x:Name="ExternalVoltageData" Margin="8,8,0,0" IsVisible="False">
-                                        <TextBlock Text="外部电压" Foreground="#9AB0C8" FontSize="11"/>
-                                        <Border Background="#F59E0B" CornerRadius="8" Padding="12,6" Margin="0,6,0,0" HorizontalAlignment="Left">
-                                            <TextBlock x:Name="ExternalVoltageText" Text="0.00V" Foreground="White" FontSize="16" FontWeight="Bold"/>
-                                        </Border>
-                                    </StackPanel>
                                 </Grid>
                             </Grid>
                         </Border>

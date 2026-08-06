@@ -3,7 +3,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using ChargingPanel.Core.Data;
+using ChargingPanel.Desktop.Bootstrap;
 using ChargingPanel.Desktop.Views;
+using Serilog;
 using System;
 
 namespace ChargingPanel.Desktop;
@@ -58,6 +60,10 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// 只创建窗口。服务启动与关闭由 Program 在 Avalonia 同步上下文之外拥有，
+    /// 避免在 UI 线程上阻塞等待异步启动链而死锁。
+    /// </summary>
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

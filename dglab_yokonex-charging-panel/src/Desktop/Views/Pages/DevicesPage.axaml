@@ -1,12 +1,50 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ChargingPanel.Desktop.Views.Pages.DevicesPage">
-    
+
     <ScrollViewer>
         <StackPanel Spacing="20">
-            
-            <!-- 虚拟测试设备 -->
-            <Border Background="#1F2B3E" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+
+            <!-- 设备目录 -->
+            <Border Background="#1F2B3E" CornerRadius="16" Padding="0">
+                <StackPanel>
+                    <Border CornerRadius="16,16,0,0" Padding="24,20">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#172033" />
+                                <GradientStop Offset="1" Color="#1C2840" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Border Background="#0EA5E920" CornerRadius="12" Padding="12" Margin="0,0,16,0">
+                                <TextBlock Text="🗂" FontSize="20" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="设备目录" FontWeight="Bold" Foreground="White" FontSize="18" />
+                                <TextBlock Text="厂商中立的能力模型清单" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Content="刷新目录" Padding="12,8" CornerRadius="8"
+                                    Background="#0EA5E9" Foreground="White" Click="OnRefreshCatalogClick" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Margin="24">
+                        <ListBox x:Name="CatalogList" MinHeight="120" Background="#172033" BorderBrush="#2B3B55"
+                                 BorderThickness="1" CornerRadius="10">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Spacing="2" Margin="8,6">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="#E6EDF7" FontSize="14" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Id}" Foreground="#9AB0C8" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 设备发现 -->
+            <Border Background="#1F2B3E" CornerRadius="16" Padding="0">
                 <StackPanel>
                     <Border CornerRadius="16,16,0,0" Padding="24,20">
                         <Border.Background>
@@ -16,834 +54,40 @@
                             </LinearGradientBrush>
                         </Border.Background>
                         <Grid ColumnDefinitions="Auto,*">
-                            <Border Background="#0EA5E920" CornerRadius="12" Padding="12" Margin="0,0,16,0">
+                            <Border Background="#10B98120" CornerRadius="12" Padding="12" Margin="0,0,16,0">
+                                <TextBlock Text="📡" FontSize="20" />
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="虚拟测试设备" FontWeight="Bold" Foreground="White" FontSize="18" />
-                                <TextBlock Text="无需真实设备即可测试事件和脚本" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
+                                <TextBlock Text="设备发现" FontWeight="Bold" Foreground="White" FontSize="18" />
+                                <TextBlock Text="输入设备广播名称，经目录匹配后注册实例" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <StackPanel Margin="24">
-                        <Grid ColumnDefinitions="*,*">
-                            <Button Grid.Column="0" Padding="0" Height="80" Margin="0,0,8,0"
-                                    CornerRadius="12" Click="OnAddVirtualDGLabClick">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="#0EA5E9" />
-                                        <GradientStop Offset="1" Color="#0369A1" />
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                    <TextBlock Text="🐺" Foreground="White" FontSize="20" HorizontalAlignment="Center" />
-                                    <TextBlock Text="添加虚拟郊狼" Foreground="White" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                            <Button Grid.Column="1" Padding="0" Height="80" Margin="8,0,0,0"
-                                    CornerRadius="12" Click="OnAddVirtualYokonexClick">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="#F59E0B" />
-                                        <GradientStop Offset="1" Color="#D97706" />
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                    <TextBlock Text="⚡" Foreground="White" FontSize="20" HorizontalAlignment="Center" />
-                                    <TextBlock Text="添加虚拟役次元" Foreground="White" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
+                    <StackPanel Margin="24" Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox x:Name="DiscoveryNameInput" Watermark="例如 47L121000"
+                                     Background="#172033" Foreground="White" BorderBrush="#314764"
+                                     CornerRadius="10" Padding="14,12" FontSize="14" />
+                            <Button Grid.Column="1" Content="发现" Padding="16,8" CornerRadius="8"
+                                    Background="#10B981" Foreground="White" Click="OnDiscoverClick" />
                         </Grid>
+                        <ListBox x:Name="DiscoveryResultsPanel" MinHeight="80" Background="#172033"
+                                 BorderBrush="#2B3B55" BorderThickness="1" CornerRadius="10">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Spacing="2" Margin="8,6">
+                                        <TextBlock Text="{Binding Title}" Foreground="#E6EDF7" FontSize="14" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="#9AB0C8" FontSize="11" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
                 </StackPanel>
             </Border>
-            
-            <!-- 添加真实设备 -->
-            <Border Background="#1F2B3E" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
-                <StackPanel>
-                    <!-- 标题区域 - 渐变背景 -->
-                    <Border CornerRadius="16,16,0,0" Padding="24,20">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                <GradientStop Offset="0" Color="#172033" />
-                                <GradientStop Offset="1" Color="#1C2840" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Border Background="#10B98120" CornerRadius="12" Padding="12" Margin="0,0,16,0">
-                            </Border>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="添加真实设备" FontWeight="Bold" Foreground="White" FontSize="18" />
-                                <TextBlock Text="选择设备类型并配置连接参数" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
-                            </StackPanel>
-                            <!-- 快捷添加按钮 -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <Button Padding="12,8" CornerRadius="8" 
-                                        ToolTip.Tip="快速添加郊狼 (WebSocket)"
-                                        Click="OnQuickAddDGLabClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#0EA5E9" />
-                                            <GradientStop Offset="1" Color="#0369A1" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="郊狼" Foreground="White" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Padding="12,8" CornerRadius="8"
-                                        ToolTip.Tip="快速扫描役次元蓝牙设备"
-                                        Click="OnQuickAddYokonexClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#F59E0B" />
-                                            <GradientStop Offset="1" Color="#D97706" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="役次元" Foreground="White" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                    
-                    <StackPanel Margin="24">
-                        <!-- 设备类型选择 - 大图标卡片样式 -->
-                        <TextBlock Text="选择设备厂商" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" />
-                        <Grid ColumnDefinitions="*,*" Margin="0,0,0,20">
-                            <!-- DG-LAB 郊狼 -->
-                            <Button x:Name="TabDGLab" Grid.Column="0"
-                                    Padding="0" Height="100" Margin="0,0,8,0"
-                                    CornerRadius="14"
-                                    Click="OnTabDGLabClick">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="#172033" />
-                                        <GradientStop Offset="1" Color="#252538" />
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <Button.Styles>
-                                    <Style Selector="Button">
-                                        <Setter Property="BorderBrush" Value="#0EA5E9"/>
-                                        <Setter Property="BorderThickness" Value="2"/>
-                                    </Style>
-                                </Button.Styles>
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Grid.Column="0" Background="#0EA5E920" CornerRadius="12" Width="56" Height="56" Margin="16,0,0,0" ClipToBounds="True">
-                                        <Image Source="avares://郊狼役次元游戏适配面板/Assets/Icons/dglab.webp"
-                                               Width="52" Height="52"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,16,0">
-                                        <TextBlock Text="DG-LAB" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                        <TextBlock Text="郊狼脉冲主机" FontSize="11" Foreground="#9AB0C8" Margin="0,2,0,0" />
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-                            
-                            <!-- 役次元 -->
-                            <Button x:Name="TabYokonex" Grid.Column="1"
-                                    Padding="0" Height="100" Margin="8,0,0,0"
-                                    CornerRadius="14"
-                                    BorderBrush="#314764" BorderThickness="2"
-                                    Click="OnTabYokonexClick">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="#172033" />
-                                        <GradientStop Offset="1" Color="#252538" />
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Grid.Column="0" Background="#F59E0B20" CornerRadius="12" Width="56" Height="56" Margin="16,0,0,0" ClipToBounds="True">
-                                        <Image Source="avares://郊狼役次元游戏适配面板/Assets/Icons/ycy.jpeg"
-                                               Width="72" Height="72"
-                                               Stretch="UniformToFill"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,16,0">
-                                        <TextBlock Text="役次元" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                        <TextBlock Text="电击/跳蛋/灌肠/飞机杯" FontSize="11" Foreground="#9AB0C8" Margin="0,2,0,0" />
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-                        </Grid>
-                        
-                        <!-- DG-LAB 表单 -->
-                        <StackPanel x:Name="FormDGLab" IsVisible="True">
-                            <!-- 设备信息卡片 - 增强样式 -->
-                            <Border CornerRadius="12" Padding="20" Margin="0,0,0,24" BoxShadow="0 2 8 0 #100EA5E9">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                        <GradientStop Offset="0" Color="#172033" />
-                                        <GradientStop Offset="1" Color="#252538" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <Border.BorderBrush>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0" Color="#0EA5E9" />
-                                        <GradientStop Offset="1" Color="#0EA5E940" />
-                                    </LinearGradientBrush>
-                                </Border.BorderBrush>
-                                <Border.BorderThickness>2,0,0,0</Border.BorderThickness>
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Background="#0EA5E920" CornerRadius="10" Padding="12" Margin="0,0,16,0" Width="56" Height="56" ClipToBounds="True">
-                                        <Image Source="avares://郊狼役次元游戏适配面板/Assets/Icons/dglab.webp"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="DG-LAB 郊狼脉冲主机 3.0" Foreground="#0EA5E9" FontWeight="Bold" FontSize="15" />
-                                        <TextBlock Text="支持强度控制 (0-200)、波形发送 (HEX格式)、波形队列清空、APP反馈接收" 
-                                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="20" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 连接方式选择 - 横向卡片样式 -->
-                            <TextBlock Text="选择连接方式" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" />
-                            <Grid ColumnDefinitions="*,*" Margin="0,0,0,20">
-                                <Button x:Name="BtnDGLabWS" Grid.Column="0"
-                                        Padding="0" Height="90" Margin="0,0,8,0"
-                                        CornerRadius="14"
-                                        BorderBrush="#0EA5E9" BorderThickness="2"
-                                        Click="OnDGLabConnModeWSClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" CornerRadius="12" Width="48" Height="48" Margin="14,0,0,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0" Color="#0EA5E9" />
-                                                    <GradientStop Offset="1" Color="#0369A1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="🌐" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,14,0">
-                                            <TextBlock Text="WebSocket" FontSize="14" FontWeight="Bold" Foreground="White" />
-                                            <TextBlock Text="通过APP中转连接" FontSize="10" Foreground="#9AB0C8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                <Button x:Name="BtnDGLabBT" Grid.Column="1"
-                                        Padding="0" Height="90" Margin="8,0,0,0"
-                                        CornerRadius="14"
-                                        BorderBrush="#314764" BorderThickness="2"
-                                        Click="OnDGLabConnModeBTClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" CornerRadius="12" Width="48" Height="48" Margin="14,0,0,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0" Color="#0EA5E9" />
-                                                    <GradientStop Offset="1" Color="#0284C7" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="📶" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,14,0">
-                                            <TextBlock Text="蓝牙直连" FontSize="14" FontWeight="Bold" Foreground="White" />
-                                            <TextBlock Text="直接连接设备" FontSize="10" Foreground="#9AB0C8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                            </Grid>
-                            
-                            <!-- WebSocket 表单区域 -->
-                            <StackPanel x:Name="DGLabWSForm" IsVisible="True">
-                                <!-- 设备名称 -->
-                                <StackPanel Margin="0,0,0,20">
-                                    <TextBlock Text="设备名称" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                    <TextBox x:Name="DGLabDeviceName" Text="我的郊狼" 
-                                             Background="#172033" Foreground="White"
-                                             BorderBrush="#314764" CornerRadius="10" Padding="14,12" FontSize="14" />
-                                </StackPanel>
-                                
-                                <!-- 服务器选择 -->
-                                <StackPanel Margin="0,0,0,20">
-                                    <TextBlock Text="服务器" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                    <Grid ColumnDefinitions="*,*">
-                                        <Button x:Name="BtnOfficialServer" Grid.Column="0"
-                                                Background="#172033" Foreground="White"
-                                                Padding="0" Height="56" Margin="0,0,8,0"
-                                                CornerRadius="10"
-                                                BorderBrush="#10B981" BorderThickness="2"
-                                                Click="OnOfficialServerClick">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                                                <Border Background="#10B98120" CornerRadius="6" Padding="6">
-                                                </Border>
-                                                <TextBlock Text="官方服务器" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button x:Name="BtnCustomServer" Grid.Column="1"
-                                                Background="#172033" Foreground="#9AB0C8"
-                                                Padding="0" Height="56" Margin="8,0,0,0"
-                                                CornerRadius="10"
-                                                BorderBrush="#314764" BorderThickness="2"
-                                                Click="OnCustomServerClick">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                                                <Border Background="#8091A820" CornerRadius="6" Padding="6">
-                                                </Border>
-                                                <TextBlock Text="自定义服务器" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
-                                
-                                <!-- 自定义服务器地址 (默认隐藏) -->
-                                <StackPanel x:Name="CustomServerPanel" IsVisible="False" Margin="0,0,0,20">
-                                    <TextBlock Text="自定义 WebSocket 地址" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                    <TextBox x:Name="DGLabWsUrl" Text="" 
-                                             Watermark="ws://127.0.0.1:9000"
-                                             Background="#172033" Foreground="White"
-                                             BorderBrush="#314764" CornerRadius="10" Padding="14,12" FontSize="14" />
-                                    <Border Background="#F59E0B10" CornerRadius="8" Padding="12" Margin="0,8,0,0">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="留空则使用官方服务器 wss://ws.dungeon-lab.cn" 
-                                                       Foreground="#F59E0B" FontSize="12" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                                
-                                <!-- 连接步骤 - 增强样式 -->
-                                <Border Background="#172033" CornerRadius="12" Padding="20" Margin="0,0,0,20" BorderBrush="#1F2B3E" BorderThickness="1">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
-                                            <Border Background="#0EA5E920" CornerRadius="8" Padding="8">
-                                            </Border>
-                                            <TextBlock Text="连接步骤" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <StackPanel Spacing="12">
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#0EA5E9" CornerRadius="50" Width="24" Height="24">
-                                                    <TextBlock Text="1" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <TextBlock Text="点击下方按钮添加设备" Foreground="#E6EDF7" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#0EA5E9" CornerRadius="50" Width="24" Height="24">
-                                                    <TextBlock Text="2" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <TextBlock Text="在弹出窗口中用郊狼 APP 扫描二维码" Foreground="#E6EDF7" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#10B981" CornerRadius="50" Width="24" Height="24">
-                                                </Border>
-                                                <TextBlock Text="APP 绑定成功后即可控制设备" Foreground="#10B981" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                                
-                                <!-- 添加按钮 - 增强样式 -->
-                                <Button HorizontalAlignment="Stretch" Height="52" CornerRadius="12" FontWeight="Bold" FontSize="15"
-                                        Click="OnAddDGLabWSClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                            <GradientStop Offset="0" Color="#0EA5E9" />
-                                            <GradientStop Offset="1" Color="#22D3EE" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="连接郊狼 APP" Foreground="White" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                            
-                            <!-- 蓝牙扫描区域 -->
-                            <StackPanel x:Name="DGLabBTForm" IsVisible="False">
-                                <Border Background="#172033" CornerRadius="12" Padding="20">
-                                    <StackPanel Spacing="16">
-                                        <!-- DG-LAB 版本选择 - 优化排版 -->
-                                        <StackPanel Margin="0,0,0,8">
-                                            <TextBlock Text="选择设备版本" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" />
-                                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,0,0,4">
-                                                <Button x:Name="BtnDGLabV2" Grid.Column="0" Grid.Row="0"
-                                                        Padding="0" Height="80" Margin="0,0,8,8"
-                                                        CornerRadius="12"
-                                                        BorderBrush="#314764" BorderThickness="2"
-                                                        Click="OnDGLabVersionV2Click">
-                                                    <Button.Background>
-                                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                            <GradientStop Offset="0" Color="#172033" />
-                                                            <GradientStop Offset="1" Color="#252538" />
-                                                        </LinearGradientBrush>
-                                                    </Button.Background>
-                                                    <Grid ColumnDefinitions="Auto,*">
-                                                        <Border Grid.Column="0" Background="#8091A820" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                                            <TextBlock Text="V2 版本" FontSize="14" FontWeight="Bold" Foreground="#9AB0C8" />
-                                                            <TextBlock Text="D-LAB ESTIM01" FontSize="10" Foreground="#8091A8" Margin="0,2,0,0" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
-                                                <Button x:Name="BtnDGLabV3" Grid.Column="1" Grid.Row="0"
-                                                        Padding="0" Height="80" Margin="8,0,0,8"
-                                                        CornerRadius="12"
-                                                        BorderBrush="#0EA5E9" BorderThickness="2"
-                                                        Click="OnDGLabVersionV3Click">
-                                                    <Button.Background>
-                                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                            <GradientStop Offset="0" Color="#172033" />
-                                                            <GradientStop Offset="1" Color="#252538" />
-                                                        </LinearGradientBrush>
-                                                    </Button.Background>
-                                                    <Grid ColumnDefinitions="Auto,*">
-                                                        <Border Grid.Column="0" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                                            <Border.Background>
-                                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                                    <GradientStop Offset="0" Color="#0EA5E9" />
-                                                                    <GradientStop Offset="1" Color="#0369A1" />
-                                                                </LinearGradientBrush>
-                                                            </Border.Background>
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                                            <TextBlock Text="V3 版本" FontSize="14" FontWeight="Bold" Foreground="White" />
-                                                            <TextBlock Text="47L121000 (推荐)" FontSize="10" Foreground="#0EA5E9" Margin="0,2,0,0" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
-                                                <Button x:Name="BtnDGLabV3Sensor" Grid.Column="0" Grid.Row="1"
-                                                        IsVisible="False"
-                                                        Padding="0" Height="80" Margin="0,8,8,0"
-                                                        CornerRadius="12"
-                                                        BorderBrush="#314764" BorderThickness="2"
-                                                        Click="OnDGLabVersionV3SensorClick">
-                                                    <Button.Background>
-                                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                            <GradientStop Offset="0" Color="#172033" />
-                                                            <GradientStop Offset="1" Color="#252538" />
-                                                        </LinearGradientBrush>
-                                                    </Button.Background>
-                                                    <Grid ColumnDefinitions="Auto,*">
-                                                        <Border Grid.Column="0" Background="#10B98120" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                                            <TextBlock Text="47L120100" FontSize="13" FontWeight="Bold" Foreground="#9AB0C8" />
-                                                            <TextBlock Text="无线传感器（预留）" FontSize="10" Foreground="#10B981" Margin="0,2,0,0" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
-                                                <Button x:Name="BtnDGLabPawPrints" Grid.Column="1" Grid.Row="1"
-                                                        IsVisible="False"
-                                                        Padding="0" Height="80" Margin="8,8,0,0"
-                                                        CornerRadius="12"
-                                                        BorderBrush="#314764" BorderThickness="2"
-                                                        Click="OnDGLabVersionPawPrintsClick">
-                                                    <Button.Background>
-                                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                            <GradientStop Offset="0" Color="#172033" />
-                                                            <GradientStop Offset="1" Color="#252538" />
-                                                        </LinearGradientBrush>
-                                                    </Button.Background>
-                                                    <Grid ColumnDefinitions="Auto,*">
-                                                        <Border Grid.Column="0" Background="#F59E0B20" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                                        </Border>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                                            <TextBlock Text="爪印配件" FontSize="13" FontWeight="Bold" Foreground="#9AB0C8" />
-                                                            <TextBlock Text="外部电压传感（预留）" FontSize="10" Foreground="#F59E0B" Margin="0,2,0,0" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
-                                            </Grid>
-                                        </StackPanel>
-                                        
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <StackPanel>
-                                                <TextBlock Text="蓝牙设备扫描" Foreground="White" FontWeight="SemiBold" FontSize="14" />
-                                                <TextBlock x:Name="DGLabBTVersionHint" Text="扫描附近的 DG-LAB V3 设备 (47L121000)" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                                <Button x:Name="BtnDiagnoseDGLab" Content="诊断" 
-                                                        Background="#F59E0B" Foreground="White" 
-                                                        Padding="16,8" CornerRadius="8"
-                                                        Click="OnDiagnoseBluetoothClick" />
-                                                <Button x:Name="BtnScanDGLab" Content="扫描设备" 
-                                                        Background="#0EA5E9" Foreground="White" 
-                                                        Padding="16,8" CornerRadius="8"
-                                                        Click="OnScanDGLabBTClick" />
-                                            </StackPanel>
-                                        </Grid>
-                                        
-                                        <!-- 默认提示信息 -->
-                                        <Border Background="#1F2B3E" CornerRadius="8" Padding="16" MinHeight="100">
-                                            <StackPanel x:Name="DGLabBTDeviceList" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                                                <TextBlock Text="暂无支持的设备" 
-                                                           Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center" />
-                                                <TextBlock x:Name="DGLabBTScanHint" 
-                                                           Text="点击「扫描设备」按钮搜索附近的蓝牙设备" 
-                                                           Foreground="#9AB0C8" FontSize="12"
-                                                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
-                                            </StackPanel>
-                                        </Border>
-                                        
-                                        <!-- 提示卡片 -->
-                                        <Border Background="#F59E0B10" CornerRadius="8" Padding="12">
-                                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                                <TextBlock Text="请确保设备已开启并在蓝牙范围内。如果扫描不到设备，请点击诊断按钮检查蓝牙状态。" 
-                                                           Foreground="#F59E0B" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </StackPanel>
-                        
-                        <!-- 役次元表单 -->
-                        <StackPanel x:Name="FormYokonex" IsVisible="False">
-                            <!-- 设备类型选择 -->
-                            <TextBlock Text="选择设备类型" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,0,0,24">
-                                <!-- 电击器 -->
-                                <Button x:Name="BtnYokonexEstim" Grid.Column="0" Grid.Row="0"
-                                        Padding="0" Height="80" Margin="0,0,8,8"
-                                        CornerRadius="12"
-                                        BorderBrush="#F59E0B" BorderThickness="2"
-                                        Click="OnYokonexDeviceTypeClick" Tag="Estim">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0" Color="#F59E0B" />
-                                                    <GradientStop Offset="1" Color="#D97706" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                            <TextBlock Text="电击器" FontSize="14" FontWeight="Bold" Foreground="#F59E0B" />
-                                            <TextBlock Text="276级 · 16模式" FontSize="10" Foreground="#9AB0C8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                
-                                <!-- 灌肠器 -->
-                                <Button x:Name="BtnYokonexEnema" Grid.Column="1" Grid.Row="0"
-                                        Padding="0" Height="80" Margin="8,0,0,8"
-                                        CornerRadius="12"
-                                        BorderBrush="#314764" BorderThickness="2"
-                                        Click="OnYokonexDeviceTypeClick" Tag="Enema">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" Background="#10B98120" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                            <TextBlock Text="💧" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                            <TextBlock Text="灌肠器" FontSize="14" FontWeight="Bold" Foreground="#9AB0C8" />
-                                            <TextBlock Text="蠕动泵 · 抽水泵" FontSize="10" Foreground="#8091A8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                
-                                <!-- 跳蛋 -->
-                                <Button x:Name="BtnYokonexVibrator" Grid.Column="0" Grid.Row="1"
-                                        Padding="0" Height="80" Margin="0,8,8,0"
-                                        CornerRadius="12"
-                                        BorderBrush="#314764" BorderThickness="2"
-                                        Click="OnYokonexDeviceTypeClick" Tag="Vibrator">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" Background="#EC489920" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                            <TextBlock Text="📳" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                            <TextBlock Text="跳蛋" FontSize="14" FontWeight="Bold" Foreground="#9AB0C8" />
-                                            <TextBlock Text="多马达 · 20级" FontSize="10" Foreground="#8091A8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                
-                                <!-- 飞机杯 -->
-                                <Button x:Name="BtnYokonexCup" Grid.Column="1" Grid.Row="1"
-                                        Padding="0" Height="80" Margin="8,8,0,0"
-                                        CornerRadius="12"
-                                        BorderBrush="#314764" BorderThickness="2"
-                                        Click="OnYokonexDeviceTypeClick" Tag="Cup">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" Background="#0EA5E920" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                            <TextBlock Text="🌀" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                            <TextBlock Text="飞机杯" FontSize="14" FontWeight="Bold" Foreground="#9AB0C8" />
-                                            <TextBlock Text="多马达 · 20级" FontSize="10" Foreground="#8091A8" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                            </Grid>
-                            <Button x:Name="BtnYokonexSmartLock"
-                                    IsVisible="False"
-                                    Padding="0" Height="70" Margin="0,0,0,24"
-                                    CornerRadius="12"
-                                    BorderBrush="#314764" BorderThickness="2"
-                                    Click="OnYokonexDeviceTypeClick" Tag="SmartLock">
-                                <Button.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="#172033" />
-                                        <GradientStop Offset="1" Color="#252538" />
-                                    </LinearGradientBrush>
-                                </Button.Background>
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Grid.Column="0" Background="#64748B20" CornerRadius="10" Width="44" Height="44" Margin="12,0,0,0">
-                                        <TextBlock Text="🔒" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,12,0">
-                                        <TextBlock Text="智能锁（预留）" FontSize="14" FontWeight="Bold" Foreground="#9AB0C8" />
-                                        <TextBlock Text="未上市 · 接口占位可提前联调" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,0" />
-                                    </StackPanel>
-                                </Grid>
-                            </Button>
-                            
-                            <!-- 设备信息卡片 - 增强样式 -->
-                            <Border x:Name="YokonexDeviceInfoCard" CornerRadius="12" Padding="20" Margin="0,0,0,24" BoxShadow="0 2 8 0 #10F59E0B">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                        <GradientStop Offset="0" Color="#172033" />
-                                        <GradientStop Offset="1" Color="#252538" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <Border.BorderBrush>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0" Color="#F59E0B" />
-                                        <GradientStop Offset="1" Color="#F59E0B40" />
-                                    </LinearGradientBrush>
-                                </Border.BorderBrush>
-                                <Border.BorderThickness>2,0,0,0</Border.BorderThickness>
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Background="#F59E0B20" CornerRadius="10" Padding="12" Margin="0,0,16,0">
-                                        <TextBlock x:Name="YokonexDeviceIcon" Text="" FontSize="28" VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock x:Name="YokonexDeviceTitle" Text="役次元电击器" Foreground="#F59E0B" FontWeight="Bold" FontSize="15" />
-                                        <TextBlock x:Name="YokonexDeviceDesc" Text="支持双通道 EMS 控制 (276级强度)、16种固定模式、自定义模式、马达控制、计步器、角度传感器" 
-                                                   Foreground="#9AB0C8" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" LineHeight="20" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 连接方式选择 - 圆形图标卡片样式 -->
-                            <TextBlock Text="选择连接方式" Foreground="#E6EDF7" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,12" />
-                            <Grid ColumnDefinitions="*,*" Margin="0,0,0,24">
-                                <Button x:Name="BtnYokonexIM" Grid.Column="0"
-                                        Padding="0" Height="130" Margin="0,0,8,0"
-                                        CornerRadius="16"
-                                        BorderBrush="#314764" BorderThickness="2"
-                                        Click="OnYokonexConnModeIMClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                                        <Border CornerRadius="50" Width="56" Height="56" HorizontalAlignment="Center">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0" Color="#F59E0B" />
-                                                    <GradientStop Offset="1" Color="#D97706" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="IM" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <TextBlock Text="腾讯 IM 远程" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
-                                        <TextBlock Text="通过云端中转控制 (仅电击器)" FontSize="11" Foreground="#9AB0C8" HorizontalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                                <Button x:Name="BtnYokonexBT" Grid.Column="1"
-                                        Padding="0" Height="130" Margin="8,0,0,0"
-                                        CornerRadius="16"
-                                        BorderBrush="#F59E0B" BorderThickness="2"
-                                        Click="OnYokonexConnModeBTClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                            <GradientStop Offset="0" Color="#172033" />
-                                            <GradientStop Offset="1" Color="#252538" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                                        <Border CornerRadius="50" Width="56" Height="56" HorizontalAlignment="Center">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                                    <GradientStop Offset="0" Color="#10B981" />
-                                                    <GradientStop Offset="1" Color="#059669" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="BT" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <TextBlock Text="蓝牙直连" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
-                                        <TextBlock Text="支持所有设备类型" FontSize="11" Foreground="#10B981" HorizontalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                            
-                            <!-- IM 表单区域 -->
-                            <StackPanel x:Name="YokonexIMForm" IsVisible="False">
-                                <Grid ColumnDefinitions="*,*" Margin="0,0,0,16">
-                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                        <TextBlock Text="设备名称" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                        <TextBox x:Name="YokonexDeviceName" Text="我的役次元" 
-                                                 Background="#172033" Foreground="White"
-                                                 BorderBrush="#314764" CornerRadius="10" Padding="14,12" FontSize="14" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                        <TextBlock Text="连接码 (connect_code)" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                        <TextBox x:Name="YokonexConnectCode" Watermark="UID 空格 Token" 
-                                                 Background="#172033" Foreground="White"
-                                                 BorderBrush="#314764" CornerRadius="10" Padding="14,12" FontSize="14" />
-                                    </StackPanel>
-                                </Grid>
-                                
-                                <Grid ColumnDefinitions="*,*" Margin="0,0,0,20">
-                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                        <TextBlock Text="目标用户 ID" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                        <TextBox x:Name="YokonexTargetId" Watermark="设备端用户ID" 
-                                                 Background="#172033" Foreground="White"
-                                                 BorderBrush="#314764" CornerRadius="10" Padding="14,12" FontSize="14" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Margin="10,0,0,0" Background="#1F2B3E" CornerRadius="10" Padding="12">
-                                        <StackPanel VerticalAlignment="Center" Spacing="6">
-                                            <TextBlock Text="提示" Foreground="#F59E0B" FontWeight="SemiBold" FontSize="12" />
-                                            <TextBlock Text="目标用户留空时默认控制连接码中的 UID。"
-                                                       Foreground="#9AB0C8" FontSize="11" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                                
-                                <!-- 连接步骤 - 增强样式 -->
-                                <Border Background="#172033" CornerRadius="12" Padding="20" Margin="0,0,0,20" BorderBrush="#1F2B3E" BorderThickness="1">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,16">
-                                            <Border Background="#F59E0B20" CornerRadius="8" Padding="8">
-                                            </Border>
-                                            <TextBlock Text="连接步骤" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <StackPanel Spacing="12">
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#F59E0B" CornerRadius="50" Width="24" Height="24">
-                                                    <TextBlock Text="1" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <TextBlock Text="在役次元 APP 中创建游戏并获取配置" Foreground="#E6EDF7" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#F59E0B" CornerRadius="50" Width="24" Height="24">
-                                                    <TextBlock Text="2" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <TextBlock Text="填写连接码 connect_code（优先读取启动地址 GET 参数）" Foreground="#E6EDF7" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#F59E0B" CornerRadius="50" Width="24" Height="24">
-                                                    <TextBlock Text="3" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                                <TextBlock Text="填写目标用户 ID (设备端)" Foreground="#E6EDF7" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                                <Border Background="#10B981" CornerRadius="50" Width="24" Height="24">
-                                                </Border>
-                                                <TextBlock Text="添加设备后，使用事件ID发送指令" Foreground="#10B981" FontSize="13" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                                
-                                <!-- 添加按钮 - 增强样式 -->
-                                <Button HorizontalAlignment="Stretch" Height="52" CornerRadius="12" FontWeight="Bold" FontSize="15"
-                                        Click="OnAddYokonexIMClick">
-                                    <Button.Background>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                                            <GradientStop Offset="0" Color="#F59E0B" />
-                                            <GradientStop Offset="1" Color="#D97706" />
-                                        </LinearGradientBrush>
-                                    </Button.Background>
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="添加 IM 设备" Foreground="White" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
 
-                            <!-- 蓝牙扫描区域 -->
-                            <StackPanel x:Name="YokonexBTForm" IsVisible="True">
-                                <Border Background="#172033" CornerRadius="12" Padding="20">
-                                    <StackPanel Spacing="16">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <StackPanel>
-                                                <TextBlock Text="蓝牙设备扫描" Foreground="White" FontWeight="SemiBold" FontSize="14" />
-                                                <TextBlock x:Name="YokonexBTScanDesc" Text="扫描附近的役次元电击器设备 (服务 UUID: FF30)" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                                <Button Content="诊断" 
-                                                        Background="#F59E0B" Foreground="White" 
-                                                        Padding="16,8" CornerRadius="8"
-                                                        Click="OnDiagnoseBluetoothClick" />
-                                                <Button x:Name="BtnScanYokonex" Content="扫描设备" 
-                                                        Background="#10B981" Foreground="White" 
-                                                        Padding="16,8" CornerRadius="8"
-                                                        Click="OnScanYokonexBTClick" />
-                                            </StackPanel>
-                                        </Grid>
-                                        
-                                        <!-- 提示信息 -->
-                                        <Border Background="#F59E0B10" CornerRadius="8" Padding="12">
-                                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                                <TextBlock Text="请确保设备已开启并在蓝牙范围内。不同类型设备可同时连接（同类型只能连一个）。" 
-                                                           Foreground="#F59E0B" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Border>
-                                        
-                                        <!-- 扫描结果列表 -->
-                                        <Border Background="#1F2B3E" CornerRadius="8" Padding="16" MinHeight="100">
-                                            <StackPanel x:Name="YokonexBTDeviceList" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                                                <TextBlock Text="暂无支持的设备" 
-                                                           Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold"
-                                                           HorizontalAlignment="Center" />
-                                                <TextBlock x:Name="YokonexBTScanHint" Text="点击「扫描设备」按钮搜索附近的蓝牙设备" 
-                                                           Foreground="#9AB0C8" FontSize="12"
-                                                           HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-            
             <!-- 已添加设备 -->
-            <Border Background="#1F2B3E" CornerRadius="16" Padding="0" BoxShadow="0 4 12 0 #20000000">
+            <Border Background="#1F2B3E" CornerRadius="16" Padding="0">
                 <StackPanel>
                     <Border CornerRadius="16,16,0,0" Padding="24,20">
                         <Border.Background>
@@ -852,36 +96,36 @@
                                 <GradientStop Offset="1" Color="#1C2840" />
                             </LinearGradientBrush>
                         </Border.Background>
-                        <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Grid ColumnDefinitions="Auto,*">
                             <Border Background="#10B98120" CornerRadius="12" Padding="12" Margin="0,0,16,0">
+                                <TextBlock Text="📱" FontSize="20" />
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="已添加设备" FontWeight="Bold" Foreground="White" FontSize="18" />
-                                <TextBlock Text="管理已连接的设备" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
+                                <TextBlock Text="已注册的设备实例快照" Foreground="#9AB0C8" FontSize="12" Margin="0,4,0,0" />
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <StackPanel x:Name="DeviceListPanel" Margin="24" MinHeight="80">
-                        <Border Background="#172033" CornerRadius="12" Padding="24">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                                <TextBlock x:Name="NoDevicesHint" Text="暂无设备" 
-                                           Foreground="#9AB0C8" FontSize="14" FontWeight="SemiBold"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="请在上方添加虚拟设备或真实设备" 
-                                           Foreground="#8091A8" FontSize="12"
-                                           HorizontalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
+                    <StackPanel Margin="24" Spacing="12">
+                        <TextBlock x:Name="StatusText" Text="就绪" Foreground="#9AB0C8" FontSize="12" />
+                        <ListBox x:Name="DeviceListPanel" MinHeight="80" Background="#172033"
+                                 BorderBrush="#2B3B55" BorderThickness="1" CornerRadius="10">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Spacing="2" Margin="8,6">
+                                        <TextBlock Text="{Binding IdText}" Foreground="#E6EDF7" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding StatusText}" Foreground="#9AB0C8" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock x:Name="NoDevicesHint" Text="暂无设备" Foreground="#9AB0C8" FontSize="13"
+                                   HorizontalAlignment="Center" IsVisible="True" />
                     </StackPanel>
                 </StackPanel>
             </Border>
-            
+
         </StackPanel>
     </ScrollViewer>
-    
+
 </UserControl>
-
-
-
-
-

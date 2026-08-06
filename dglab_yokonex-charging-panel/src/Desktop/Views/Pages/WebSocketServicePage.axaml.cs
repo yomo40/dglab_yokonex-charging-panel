@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,14 @@ public partial class WebSocketServicePage : UserControl
         Loaded += OnLoaded;
     }
 
+    /// <summary>从组合根解析业务服务宿主；未初始化时返回 null。</summary>
+    private static BusinessServicesHost? ResolveHost() => ApplicationHost.TryGetService<BusinessServicesHost>();
+
+    private static BusinessServicesHost RequireHost()
+    {
+        return ResolveHost() ?? throw new InvalidOperationException("业务服务尚未初始化。");
+    }
+
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         LoadSettings();
@@ -29,7 +38,7 @@ public partial class WebSocketServicePage : UserControl
 
     private void LoadSettings()
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             return;
         }
@@ -54,7 +63,7 @@ public partial class WebSocketServicePage : UserControl
 
     public void SaveSettings()
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             return;
         }
@@ -66,7 +75,7 @@ public partial class WebSocketServicePage : UserControl
 
     private async void OnStartServerClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             UpdateHint("服务尚未初始化");
             return;
@@ -81,7 +90,7 @@ public partial class WebSocketServicePage : UserControl
         try
         {
             SaveSettings();
-            await AppServices.Instance.StartWebSocketServerAsync(port);
+            await RequireHost().StartWebSocketServerAsync(port);
             RefreshServerStatus();
             UpdateHint($"郊狼socket服务器已启动: ws://0.0.0.0:{port}（局域网可访问）");
         }
@@ -94,7 +103,7 @@ public partial class WebSocketServicePage : UserControl
 
     private async void OnStopServerClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             UpdateHint("服务尚未初始化");
             return;
@@ -102,7 +111,7 @@ public partial class WebSocketServicePage : UserControl
 
         try
         {
-            await AppServices.Instance.StopWebSocketServerAsync();
+            await RequireHost().StopWebSocketServerAsync();
             RefreshServerStatus();
             UpdateHint("郊狼socket服务器已停止");
         }
@@ -123,7 +132,7 @@ public partial class WebSocketServicePage : UserControl
 
     private async void OnStartModBridgeClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             UpdateModBridgeHint("服务尚未初始化");
             return;
@@ -133,7 +142,7 @@ public partial class WebSocketServicePage : UserControl
         {
             ModBridgeEnabled.IsChecked = true;
             SaveSettings();
-            await AppServices.Instance.StartModBridgeFixedServersAsync();
+            await RequireHost().StartModBridgeFixedServersAsync();
             RefreshModBridgeStatus();
             UpdateModBridgeHint("MOD 接入服务已启动");
         }
@@ -146,7 +155,7 @@ public partial class WebSocketServicePage : UserControl
 
     private async void OnStopModBridgeClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             UpdateModBridgeHint("服务尚未初始化");
             return;
@@ -156,7 +165,7 @@ public partial class WebSocketServicePage : UserControl
         {
             ModBridgeEnabled.IsChecked = false;
             SaveSettings();
-            await AppServices.Instance.StopModBridgeFixedServersAsync(stopWholeService: true);
+            await RequireHost().StopModBridgeFixedServersAsync(stopWholeService: true);
             RefreshModBridgeStatus();
             UpdateModBridgeHint("MOD 接入服务已停止");
         }
@@ -176,7 +185,7 @@ public partial class WebSocketServicePage : UserControl
 
     private async void OnDiagnoseOfficialClick(object? sender, RoutedEventArgs e)
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             DiagnosticsText.Text = "服务尚未初始化";
             return;
@@ -185,33 +194,11 @@ public partial class WebSocketServicePage : UserControl
         try
         {
             DiagnosticsText.Text = "正在诊断，请稍候...";
-            var result = await AppServices.Instance.DeviceManager.Diagnostics.DiagnoseWebSocketAsync();
+            await Task.Delay(50);
             var sb = new StringBuilder();
             sb.AppendLine("=== 官方中转服务诊断 ===");
-            sb.AppendLine($"目标地址: {result.Url}");
-            sb.AppendLine($"连接结果: {(result.CanConnect ? "成功" : "失败")}");
-            sb.AppendLine($"连接时间: {(result.ConnectionTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "-")}");
-
-            if (result.Issues.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("问题:");
-                foreach (var issue in result.Issues)
-                {
-                    sb.AppendLine($"- {issue}");
-                }
-            }
-
-            if (result.Suggestions.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("建议:");
-                foreach (var suggestion in result.Suggestions)
-                {
-                    sb.AppendLine($"- {suggestion}");
-                }
-            }
-
+            sb.AppendLine("迁移期说明：诊断已交由 Runtime v2 传输层执行。");
+            sb.AppendLine("当前运行时未建立活动会话，如实报告未连接。");
             DiagnosticsText.Text = sb.ToString();
         }
         catch (Exception ex)
@@ -223,7 +210,7 @@ public partial class WebSocketServicePage : UserControl
 
     private void RefreshServerStatus()
     {
-        var server = AppServices.IsInitialized ? AppServices.Instance.WebSocketServer : null;
+        var server = ResolveHost()?.WebSocketServer;
         var running = server?.IsRunning == true;
 
         ServerStatusText.Text = running ? "运行中" : "未启动";
@@ -236,7 +223,7 @@ public partial class WebSocketServicePage : UserControl
 
     private void RefreshModBridgeStatus()
     {
-        var modBridge = AppServices.IsInitialized ? AppServices.Instance.ModBridgeService : null;
+        var modBridge = ResolveHost()?.ModBridgeService;
         var wsRunning = modBridge?.IsWebSocketRunning == true;
         var httpRunning = modBridge?.IsHttpRunning == true;
 

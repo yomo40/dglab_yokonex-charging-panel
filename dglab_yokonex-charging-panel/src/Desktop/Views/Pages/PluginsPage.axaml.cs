@@ -2,7 +2,9 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
+using ChargingPanel.Desktop.ViewModels.Plugins;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -13,24 +15,32 @@ namespace ChargingPanel.Desktop.Views.Pages;
 public partial class PluginsPage : UserControl
 {
     private static readonly ILogger Logger = Log.ForContext<PluginsPage>();
-    
+
     public ObservableCollection<ScriptViewModel> Scripts { get; } = new();
     private ScriptViewModel? _selectedScript;
-    
+
+    private readonly DevicePluginManagerViewModel _pluginManager;
+
     public PluginsPage()
     {
         InitializeComponent();
         ScriptList.ItemsSource = Scripts;
-        
+
+        // 第三方设备插件管理（信任模型 C）
+        _pluginManager = new DevicePluginManagerViewModel();
+        ThirdPartyPluginPanel.DataContext = _pluginManager;
+        PluginList.ItemsSource = _pluginManager.Plugins;
+        _pluginManager.Refresh();
+
         // 设置默认脚本模板
         CodeEditor.Text = GetDefaultScriptTemplate();
-        
+
         // 与 EventsPage 一致：在构造函数中直接加载
-        if (AppServices.IsInitialized)
+        if (ApplicationHost.Instance is not null)
         {
             LoadScripts();
         }
-        
+
         Logger.Information("PluginsPage constructor completed");
     }
 
@@ -377,7 +387,7 @@ bridge.onEvent(function (payload) {
         {
             Database.Instance.DeleteScript(scriptId);
             LoadScripts();
-            
+
             if (_selectedScript?.Id == scriptId)
             {
                 _selectedScript = null;
@@ -387,9 +397,42 @@ bridge.onEvent(function (payload) {
                 ScriptVersion.Text = "";
                 CodeEditor.Text = GetDefaultScriptTemplate();
             }
-            
+
             Logger.Information("Script deleted: {ScriptId}", scriptId);
         }
+    }
+
+    // ---------- 第三方设备插件（信任模型 C） ----------
+
+    private void OnPluginsRefreshClick(object? sender, RoutedEventArgs e)
+    {
+        _pluginManager.Refresh();
+    }
+
+    private void OnPluginEnableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.DataContext is DevicePluginItemViewModel item)
+        {
+            _pluginManager.Enable(item);
+        }
+    }
+
+    private void OnPluginDisableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.DataContext is DevicePluginItemViewModel item)
+        {
+            _pluginManager.Disable(item);
+        }
+    }
+
+    private void OnPluginConfirmTrustClick(object? sender, RoutedEventArgs e)
+    {
+        _pluginManager.ConfirmTrust();
+    }
+
+    private void OnPluginCancelTrustClick(object? sender, RoutedEventArgs e)
+    {
+        _pluginManager.CancelTrust();
     }
 }
 

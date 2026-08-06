@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
+using ChargingPanel.Desktop.Bootstrap;
 using ChargingPanel.Desktop.Views.Pages;
 using Serilog;
 using System;
@@ -22,8 +23,7 @@ public partial class MainWindow : Window
     private Button? _activeNavButton;
     private readonly DispatcherTimer _deviceStatusDebounceTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private bool _pendingTopStatusRefresh;
-    private bool _shutdownCleanupStarted;
-    
+
     // 页面实例缓存
     private OverviewPage? _overviewPage;
     private DevicesPage? _devicesPage;
@@ -43,10 +43,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _deviceStatusDebounceTimer.Tick += OnDeviceStatusDebounceTick;
-        
-        // 初始化服务
-        _ = InitializeServicesAsync();
-        
+
+        // 服务启动由 DesktopApplicationLifecycle 在创建窗口之前完成；
+        // 窗口构造器不得 fire-and-forget 启动服务。
+        BindDeviceEvents();
+
         // 设置初始活动按钮
         _activeNavButton = NavOverview;
 
@@ -71,31 +72,13 @@ public partial class MainWindow : Window
         return $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
-    private async Task InitializeServicesAsync()
+    /// <summary>
+    /// 绑定设备事件。服务已由生命周期宿主启动完成，这里只做订阅。
+    /// legacy 未启用时（Runtime v2）没有 AppServices，跳过订阅而不报错。
+    /// </summary>
+    private void BindDeviceEvents()
     {
-        try
-        {
-            // 初始化 AppServices
-            AppServices.Initialize();
-            await AppServices.Instance.StartAsync();
-            
-            Logger.Information("App services initialized");
-            
-            // 绑定设备事件
-            AppServices.Instance.DeviceManager.DeviceStatusChanged += OnDeviceStatusChanged;
-
-            // 服务初始化后再应用一次皮肤，确保数据库配置生效。
-            ApplySkinPreferences();
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Failed to initialize services");
-            ShowStatus($"初始化失败: {ex.Message}");
-        }
-    }
-
-    private void OnDeviceStatusChanged(object? sender, Core.Devices.DeviceStatusChangedEventArgs e)
-    {
+        // 设备状态通过只读查询在切页/定时刷新时读取；不再持有跨页面事件订阅。
         RequestTopStatusRefresh();
     }
 
@@ -117,7 +100,7 @@ public partial class MainWindow : Window
     private void OnDeviceStatusDebounceTick(object? sender, EventArgs e)
     {
         _deviceStatusDebounceTimer.Stop();
-        if (!_pendingTopStatusRefresh || !AppServices.IsInitialized)
+        if (!_pendingTopStatusRefresh)
         {
             return;
         }
@@ -125,11 +108,12 @@ public partial class MainWindow : Window
         _pendingTopStatusRefresh = false;
         try
         {
-            var connectedCount = AppServices.Instance.DeviceManager.GetConnectedDevices().Count;
-            if (connectedCount > 0)
+            var activeCount = ApplicationHost.TryGetService<ChargingPanel.Core.Application.Devices.IDeviceQueryService>()
+                ?.GetActiveDevices().Count ?? 0;
+            if (activeCount > 0)
             {
                 TopStatusIndicator.Fill = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#10B981"));
-                TopStatusText.Text = $"已连接 {connectedCount} 个设备";
+                TopStatusText.Text = $"已连接 {activeCount} 个设备";
             }
             else
             {
@@ -283,14 +267,17 @@ public partial class MainWindow : Window
         {
             Logger.Warning("Emergency stop triggered!");
             ShowStatus("紧急停止!");
-            
-            if (AppServices.IsInitialized)
+
+            var appService = ApplicationHost.TryGetService<ChargingPanel.Core.Application.Devices.IDeviceApplicationService>();
+            if (appService is not null)
             {
-                // 停止所有设备
-                await AppServices.Instance.DeviceManager.EmergencyStopAllAsync();
-                
-                // 停止 OCR 服务
-                AppServices.Instance.OCRService.Stop();
+                // 通过应用服务急停，而不是直接触碰设备管理器。
+                await appService.EmergencyStopAsync("主窗口急停", System.Threading.CancellationToken.None);
+            }
+
+            if (ApplicationHost.Instance is not null)
+            {
+                ApplicationHost.TryGetService<ChargingPanel.Core.OCR.OCRService>()?.Stop();
             }
         }
         catch (Exception ex)
@@ -310,7 +297,6 @@ public partial class MainWindow : Window
                     _settingsPage?.SaveSettings();
                     break;
                 case "Control":
-                    _controlPage?.SaveDeviceDefaults();
                     break;
                 case "WebSocket":
                     _webSocketServicePage?.SaveSettings();
@@ -327,7 +313,6 @@ public partial class MainWindow : Window
                 default:
                     // 保存所有设置
                     _settingsPage?.SaveSettings();
-                    _controlPage?.SaveDeviceDefaults();
                     _webSocketServicePage?.SaveSettings();
                     _skinPage?.SaveAndApply();
                     _ocrPage?.SaveSettings();
@@ -351,62 +336,16 @@ public partial class MainWindow : Window
 
         // 不要在 UI 线程同步执行重清理，否则会卡住窗口关闭（表现为点击 X 无法退出）。
         _deviceStatusDebounceTimer.Stop();
-        if (AppServices.IsInitialized)
-        {
-            AppServices.Instance.DeviceManager.DeviceStatusChanged -= OnDeviceStatusChanged;
-        }
 
-        BeginBestEffortCleanup();
-    }
-
-    private void BeginBestEffortCleanup()
-    {
-        if (_shutdownCleanupStarted)
-        {
-            return;
-        }
-
-        _shutdownCleanupStarted = true;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                if (!AppServices.IsInitialized)
-                {
-                    return;
-                }
-
-                var stopTask = AppServices.Instance.StopAsync();
-                var completed = await Task.WhenAny(stopTask, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
-                if (completed != stopTask)
-                {
-                    Logger.Warning("Service stop timed out during window closing; shutdown continues.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning(ex, "Best-effort service stop failed during window closing");
-            }
-
-            try
-            {
-                if (AppServices.IsInitialized)
-                {
-                    AppServices.Instance.Dispose();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning(ex, "Best-effort dispose failed during window closing");
-            }
-        });
+        // 服务关闭由 DesktopApplicationLifecycle 统一 await，
+        // 窗口不再自行 Task.Run 停止并在超时后并发 Dispose。
     }
 
         public void ApplySkinPreferences()
     {
         try
         {
-            if (!AppServices.IsInitialized)
+            if (ApplicationHost.Instance is null)
             {
                 return;
             }

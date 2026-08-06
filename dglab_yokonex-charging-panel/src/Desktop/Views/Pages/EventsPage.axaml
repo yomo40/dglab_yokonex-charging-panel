@@ -183,7 +183,6 @@
                             <ComboBoxItem Content="役次元 - 灌肠器" Tag="Yokonex_Enema" />
                             <ComboBoxItem Content="役次元 - 跳蛋" Tag="Yokonex_Vibrator" />
                             <ComboBoxItem Content="役次元 - 飞机杯" Tag="Yokonex_Cup" />
-                            <ComboBoxItem Content="役次元 - 智能锁(占位)" Tag="Yokonex_SmartLock" IsVisible="False" />
                             <ComboBoxItem Content="所有设备" Tag="All" />
                         </ComboBox>
                     </StackPanel>

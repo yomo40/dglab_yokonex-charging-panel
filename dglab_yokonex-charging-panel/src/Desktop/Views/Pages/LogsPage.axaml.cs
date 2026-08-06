@@ -24,12 +24,6 @@ public partial class LogsPage : UserControl
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         LoadLogs();
-        
-        // 订阅设备事件以实时更新日志
-        if (AppServices.IsInitialized)
-        {
-            AppServices.Instance.DeviceManager.DeviceStatusChanged += OnDeviceStatusChanged;
-        }
     }
 
     private void LoadLogs()
@@ -184,35 +178,6 @@ public partial class LogsPage : UserControl
         {
             Logger.Warning(ex, "Failed to clear logs");
         }
-    }
-
-    private void OnDeviceStatusChanged(object? sender, Core.Devices.DeviceStatusChangedEventArgs e)
-    {
-        // 添加设备状态变化日志
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            var action = e.Status switch
-            {
-                Core.Devices.DeviceStatus.Connected => "设备已连接",
-                Core.Devices.DeviceStatus.Disconnected => "设备已断开",
-                Core.Devices.DeviceStatus.Connecting => "正在连接...",
-                Core.Devices.DeviceStatus.WaitingForBind => "等待APP绑定",
-                Core.Devices.DeviceStatus.Error => "连接错误",
-                _ => $"状态变化: {e.Status}"
-            };
-            
-            var newLog = new LogRecord
-            {
-                Timestamp = DateTime.Now,
-                DeviceId = e.DeviceId,
-                DeviceName = e.DeviceId,
-                Action = action,
-                Source = "系统"
-            };
-            
-            _allLogs.Insert(0, newLog);
-            RefreshLogList();
-        });
     }
 }
 

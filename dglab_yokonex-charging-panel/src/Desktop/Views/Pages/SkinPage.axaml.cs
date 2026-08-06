@@ -7,6 +7,7 @@ using ChargingPanel.Core;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Desktop.Views;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.IO;
 using System.Text.Json;
@@ -36,7 +37,7 @@ public partial class SkinPage : UserControl
 
     private void LoadFromSettings()
     {
-        if (!AppServices.IsInitialized)
+        if (ApplicationHost.Instance is null)
         {
             return;
         }

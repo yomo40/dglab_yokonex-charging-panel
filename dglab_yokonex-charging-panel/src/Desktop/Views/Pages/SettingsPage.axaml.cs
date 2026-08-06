@@ -6,6 +6,7 @@ using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Logging;
 using ChargingPanel.Desktop.Views;
 using Serilog;
+using ChargingPanel.Desktop.Bootstrap;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -22,8 +23,8 @@ public partial class SettingsPage : UserControl
     {
         InitializeComponent();
         SetVersionText();
-        
-        if (AppServices.IsInitialized)
+
+        if (ApplicationHost.Instance is not null)
         {
             LoadSettings();
         }
@@ -41,10 +42,10 @@ public partial class SettingsPage : UserControl
             _ => 0
         };
         MinimizeToTray.IsChecked = GetBoolSetting(settings, "ui.minimizeToTray", false);
-        
+
         // 绑定主题选择器变化事件，实现即时预览
         ThemeSelector.SelectionChanged += OnThemeSelectionChanged;
-        
+
         LogLevel.SelectedIndex = GetStringSetting(settings, "log.level", "Verbose") switch
         {
             "Verbose" => 0,
@@ -54,7 +55,7 @@ public partial class SettingsPage : UserControl
             "Error" => 4,
             _ => 0  // 默认 Verbose
         };
-        
+
         // 日志保留天数设置
         var retentionDays = GetStringSetting(settings, "log.retentionDays", "7");
         LogRetentionDays.SelectedIndex = retentionDays switch
@@ -64,15 +65,15 @@ public partial class SettingsPage : UserControl
             "30" => 2,
             _ => 0
         };
-        
+
         // 刷新日志信息
         RefreshLogInfo();
     }
 
     private bool GetBoolSetting(System.Collections.Generic.Dictionary<string, string> settings, string key, bool defaultValue)
     {
-        return settings.TryGetValue(key, out var value) 
-            ? value.Equals("true", StringComparison.OrdinalIgnoreCase) 
+        return settings.TryGetValue(key, out var value)
+            ? value.Equals("true", StringComparison.OrdinalIgnoreCase)
             : defaultValue;
     }
 
@@ -93,7 +94,7 @@ public partial class SettingsPage : UserControl
             2 => "system",
             _ => "dark"
         });
-        
+
         // 应用主题
         var theme = ThemeSelector.SelectedIndex switch
         {
@@ -103,9 +104,9 @@ public partial class SettingsPage : UserControl
             _ => "dark"
         };
         App.SetTheme(theme);
-        
+
         Database.Instance.SetSetting("ui.minimizeToTray", (MinimizeToTray.IsChecked ?? false).ToString().ToLower());
-        
+
         Database.Instance.SetSetting("log.level", LogLevel.SelectedIndex switch
         {
             0 => "Verbose",
@@ -115,11 +116,11 @@ public partial class SettingsPage : UserControl
             4 => "Error",
             _ => "Debug"
         });
-        
+
         // 保存日志保留天数
         var retentionDays = (LogRetentionDays.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "7";
         Database.Instance.SetSetting("log.retentionDays", retentionDays);
-        
+
         Logger.Information("Settings saved");
     }
 
@@ -127,7 +128,7 @@ public partial class SettingsPage : UserControl
     {
         SaveSettings();
     }
-    
+
     /// <summary>
     /// 主题选择变化时即时应用
     /// </summary>
@@ -149,12 +150,12 @@ public partial class SettingsPage : UserControl
         var logsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ChargingPanel", "data", "logs");
-        
+
         if (!Directory.Exists(logsPath))
         {
             Directory.CreateDirectory(logsPath);
         }
-        
+
         try
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -185,17 +186,17 @@ public partial class SettingsPage : UserControl
     {
         OpenUrl("https://github.com/yomo40/dglab_yokonex-charging-panel");
     }
-    
+
     private void OnGitHubLinkClick(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
         OpenUrl("https://github.com/yomo40/dglab_yokonex-charging-panel");
     }
-    
+
     private void OnIssuesClick(object? sender, RoutedEventArgs e)
     {
         OpenUrl("https://github.com/yomo40/dglab_yokonex-charging-panel/issues");
     }
-    
+
     private void OnDocsClick(object? sender, RoutedEventArgs e)
     {
         var parent = this.Parent;
@@ -212,7 +213,7 @@ public partial class SettingsPage : UserControl
 
         OpenUrl("https://github.com/yomo40/dglab_yokonex-charging-panel#readme");
     }
-    
+
     private void OpenUrl(string url)
     {
         try
@@ -235,7 +236,7 @@ public partial class SettingsPage : UserControl
             Logger.Error(ex, "Failed to open URL: {Url}", url);
         }
     }
-    
+
     /// <summary>
     /// 刷新日志信息
     /// </summary>
@@ -243,18 +244,18 @@ public partial class SettingsPage : UserControl
     {
         try
         {
-            if (!AppServices.IsInitialized) 
+            if (ApplicationHost.Instance is null)
             {
                 DatabaseLogInfo.Text = "服务未初始化";
                 FileLogInfo.Text = "";
                 return;
             }
-            
+
             // 检查 LogManager 是否已初始化
             try
             {
                 var stats = Core.Logging.LogManager.Instance.GetStatistics();
-                
+
                 DatabaseLogInfo.Text = $"数据库日志：{stats.DatabaseLogCount:N0} 条，约 {FormatSize(stats.DatabaseLogSizeKB)}";
                 FileLogInfo.Text = $"文件日志：{stats.FileLogCount} 个文件，共 {FormatSize(stats.FileLogTotalSizeKB)}";
             }
@@ -272,29 +273,29 @@ public partial class SettingsPage : UserControl
             FileLogInfo.Text = "";
         }
     }
-    
+
     private string FormatSize(long kb)
     {
         if (kb < 1024)
             return $"{kb} KB";
         return $"{kb / 1024.0:F2} MB";
     }
-    
+
     private void OnRefreshLogInfoClick(object? sender, RoutedEventArgs e)
     {
         RefreshLogInfo();
     }
-    
+
     private void OnClearDatabaseLogsClick(object? sender, RoutedEventArgs e)
     {
         try
         {
             var retentionDays = (LogRetentionDays.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "7";
             var days = int.TryParse(retentionDays, out var d) ? d : 7;
-            
+
             var deleted = Core.Logging.LogManager.Instance.ClearDatabaseLogs(days);
             RefreshLogInfo();
-            
+
             Logger.Information("Cleared {Count} database log entries, keeping {Days} days", deleted, days);
         }
         catch (Exception ex)
@@ -302,14 +303,14 @@ public partial class SettingsPage : UserControl
             Logger.Error(ex, "Failed to clear database logs");
         }
     }
-    
+
     private void OnClearAllDatabaseLogsClick(object? sender, RoutedEventArgs e)
     {
         try
         {
             var deleted = Core.Logging.LogManager.Instance.ClearAllDatabaseLogs();
             RefreshLogInfo();
-            
+
             Logger.Information("Cleared all {Count} database log entries", deleted);
         }
         catch (Exception ex)
@@ -317,7 +318,7 @@ public partial class SettingsPage : UserControl
             Logger.Error(ex, "Failed to clear all database logs");
         }
     }
-    
+
     private void OnManualCleanLogFilesClick(object? sender, RoutedEventArgs e)
     {
         // 打开日志文件夹，由用户手动清理
