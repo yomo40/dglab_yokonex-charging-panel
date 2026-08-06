@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Contracts\ChargingPanel.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Core\ChargingPanel.Core.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure.Windows\ChargingPanel.Infrastructure.Windows.csproj" />
+    <ProjectReference Include="..\..\src\Vendor.DGLab\ChargingPanel.Vendor.DGLab.csproj" />
+    <ProjectReference Include="..\..\src\Vendor.Yokonex\ChargingPanel.Vendor.Yokonex.csproj" />
+    <!-- Desktop 是唯一组合根，组合根测试必须直接断言其装配与生命周期。 -->
+    <ProjectReference Include="..\..\src\Desktop\ChargingPanel.Desktop.csproj" />
+    <!-- 第三方插件夹具：独立 classlib，只引用 Contracts，仅作为编译后 DLL 按路径加载。 -->
+    <ProjectReference Include="..\PluginFixtures\CompatibleDevicePlugin\CompatibleDevicePlugin.csproj" />
+    <ProjectReference Include="..\PluginFixtures\IncompatibleDevicePlugin\IncompatibleDevicePlugin.csproj" />
+    <ProjectReference Include="..\PluginFixtures\DuplicateModelDevicePlugin\DuplicateModelDevicePlugin.csproj" />
+    <ProjectReference Include="..\PluginFixtures\BundledContractsDevicePlugin\BundledContractsDevicePlugin.csproj" />
+    <ProjectReference Include="..\PluginFixtures\ThrowingDevicePlugin\ThrowingDevicePlugin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fixtures\Databases\device-schema-v1.db">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
