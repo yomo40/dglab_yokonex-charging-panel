@@ -27,6 +27,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 依赖注入：仅允许在唯一组合根 Desktop 中使用 -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+
     <!-- Avalonia UI -->
     <PackageReference Include="Avalonia" Version="11.3.7" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.7" />
@@ -48,7 +51,11 @@
 
   <ItemGroup>
     <!-- 引用核心库 -->
+    <ProjectReference Include="..\Contracts\ChargingPanel.Contracts.csproj" />
     <ProjectReference Include="..\Core\ChargingPanel.Core.csproj" />
+    <ProjectReference Include="..\Infrastructure.Windows\ChargingPanel.Infrastructure.Windows.csproj" />
+    <ProjectReference Include="..\Vendor.DGLab\ChargingPanel.Vendor.DGLab.csproj" />
+    <ProjectReference Include="..\Vendor.Yokonex\ChargingPanel.Vendor.Yokonex.csproj" />
   </ItemGroup>
 
   <ItemGroup>

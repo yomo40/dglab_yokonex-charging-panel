@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <RootNamespace>ChargingPanel.Vendor.DGLab</RootNamespace>
+    <AssemblyName>ChargingPanel.Vendor.DGLab</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\ChargingPanel.Contracts.csproj" />
+  </ItemGroup>
+</Project>

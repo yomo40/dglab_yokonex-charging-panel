@@ -19,6 +19,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Contracts\ChargingPanel.Contracts.csproj" />
+
     <!-- WebSocket 支持 -->
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
     
@@ -42,9 +44,6 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
-    
-    <!-- 依赖注入 -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     
     <!-- 事件总线 -->
     <PackageReference Include="System.Reactive" Version="6.0.1" />
