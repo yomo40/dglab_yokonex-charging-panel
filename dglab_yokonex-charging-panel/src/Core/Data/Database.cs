@@ -19,6 +19,7 @@ public class Database : IDisposable
     };
 
     private readonly SqliteConnection _connection;
+    private readonly string _databasePath;
     private readonly ILogger _logger = Log.ForContext<Database>();
     private static Database? _instance;
     private static readonly object _lock = new();
@@ -45,9 +46,10 @@ public class Database : IDisposable
 
     private Database(string dbPath)
     {
+        _databasePath = Path.GetFullPath(dbPath);
         var connectionString = new SqliteConnectionStringBuilder
         {
-            DataSource = dbPath,
+            DataSource = _databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared,
             Pooling = true
@@ -74,6 +76,11 @@ public class Database : IDisposable
         // 启动日志刷新定时器
         _logFlushTimer = new System.Threading.Timer(_ => FlushLogBuffer(), null, LogFlushIntervalMs, LogFlushIntervalMs);
     }
+
+    /// <summary>
+    /// 旧数据库兼容入口的实际路径，供组合根在启用新运行时前调用 Windows schema migrator。
+    /// </summary>
+    public string DatabasePath => _databasePath;
 
     /// <summary>
     /// 数据库迁移 - 处理旧表缺少新列的情况
@@ -624,8 +631,12 @@ public class Database : IDisposable
                 foreach (var rule in defaultEvents)
                 {
                     ExecuteNonQuery(@"
-                        INSERT INTO events (id, eventId, name, description, category, channel, action, value, duration, enabled, createdAt, updatedAt)
-                        VALUES (@id, @eventId, @name, @description, @category, @channel, @action, @value, @duration, 1, @now, @now)
+                        INSERT INTO events (
+                            id, eventId, name, description, category, channel, action, value, duration,
+                            triggerType, minChange, maxChange, enabled, createdAt, updatedAt)
+                        VALUES (
+                            @id, @eventId, @name, @description, @category, @channel, @action, @value, @duration,
+                            @triggerType, @minChange, @maxChange, 1, @now, @now)
                         ON CONFLICT(eventId) DO NOTHING
                     ",
                     ("@id", $"evt_{rule.EventId}"),
@@ -637,8 +648,13 @@ public class Database : IDisposable
                     ("@action", rule.Action),
                     ("@value", rule.Value),
                     ("@duration", rule.Duration),
+                    ("@triggerType", rule.TriggerType),
+                    ("@minChange", rule.MinChange),
+                    ("@maxChange", rule.MaxChange),
                     ("@now", now));
                 }
+
+                RepairLegacyDefaultEventTriggerProfiles(defaultEvents, now);
                 transaction.Commit();
                 _logger.Information("Ensured {Count} default system events", defaultEvents.Count);
             }
@@ -725,6 +741,55 @@ public class Database : IDisposable
                 ("@now", now));
             }
             _logger.Information("Initialized {Count} default waveform presets", defaultPresets.Length);
+        }
+    }
+
+    private void RepairLegacyDefaultEventTriggerProfiles(
+        IReadOnlyList<SystemEventDefinition> defaultEvents,
+        string updatedAt)
+    {
+        foreach (var rule in defaultEvents)
+        {
+            ExecuteNonQuery(@"
+                UPDATE events
+                SET triggerType = @triggerType,
+                    minChange = @minChange,
+                    maxChange = @maxChange,
+                    updatedAt = @updatedAt
+                WHERE id = @id
+                  AND eventId = @eventId
+                  AND category = 'system'
+                  AND name = @name
+                  AND description = @description
+                  AND channel = @channel
+                  AND action = @action
+                  AND value = @value
+                  AND duration = @duration
+                  AND waveformData IS NULL
+                  AND priority = 10
+                  AND targetDeviceType IS NULL
+                  AND conditionField IS NULL
+                  AND conditionOperator IS NULL
+                  AND conditionValue IS NULL
+                  AND conditionMaxValue IS NULL
+                  AND enabled = 1
+                  AND triggerType = 'hp-decrease'
+                  AND minChange = 10
+                  AND maxChange = 10
+                  AND createdAt = updatedAt
+            ",
+            ("@id", $"evt_{rule.EventId}"),
+            ("@eventId", rule.EventId),
+            ("@name", rule.Name),
+            ("@description", rule.Description),
+            ("@channel", rule.Channel),
+            ("@action", rule.Action),
+            ("@value", rule.Value),
+            ("@duration", rule.Duration),
+            ("@triggerType", rule.TriggerType),
+            ("@minChange", rule.MinChange),
+            ("@maxChange", rule.MaxChange),
+            ("@updatedAt", updatedAt));
         }
     }
 

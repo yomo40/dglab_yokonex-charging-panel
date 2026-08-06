@@ -27,12 +27,15 @@ public class PermissionService
 
     // 用户权限状态
     private UserPermissionRole _myRole = UserPermissionRole.Controller;
-    
+
     // 授权关系: 被控者ID -> 控制者ID列表
     private readonly ConcurrentDictionary<string, HashSet<string>> _controlPermissions = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _forcedControlPermissions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _forcedControlLocks = new(StringComparer.OrdinalIgnoreCase);
-    
+
+    // 远端控制能力授权: 主体ID -> 允许的能力ID集合（Task 21 收口 LAN/房间远控安全）
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _remoteCapabilityGrants = new(StringComparer.OrdinalIgnoreCase);
+
     // 待处理的权限请求
     private readonly ConcurrentDictionary<string, PermissionRequest> _pendingRequests = new();
     
@@ -426,6 +429,82 @@ public class PermissionService
     }
 
     /// <summary>
+    /// 授予远端控制能力权限（按主体，Task 21）。
+    /// </summary>
+    public void GrantRemoteCapability(string principal, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(principal) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return;
+        }
+
+        var grants = _remoteCapabilityGrants.GetOrAdd(
+            principal.Trim(),
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
+        grants[capabilityId.Trim().ToLowerInvariant()] = 0;
+    }
+
+    /// <summary>
+    /// 撤销单个远端控制能力权限。
+    /// </summary>
+    public void RevokeRemoteCapability(string principal, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(principal) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return;
+        }
+
+        if (_remoteCapabilityGrants.TryGetValue(principal.Trim(), out var grants))
+        {
+            grants.TryRemove(capabilityId.Trim().ToLowerInvariant(), out _);
+            if (grants.IsEmpty)
+            {
+                _remoteCapabilityGrants.TryRemove(principal.Trim(), out _);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 撤销某主体全部远端控制能力权限。
+    /// </summary>
+    public void RevokeAllRemoteCapabilities(string principal)
+    {
+        if (string.IsNullOrWhiteSpace(principal))
+        {
+            return;
+        }
+
+        _remoteCapabilityGrants.TryRemove(principal.Trim(), out _);
+    }
+
+    /// <summary>
+    /// 查询主体是否被授予某远端控制能力权限。
+    /// </summary>
+    public bool CanRemoteCapability(string principal, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(principal) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return false;
+        }
+
+        return _remoteCapabilityGrants.TryGetValue(principal.Trim(), out var grants) &&
+               grants.ContainsKey(capabilityId.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// 获取主体已授予的全部远端控制能力 ID。
+    /// </summary>
+    public IReadOnlyCollection<string> GetRemoteCapabilities(string principal)
+    {
+        if (string.IsNullOrWhiteSpace(principal) || !_remoteCapabilityGrants.TryGetValue(principal.Trim(), out var grants))
+        {
+            return Array.Empty<string>();
+        }
+
+        return grants.Keys.ToArray();
+    }
+
+    /// <summary>
     /// 清除所有权限（离开房间时）
     /// </summary>
     public void ClearAll()
@@ -434,6 +513,7 @@ public class PermissionService
         _forcedControlPermissions.Clear();
         _forcedControlLocks.Clear();
         _pendingRequests.Clear();
+        _remoteCapabilityGrants.Clear();
         _myRole = UserPermissionRole.Controller;
     }
 

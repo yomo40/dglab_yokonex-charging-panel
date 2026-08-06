@@ -1,14 +1,12 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Data;
-using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
 using ChargingPanel.Core.Events;
 using ChargingPanel.Core.Network;
+using ChargingPanel.Core.Protocols;
 using Jint;
 using Jint.Native;
 using Serilog;
@@ -17,7 +15,8 @@ namespace ChargingPanel.Core.Scripting;
 
 /// <summary>
 /// 脚本执行引擎
-/// 支持 JavaScript 脚本执行，用于游戏适配
+/// 支持 JavaScript 脚本执行，用于游戏适配。
+/// 脚本的设备命令只经由应用服务派发，不触碰设备适配器。
 /// </summary>
 public class ScriptEngine : IDisposable
 {
@@ -25,24 +24,33 @@ public class ScriptEngine : IDisposable
     private static ScriptEngine? _instance;
     public static ScriptEngine? Instance => _instance;
 
-    private readonly DeviceManager _deviceManager;
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly IDeviceQueryService _queryService;
     private readonly EventService _eventService;
     private readonly ModBridgeService? _modBridgeService;
+    private readonly DeviceActionMapperRegistry _mapper;
     private readonly ConcurrentDictionary<string, LoadedScript> _loadedScripts = new();
     private readonly ConcurrentDictionary<string, Engine> _scriptEngines = new();
     private bool _isRunning;
 
     /// <summary>脚本执行事件</summary>
     public event EventHandler<ScriptExecutedEventArgs>? ScriptExecuted;
-    
+
     /// <summary>脚本错误事件</summary>
     public event EventHandler<ScriptErrorEventArgs>? ScriptError;
 
-    public ScriptEngine(DeviceManager deviceManager, EventService eventService, ModBridgeService? modBridgeService = null)
+    public ScriptEngine(
+        IDeviceApplicationService applicationService,
+        IDeviceQueryService queryService,
+        EventService eventService,
+        ModBridgeService? modBridgeService = null,
+        DeviceActionMapperRegistry? mapper = null)
     {
-        _deviceManager = deviceManager;
-        _eventService = eventService;
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
         _modBridgeService = modBridgeService;
+        _mapper = mapper ?? new DeviceActionMapperRegistry();
         _instance = this;
     }
 
@@ -192,7 +200,7 @@ public class ScriptEngine : IDisposable
 
         // 注入 API
         engine.SetValue("console", new ScriptConsole());
-        engine.SetValue("device", new DeviceAPI(_deviceManager));
+        engine.SetValue("device", new DeviceAPI(_applicationService, _queryService, _mapper));
         engine.SetValue("event", new EventAPI(_eventService));
         engine.SetValue("game", new GameAPI());
         engine.SetValue("utils", new UtilsAPI());
@@ -327,86 +335,179 @@ public class ScriptConsole
 
 /// <summary>
 /// 设备控制 API
+/// 只经由查询/应用服务派发，返回命令结果与错误码，供脚本判断成功与否。
 /// </summary>
 public class DeviceAPI
 {
-    private readonly DeviceManager _deviceManager;
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly IDeviceQueryService _queryService;
+    private readonly DeviceActionMapperRegistry _mapper;
 
-    public DeviceAPI(DeviceManager deviceManager)
+    public DeviceAPI(
+        IDeviceApplicationService applicationService,
+        IDeviceQueryService queryService,
+        DeviceActionMapperRegistry mapper)
     {
-        _deviceManager = deviceManager;
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
     }
 
-    /// <summary>获取所有已连接设备</summary>
+    /// <summary>获取所有活动设备</summary>
     public object[] getConnectedDevices()
     {
-        return _deviceManager.GetConnectedDevices()
-            .Select(d => new { id = d.Id, name = d.Name, type = d.Type.ToString() })
+        return _queryService.GetActiveDevices()
+            .Select(device => new
+            {
+                id = device.InstanceId.Value.ToString("D"),
+                type = DeviceViewClassifier.ResolveLegacyType(device)
+            })
             .ToArray<object>();
     }
 
     /// <summary>设置强度</summary>
-    public void setStrength(string deviceId, string channel, int value)
-    {
-        var ch = channel.ToUpper() switch
-        {
-            "A" => Channel.A,
-            "B" => Channel.B,
-            "AB" => Channel.AB,
-            _ => Channel.A
-        };
-        _ = _deviceManager.SetStrengthAsync(deviceId, ch, value, StrengthMode.Set, "script");
-    }
+    public object setStrength(string deviceId, string channel, int value) =>
+        DispatchStrength(deviceId, channel, value, "set");
 
     /// <summary>增加强度</summary>
-    public void increaseStrength(string deviceId, string channel, int value)
-    {
-        var ch = channel.ToUpper() switch
-        {
-            "A" => Channel.A,
-            "B" => Channel.B,
-            "AB" => Channel.AB,
-            _ => Channel.A
-        };
-        _ = _deviceManager.SetStrengthAsync(deviceId, ch, value, StrengthMode.Increase, "script");
-    }
+    public object increaseStrength(string deviceId, string channel, int value) =>
+        DispatchStrength(deviceId, channel, value, "increase");
 
     /// <summary>减少强度</summary>
-    public void decreaseStrength(string deviceId, string channel, int value)
-    {
-        var ch = channel.ToUpper() switch
-        {
-            "A" => Channel.A,
-            "B" => Channel.B,
-            "AB" => Channel.AB,
-            _ => Channel.A
-        };
-        _ = _deviceManager.SetStrengthAsync(deviceId, ch, value, StrengthMode.Decrease, "script");
-    }
+    public object decreaseStrength(string deviceId, string channel, int value) =>
+        DispatchStrength(deviceId, channel, value, "decrease");
 
     /// <summary>发送波形</summary>
-    public void sendWaveform(string deviceId, string channel, int frequency, int strength, int duration)
-    {
-        var ch = channel.ToUpper() switch
-        {
-            "A" => Channel.A,
-            "B" => Channel.B,
-            "AB" => Channel.AB,
-            _ => Channel.A
-        };
-        var waveform = new WaveformData
-        {
-            Frequency = frequency,
-            Strength = strength,
-            Duration = duration
-        };
-        _ = _deviceManager.SendWaveformAsync(deviceId, ch, waveform);
-    }
+    public object sendWaveform(string deviceId, string channel, int frequency, int strength, int duration) =>
+        DispatchWaveform(deviceId, channel, frequency, strength, duration);
 
     /// <summary>紧急停止所有设备</summary>
-    public void emergencyStop()
+    public object emergencyStop()
     {
-        _ = _deviceManager.EmergencyStopAllAsync();
+        try
+        {
+            var report = _applicationService.EmergencyStopAsync("script", CancellationToken.None).GetAwaiter().GetResult();
+            return new { ok = report.AllConfirmedStopped || !report.DriverSafeStopAttempted, reasonCode = (string?)null };
+        }
+        catch (Exception ex)
+        {
+            return new { ok = false, reasonCode = "emergency_stop_threw", message = ex.Message };
+        }
+    }
+
+    private object DispatchStrength(string deviceId, string channel, int value, string actionType)
+    {
+        try
+        {
+            var active = ResolveActiveDevice(deviceId);
+            if (active is null)
+            {
+                return new { ok = false, reasonCode = "device.unavailable", message = "设备没有活动 Session。" };
+            }
+
+            var request = new DeviceActionRequest
+            {
+                EventId = "script",
+                ActionType = actionType,
+                Value = value,
+                RawValue = value,
+                DurationMs = 0,
+                Channels = ParseChannel(channel)
+            };
+            return Dispatch(request, active);
+        }
+        catch (Exception ex)
+        {
+            return new { ok = false, reasonCode = "script.dispatch_threw", message = ex.Message };
+        }
+    }
+
+    private object DispatchWaveform(string deviceId, string channel, int frequency, int strength, int duration)
+    {
+        try
+        {
+            var active = ResolveActiveDevice(deviceId);
+            if (active is null)
+            {
+                return new { ok = false, reasonCode = "device.unavailable", message = "设备没有活动 Session。" };
+            }
+
+            var request = new DeviceActionRequest
+            {
+                EventId = "script",
+                ActionType = "wave",
+                Value = strength,
+                RawValue = strength,
+                DurationMs = duration,
+                WaveformData = frequency.ToString(),
+                Channels = ParseChannel(channel)
+            };
+            return Dispatch(request, active);
+        }
+        catch (Exception ex)
+        {
+            return new { ok = false, reasonCode = "script.dispatch_threw", message = ex.Message };
+        }
+    }
+
+    private object Dispatch(DeviceActionRequest request, ActiveDeviceView active)
+    {
+        var source = new CommandSource(CommandSourceKind.Plugin, "script");
+        var envelopes = _mapper.Map(
+            request,
+            active,
+            source,
+            _applicationService.CurrentSafetyEpoch,
+            TimeProvider.System);
+
+        if (envelopes.Count == 0)
+        {
+            return new { ok = false, reasonCode = "action.unsupported", message = "设备不支持该动作。" };
+        }
+
+        var dispatched = false;
+        string? lastReason = null;
+        foreach (var envelope in envelopes)
+        {
+            var result = _applicationService.DispatchAsync(envelope, CancellationToken.None).GetAwaiter().GetResult();
+            if (result.Status is DeviceCommandStatus.AcceptedByTransport or DeviceCommandStatus.Executed)
+            {
+                dispatched = true;
+            }
+            else
+            {
+                lastReason = result.ReasonCode;
+            }
+        }
+
+        return new { ok = dispatched, reasonCode = dispatched ? (string?)null : lastReason, message = (string?)null };
+    }
+
+    private ActiveDeviceView? ResolveActiveDevice(string deviceId)
+    {
+        if (Guid.TryParse(deviceId, out var guid))
+        {
+            var active = _queryService.GetActiveDevice(new ChargingPanel.Contracts.Identifiers.DeviceInstanceId(guid));
+            if (active is not null)
+            {
+                return active;
+            }
+        }
+
+        return _queryService.GetActiveDevices()
+            .FirstOrDefault(device =>
+                string.Equals(device.InstanceId.Value.ToString("D"), deviceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(device.InstanceId.Value.ToString("N"), deviceId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static ChargingPanel.Core.Devices.Channel[] ParseChannel(string channel)
+    {
+        return channel?.Trim().ToUpperInvariant() switch
+        {
+            "B" => new[] { ChargingPanel.Core.Devices.Channel.B },
+            "AB" => new[] { ChargingPanel.Core.Devices.Channel.A, ChargingPanel.Core.Devices.Channel.B },
+            _ => new[] { ChargingPanel.Core.Devices.Channel.A }
+        };
     }
 }
 

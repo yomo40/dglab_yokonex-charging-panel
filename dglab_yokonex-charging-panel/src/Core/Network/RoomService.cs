@@ -9,6 +9,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Network.RemoteControl;
 using ChargingPanel.Core.Services;
 using Serilog;
 
@@ -22,7 +24,39 @@ public class RoomService : IDisposable
     private static readonly ILogger Logger = Log.ForContext<RoomService>();
     public const int DefaultRoomPort = 49152; // 固定大端口，便于局域网联机发现
     private static RoomService? _instance;
+    private static IDevicePresenceQuery? _configuredPresenceQuery;
+    private static IDeviceApplicationService? _configuredApplicationService;
     private static readonly object _lock = new();
+
+    /// <summary>
+    /// 迁移期由 Desktop 组合根注入设备存在性查询。
+    /// Room 的调用方迁移属于 Task 18/19，此处仅去除对全局 AppServices 的反向依赖。
+    /// 删除条件：调用方全部改为构造注入后移除该静态入口。
+    /// </summary>
+    public static void Configure(IDevicePresenceQuery presenceQuery)
+    {
+        ArgumentNullException.ThrowIfNull(presenceQuery);
+        lock (_lock)
+        {
+            _configuredPresenceQuery = presenceQuery;
+            _instance = null;
+        }
+    }
+
+    /// <summary>
+    /// 注入远端命令的唯一设备入口。Room 远控命令只经由
+    /// <see cref="IDeviceApplicationService"/> 下发，不能存在平行控制路径。
+    /// 未注入时远控命令如实拒绝（service.unavailable）。
+    /// </summary>
+    public static void ConfigureRemoteControl(IDeviceApplicationService applicationService)
+    {
+        ArgumentNullException.ThrowIfNull(applicationService);
+        lock (_lock)
+        {
+            _configuredApplicationService = applicationService;
+            _instance = null;
+        }
+    }
 
     public static RoomService Instance
     {
@@ -30,15 +64,30 @@ public class RoomService : IDisposable
         {
             lock (_lock)
             {
-                _instance ??= new RoomService();
+                if (_instance is not null)
+                {
+                    return _instance;
+                }
+
+                // 未注入时明确失败，而不是静默把"有设备"降级为 false：
+                // 房间成员的 HasDevice 会被远端用于判断可否被控制。
+                if (_configuredPresenceQuery is null)
+                {
+                    throw new InvalidOperationException(
+                        "RoomService 尚未注入设备存在性查询，请先由组合根调用 Configure。");
+                }
+
+                _instance = new RoomService(_configuredPresenceQuery);
                 return _instance;
             }
         }
     }
 
     private TcpListener? _server;
+    private readonly IDevicePresenceQuery _presenceQuery;
     private readonly ConcurrentDictionary<string, RoomMember> _members = new();
     private readonly ConcurrentDictionary<string, TcpClient> _connections = new();
+    private readonly ConcurrentDictionary<string, RemoteControlSession> _remoteSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly RoomArbitrationService _arbitration = new();
     private readonly SemaphoreSlim _discoveryScanGate = new(1, 1);
     private CancellationTokenSource? _cts;
@@ -47,6 +96,8 @@ public class RoomService : IDisposable
     private Room? _currentRoom;
     private string? _userId;
     private RoomDiscoveryResult[] _lastDiscoveredRooms = Array.Empty<RoomDiscoveryResult>();
+    private IDeviceApplicationService? _applicationService;
+    private RemoteCommandAuthenticator? _remoteCommands;
     
     public event EventHandler<RoomEventArgs>? RoomCreated;
     public event EventHandler<RoomEventArgs>? RoomJoined;
@@ -65,9 +116,81 @@ public class RoomService : IDisposable
     public RoomControlMode ControlMode => _arbitration.Mode;
     public IReadOnlyList<RoomDiscoveryResult> LastDiscoveredRooms => _lastDiscoveredRooms;
 
-    private RoomService()
+    public RoomService(IDevicePresenceQuery presenceQuery)
     {
+        _presenceQuery = presenceQuery ?? throw new ArgumentNullException(nameof(presenceQuery));
         _userId = GenerateUserId();
+        _applicationService = _configuredApplicationService;
+        if (_applicationService is not null)
+        {
+            _remoteCommands = new RemoteCommandAuthenticator(_applicationService);
+        }
+    }
+
+    /// <summary>
+    /// 注入远端命令唯一入口（构造注入不可行时使用；生产由组合根静态注入）。
+    /// </summary>
+    public void AttachRemoteControlService(IDeviceApplicationService applicationService)
+    {
+        ArgumentNullException.ThrowIfNull(applicationService);
+        _applicationService = applicationService;
+        _remoteCommands = new RemoteCommandAuthenticator(applicationService);
+    }
+
+    /// <summary>
+    /// 为远端主体创建认证会话。未注入设备应用服务时返回 null（远控不可用）。
+    /// </summary>
+    public RemoteControlSession? CreateRemoteSession(string principal, RemotePermissionScope scope, TimeSpan? ttl = null) =>
+        _remoteCommands?.CreateSession(principal, scope, ttl);
+
+    /// <summary>
+    /// 下发经过认证的远端命令。所有外部请求只进入 <see cref="IDeviceApplicationService"/>，
+    /// 最终结果来自 Dispatcher 的 Executed/Rejected/OutcomeUnknown。
+    /// </summary>
+    public Task<RemoteCommandResult> DispatchRemoteCommandAsync(
+        RemoteCommandRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (_remoteCommands is null)
+        {
+            return Task.FromResult(
+                RemoteCommandResult.Rejected(request.CommandId, "service.unavailable", "远控未注入设备应用服务。"));
+        }
+
+        return _remoteCommands.DispatchAsync(request, cancellationToken);
+    }
+
+    /// <summary>远控认证器使用的时间源（测试与调用方构造时间戳时使用）。</summary>
+    public TimeProvider GetRemoteTimeProvider() => _remoteCommands?.TimeProvider ?? TimeProvider.System;
+
+    /// <summary>建立远端会话（成员加入房间时）。</summary>
+    private void EstablishRemoteSession(string memberId)
+    {
+        if (_remoteCommands is null || string.IsNullOrWhiteSpace(memberId))
+        {
+            return;
+        }
+
+        if (!_remoteSessions.ContainsKey(memberId))
+        {
+            var session = _remoteCommands.CreateSession(memberId, RemotePermissionScope.All);
+            _remoteSessions[memberId] = session;
+        }
+    }
+
+    /// <summary>断开远端会话（成员离开房间时），禁止旧 Session 重用。</summary>
+    private void DisconnectRemoteSession(string memberId)
+    {
+        if (string.IsNullOrWhiteSpace(memberId))
+        {
+            return;
+        }
+
+        if (_remoteSessions.TryRemove(memberId, out var session))
+        {
+            session.Disconnect();
+        }
     }
 
     public void SetControlMode(RoomControlMode mode)
@@ -211,7 +334,7 @@ public class RoomService : IDisposable
             Nickname = Environment.MachineName,
             Role = MemberRole.Owner,
             IsOnline = true,
-            HasDevice = AppServices.IsInitialized && AppServices.Instance.DeviceManager.GetAllDevices().Any()
+            HasDevice = _presenceQuery.HasRegisteredDevices()
         };
         _members[_userId!] = selfMember;
 
@@ -249,7 +372,7 @@ public class RoomService : IDisposable
                 Data = JsonSerializer.Serialize(new JoinRequestData
                 {
                     Nickname = Environment.MachineName,
-                    HasDevice = AppServices.IsInitialized && AppServices.Instance.DeviceManager.GetAllDevices().Any()
+                    HasDevice = _presenceQuery.HasRegisteredDevices()
                 })
             };
 
@@ -284,7 +407,7 @@ public class RoomService : IDisposable
                         Nickname = Environment.MachineName,
                         Role = MemberRole.Member,
                         IsOnline = true,
-                        HasDevice = AppServices.IsInitialized && AppServices.Instance.DeviceManager.GetAllDevices().Any()
+                        HasDevice = _presenceQuery.HasRegisteredDevices()
                     };
                     _members[_userId!] = selfMember;
 
@@ -606,6 +729,7 @@ public class RoomService : IDisposable
                 _connections.TryRemove(clientId, out _);
                 _connections[message.SenderId] = client;
                 connectionKey = message.SenderId;
+                EstablishRemoteSession(message.SenderId);
 
                 // 发送成功响应
                 await SendMessageAsync(client, new RoomMessage
@@ -666,6 +790,7 @@ public class RoomService : IDisposable
         }
         finally
         {
+            DisconnectRemoteSession(senderId);
             if (_members.TryRemove(senderId, out var member))
             {
                 MemberLeft?.Invoke(this, new MemberEventArgs(member));
@@ -1041,6 +1166,13 @@ public class RoomService : IDisposable
         }
         _connections.Clear();
         _members.Clear();
+        foreach (var session in _remoteSessions.Values)
+        {
+            session.Disconnect();
+        }
+
+        _remoteSessions.Clear();
+        _remoteCommands?.TerminateSessions();
         _arbitration.Reset(RoomControlMode.SingleControl);
         PermissionService.Instance.ClearAll();
     }

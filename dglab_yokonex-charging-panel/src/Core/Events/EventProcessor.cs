@@ -1,12 +1,13 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Reactive.Linq;
 using System.Text.Json;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Data.Entities;
 using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
+using ChargingPanel.Core.Protocols;
 using Serilog;
 
 namespace ChargingPanel.Core.Events;
@@ -14,6 +15,9 @@ namespace ChargingPanel.Core.Events;
 /// <summary>
 /// 事件处理器（总线桥接层）
 /// 负责将 EventBus 游戏事件和远程同步事件桥接到规则执行服务。
+///
+/// Rx 回调只做有界入队（<see cref="EventIngressWorker"/>），
+/// 控制路径不再出现 async void 与无界并发。
 /// </summary>
 public sealed class EventProcessor : IDisposable
 {
@@ -44,9 +48,13 @@ public sealed class EventProcessor : IDisposable
             [GameEventType.ExternalVoltageChanged] = "external-voltage-changed"
         };
 
-    private readonly DeviceManager _deviceManager;
     private readonly EventService _eventService;
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly IDeviceQueryService _queryService;
+    private readonly DeviceActionMapperRegistry _mapper;
+    private readonly DeviceCommandScheduler _scheduler;
     private readonly EventBus _eventBus;
+    private readonly EventIngressWorker _ingress;
     private readonly ILogger _logger = Log.ForContext<EventProcessor>();
     private readonly List<IDisposable> _subscriptions = new();
     private readonly ConcurrentDictionary<string, DateTime> _processedEventIds = new();
@@ -54,11 +62,21 @@ public sealed class EventProcessor : IDisposable
 
     public event EventHandler<EventProcessedEventArgs>? EventProcessed;
 
-    public EventProcessor(DeviceManager deviceManager, EventService eventService, EventBus? eventBus = null)
+    public EventProcessor(
+        EventService eventService,
+        IDeviceApplicationService applicationService,
+        IDeviceQueryService queryService,
+        DeviceCommandScheduler scheduler,
+        EventBus? eventBus = null,
+        DeviceActionMapperRegistry? mapper = null)
     {
-        _deviceManager = deviceManager;
-        _eventService = eventService;
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        _mapper = mapper ?? new DeviceActionMapperRegistry();
         _eventBus = eventBus ?? EventBus.Instance;
+        _ingress = new EventIngressWorker();
 
         _subscriptions.Add(_eventBus.GameEvents.Subscribe(OnGameEvent));
         _subscriptions.Add(
@@ -69,9 +87,9 @@ public sealed class EventProcessor : IDisposable
         _logger.Information("EventProcessor initialized");
     }
 
-    private async void OnGameEvent(GameEvent evt)
+    private void OnGameEvent(GameEvent evt)
     {
-        await HandleGameEventAsync(evt);
+        _ingress.TryEnqueue(ct => HandleGameEventAsync(evt));
     }
 
     private async Task HandleGameEventAsync(GameEvent evt)
@@ -123,7 +141,12 @@ public sealed class EventProcessor : IDisposable
         }
     }
 
-    private async void OnRemoteSync(RemoteSyncEvent syncEvt)
+    private void OnRemoteSync(RemoteSyncEvent syncEvt)
+    {
+        _ingress.TryEnqueue(ct => HandleRemoteSyncAsync(syncEvt));
+    }
+
+    private async Task HandleRemoteSyncAsync(RemoteSyncEvent syncEvt)
     {
         try
         {
@@ -132,7 +155,7 @@ public sealed class EventProcessor : IDisposable
                 case RemoteSyncType.ControlCommand:
                     if (syncEvt.Payload is DeviceControlEvent controlEvt)
                     {
-                        await ExecuteRemoteControlAsync(controlEvt);
+                        await ExecuteRemoteControlAsync(controlEvt, syncEvt.SenderId);
                     }
                     break;
 
@@ -152,56 +175,38 @@ public sealed class EventProcessor : IDisposable
         }
     }
 
-    private async Task ExecuteRemoteControlAsync(DeviceControlEvent controlEvt)
+    private async Task ExecuteRemoteControlAsync(DeviceControlEvent controlEvt, string senderId)
     {
         try
         {
-            var channels = ParseChannels(controlEvt.Channel);
-
-            switch (controlEvt.Action)
+            var actionType = controlEvt.Action switch
             {
-                case EventAction.Set:
-                case EventAction.Increase:
-                case EventAction.Decrease:
-                {
-                    var mode = controlEvt.Action switch
-                    {
-                        EventAction.Increase => StrengthMode.Increase,
-                        EventAction.Decrease => StrengthMode.Decrease,
-                        _ => StrengthMode.Set
-                    };
-                    foreach (var channel in channels)
-                    {
-                        await _deviceManager.SetStrengthAsync(controlEvt.DeviceId, channel, controlEvt.Value, mode, source: "remote_sync");
-                    }
-                    break;
-                }
-                case EventAction.Wave:
-                case EventAction.Pulse:
-                {
-                    var waveform = TryParseWaveform(controlEvt.WaveformData) ?? new WaveformData
-                    {
-                        Frequency = controlEvt.Action == EventAction.Pulse ? 150 : 100,
-                        Strength = controlEvt.Value,
-                        Duration = controlEvt.Duration > 0 ? controlEvt.Duration : 1000
-                    };
-                    foreach (var channel in channels)
-                    {
-                        await _deviceManager.SendWaveformAsync(controlEvt.DeviceId, channel, waveform);
-                    }
-                    break;
-                }
-                case EventAction.Clear:
-                {
-                    foreach (var channel in channels)
-                    {
-                        await _deviceManager.ClearWaveformQueueAsync(controlEvt.DeviceId, channel);
-                    }
-                    break;
-                }
-            }
+                EventAction.Increase => "increase",
+                EventAction.Decrease => "decrease",
+                EventAction.Wave => "wave",
+                EventAction.Pulse => "pulse",
+                EventAction.Clear => "clear",
+                _ => "set"
+            };
 
-            controlEvt.Success = true;
+            var request = new DeviceActionRequest
+            {
+                EventId = controlEvt.Id,
+                ActionType = actionType,
+                Value = controlEvt.Value,
+                RawValue = controlEvt.Value,
+                DurationMs = controlEvt.Duration,
+                WaveformData = controlEvt.WaveformData,
+                Channels = ParseChannels(controlEvt.Channel)
+            };
+
+            // 房间远控来源为 RemoteRoom，必须经由 Dispatcher（Safety/能力校验不可绕过）。
+            var source = new CommandSource(
+                CommandSourceKind.Lan,
+                string.IsNullOrWhiteSpace(senderId) ? "RemoteRoom" : $"RemoteRoom:{senderId}");
+
+            var dispatched = await DispatchToTargetsAsync(controlEvt.DeviceId, request, source);
+            controlEvt.Success = dispatched;
             _eventBus.PublishDeviceControl(controlEvt);
         }
         catch (Exception ex)
@@ -219,6 +224,77 @@ public sealed class EventProcessor : IDisposable
                 Error = ex.Message
             });
         }
+    }
+
+    /// <summary>
+    /// 把动作请求派发到目标设备。目标为空或设备没有活动 Session 时如实返回 false。
+    /// </summary>
+    private async Task<bool> DispatchToTargetsAsync(
+        string? deviceId,
+        DeviceActionRequest request,
+        CommandSource source)
+    {
+        var targets = ResolveTargets(deviceId);
+        var dispatchedAny = false;
+
+        foreach (var target in targets)
+        {
+            var envelopes = _mapper.Map(
+                request,
+                target,
+                source,
+                _applicationService.CurrentSafetyEpoch,
+                TimeProvider.System);
+
+            foreach (var envelope in envelopes)
+            {
+                var result = await _applicationService.DispatchAsync(envelope, CancellationToken.None);
+                if (result.Status is DeviceCommandStatus.AcceptedByTransport or DeviceCommandStatus.Executed)
+                {
+                    dispatchedAny = true;
+                }
+            }
+
+            if (request.DurationMs > 0 && request.ActionType is "set" or "increase")
+            {
+                var release = _mapper.MapRelease(
+                    request,
+                    target,
+                    source,
+                    _applicationService.CurrentSafetyEpoch,
+                    TimeProvider.System);
+                if (release is not null)
+                {
+                    // 归零由调度器持有（跟踪任务、尊重 Epoch、关闭时统一等待），绝不 fire-and-forget。
+                    _scheduler.ScheduleAfter(TimeSpan.FromMilliseconds(request.DurationMs), release);
+                }
+            }
+        }
+
+        return dispatchedAny;
+    }
+
+    private IReadOnlyList<ActiveDeviceView> ResolveTargets(string? deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            return _queryService.GetActiveDevices();
+        }
+
+        if (Guid.TryParse(deviceId, out var guid))
+        {
+            var active = _queryService.GetActiveDevice(new Contracts.Identifiers.DeviceInstanceId(guid));
+            if (active is not null)
+            {
+                return new[] { active };
+            }
+        }
+
+        var match = _queryService.GetActiveDevices()
+            .FirstOrDefault(device =>
+                string.Equals(device.InstanceId.Value.ToString("D"), deviceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(device.InstanceId.Value.ToString("N"), deviceId, StringComparison.OrdinalIgnoreCase));
+        return match is null ? Array.Empty<ActiveDeviceView>() : new[] { match };
     }
 
     private static string? ResolveEventId(GameEvent evt, EventService eventService)
@@ -430,23 +506,6 @@ public sealed class EventProcessor : IDisposable
         };
     }
 
-    private static WaveformData? TryParseWaveform(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<WaveformData>(json);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     public void Dispose()
     {
         foreach (var subscription in _subscriptions)
@@ -455,6 +514,7 @@ public sealed class EventProcessor : IDisposable
         }
 
         _subscriptions.Clear();
+        _ingress.Dispose();
         _processedEventIds.Clear();
         _throttleWindows.Clear();
     }

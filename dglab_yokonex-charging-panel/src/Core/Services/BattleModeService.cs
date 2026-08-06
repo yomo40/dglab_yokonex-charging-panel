@@ -1,49 +1,63 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Devices;
 using ChargingPanel.Core.Events;
 using ChargingPanel.Core.OCR;
+using ChargingPanel.Core.Protocols;
 using Serilog;
 
 namespace ChargingPanel.Core.Services;
 
 /// <summary>
 /// 对战模式服务
-/// 实现玩家之间的对战逻辑，与OCR死亡检测集成
+/// 实现玩家之间的对战逻辑，与OCR死亡检测集成。
+/// 惩罚命令只经由 <see cref="IDeviceApplicationService"/> 派发，不触碰设备适配器。
 /// </summary>
 public class BattleModeService : IDisposable
 {
     private static readonly ILogger Logger = Log.ForContext<BattleModeService>();
-    
-    private readonly DeviceManager _deviceManager;
+
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly IDeviceQueryService _queryService;
+    private readonly DeviceCommandScheduler _scheduler;
+    private readonly DeviceActionMapperRegistry _mapper;
     private readonly EventBus _eventBus;
     private readonly OCRService? _ocrService;
-    
+
     private readonly ConcurrentDictionary<string, BattlePlayer> _players = new();
     private readonly ConcurrentDictionary<string, BattleRoom> _rooms = new();
-    
+
     private IDisposable? _eventSubscription;
     private bool _isRunning;
-    
+
     /// <summary>对战开始事件</summary>
     public event EventHandler<BattleStartedEventArgs>? BattleStarted;
-    
+
     /// <summary>对战结束事件</summary>
     public event EventHandler<BattleEndedEventArgs>? BattleEnded;
-    
+
     /// <summary>玩家死亡事件</summary>
     public event EventHandler<PlayerDeathEventArgs>? PlayerDeath;
-    
+
     /// <summary>惩罚触发事件</summary>
     public event EventHandler<PunishmentTriggeredEventArgs>? PunishmentTriggered;
-    
-    public BattleModeService(DeviceManager deviceManager, EventBus eventBus, OCRService? ocrService = null)
+
+    public BattleModeService(
+        IDeviceApplicationService applicationService,
+        IDeviceQueryService queryService,
+        DeviceCommandScheduler scheduler,
+        EventBus eventBus,
+        OCRService? ocrService = null,
+        DeviceActionMapperRegistry? mapper = null)
     {
-        _deviceManager = deviceManager;
-        _eventBus = eventBus;
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _ocrService = ocrService;
+        _mapper = mapper ?? new DeviceActionMapperRegistry();
     }
     
     /// <summary>
@@ -245,21 +259,17 @@ public class BattleModeService : IDisposable
     {
         if (string.IsNullOrEmpty(player.RoomId)) return;
         if (!_rooms.TryGetValue(player.RoomId, out var room)) return;
-        
+
         var settings = room.Settings;
-        
-        // 获取玩家绑定的设备
-        IDevice device;
-        try
+
+        // 解析玩家绑定的活动设备；没有活动 Session 时如实拒绝，不伪造成功。
+        var device = ResolveActiveDevice(player.DeviceId);
+        if (device is null)
         {
-            device = _deviceManager.GetDevice(player.DeviceId);
-        }
-        catch (KeyNotFoundException)
-        {
-            Logger.Warning("玩家 {PlayerId} 未绑定设备或设备不存在: {DeviceId}", player.Id, player.DeviceId);
+            Logger.Warning("玩家 {PlayerId} 未绑定设备或设备没有活动会话: {DeviceId}", player.Id, player.DeviceId);
             return;
         }
-        
+
         // 计算惩罚强度
         var strength = settings.BaseStrength;
         if (settings.StrengthIncreasePerDeath > 0)
@@ -267,10 +277,10 @@ public class BattleModeService : IDisposable
             strength += settings.StrengthIncreasePerDeath * (player.DeathCount - 1);
         }
         strength = Math.Min(strength, settings.MaxStrength);
-        
+
         Logger.Information("触发惩罚: 玩家={PlayerId}, 设备={DeviceId}, 强度={Strength}, 持续={Duration}ms",
             player.Id, player.DeviceId, strength, settings.PunishmentDuration);
-        
+
         PunishmentTriggered?.Invoke(this, new PunishmentTriggeredEventArgs
         {
             PlayerId = player.Id,
@@ -278,23 +288,68 @@ public class BattleModeService : IDisposable
             Strength = strength,
             Duration = settings.PunishmentDuration
         });
-        
-        // 发送电击
+
+        // 发送电击：经由映射器 + 应用服务，绝不直接调用适配器。
         try
         {
-            await device.SetStrengthAsync(settings.TargetChannel, strength, StrengthMode.Set);
-            
-            // 持续指定时间后停止
-            _ = Task.Run(async () =>
+            var source = new CommandSource(CommandSourceKind.Automation, $"battle:{player.Id}");
+            var request = new DeviceActionRequest
             {
-                await Task.Delay(settings.PunishmentDuration);
-                await device.SetStrengthAsync(settings.TargetChannel, 0, StrengthMode.Set);
-            });
+                EventId = "battle-punishment",
+                ActionType = "set",
+                Value = strength,
+                RawValue = strength,
+                DurationMs = settings.PunishmentDuration,
+                Channels = new[] { settings.TargetChannel }
+            };
+
+            var envelopes = _mapper.Map(
+                request,
+                device,
+                source,
+                _applicationService.CurrentSafetyEpoch,
+                TimeProvider.System);
+
+            foreach (var envelope in envelopes)
+            {
+                await _applicationService.DispatchAsync(envelope, CancellationToken.None);
+            }
+
+            if (settings.PunishmentDuration > 0)
+            {
+                var release = _mapper.MapRelease(
+                    request,
+                    device,
+                    source,
+                    _applicationService.CurrentSafetyEpoch,
+                    TimeProvider.System);
+                if (release is not null)
+                {
+                    _scheduler.ScheduleAfter(TimeSpan.FromMilliseconds(settings.PunishmentDuration), release);
+                }
+            }
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "发送惩罚失败: {PlayerId}", player.Id);
         }
+    }
+
+    private ActiveDeviceView? ResolveActiveDevice(string deviceId)
+    {
+        if (Guid.TryParse(deviceId, out var guid))
+        {
+            var active = _queryService.GetActiveDevice(new ChargingPanel.Contracts.Identifiers.DeviceInstanceId(guid));
+            if (active is not null)
+            {
+                return active;
+            }
+        }
+
+        return _queryService.GetActiveDevices()
+            .FirstOrDefault(device =>
+                string.Equals(device.InstanceId.Value.ToString("D"), deviceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(device.InstanceId.Value.ToString("N"), deviceId, StringComparison.OrdinalIgnoreCase));
     }
     
     private void CheckBattleEnd(string? roomId)

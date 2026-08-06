@@ -1,21 +1,21 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
 using ChargingPanel.Core.Events;
+using ChargingPanel.Core.Protocols;
 using Serilog;
 
 namespace ChargingPanel.Core.Services;
 
 /// <summary>
 /// 传感器规则服务
-/// 管理役次元传感器触发规则的持久化和执行
+/// 管理役次元传感器触发规则的持久化和执行。
+/// 目标选择与命令下发只经由查询/应用服务，不触碰设备适配器。
 /// </summary>
 public class SensorRuleService : IDisposable
 {
@@ -23,10 +23,13 @@ public class SensorRuleService : IDisposable
     private static SensorRuleService? _instance;
     public static SensorRuleService? Instance => _instance;
 
-    private readonly DeviceManager _deviceManager;
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly IDeviceQueryService _queryService;
+    private readonly DeviceCommandScheduler _scheduler;
+    private readonly DeviceActionMapperRegistry _mapper;
     private readonly EventService _eventService;
     private readonly YokonexSensorService? _sensorService;
-    
+
     private readonly ConcurrentDictionary<string, SensorRule> _rules = new();
     private readonly ConcurrentDictionary<string, DateTime> _lastTriggered = new();
     private readonly string _rulesFilePath;
@@ -36,19 +39,28 @@ public class SensorRuleService : IDisposable
     /// <summary>规则触发事件</summary>
     public event EventHandler<SensorRuleTriggeredEventArgs>? RuleTriggered;
 
-    public SensorRuleService(DeviceManager deviceManager, EventService eventService, YokonexSensorService? sensorService = null)
+    public SensorRuleService(
+        IDeviceApplicationService applicationService,
+        IDeviceQueryService queryService,
+        DeviceCommandScheduler scheduler,
+        EventService eventService,
+        DeviceActionMapperRegistry? mapper = null,
+        YokonexSensorService? sensorService = null)
     {
-        _deviceManager = deviceManager;
-        _eventService = eventService;
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _mapper = mapper ?? new DeviceActionMapperRegistry();
         _sensorService = sensorService;
-        
+
         // 规则文件路径
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ChargingPanel");
         Directory.CreateDirectory(appDataPath);
         _rulesFilePath = Path.Combine(appDataPath, "sensor_rules.json");
-        
+
         _instance = this;
     }
 
@@ -421,56 +433,68 @@ public class SensorRuleService : IDisposable
     {
         try
         {
-            // 确定目标设备
-            var targetDevices = string.IsNullOrEmpty(rule.TargetDeviceId)
-                ? _deviceManager.GetConnectedDevices().Select(d => d.Id).ToList()
-                : new List<string> { rule.TargetDeviceId };
-
-            var mode = rule.Action switch
+            // 确定目标活动设备；没有活动 Session 时如实跳过，绝不伪造成功。
+            var targetDevices = ResolveTargetDevices(rule.TargetDeviceId);
+            if (targetDevices.Count == 0)
             {
-                SensorAction.Set => StrengthMode.Set,
-                SensorAction.Increase => StrengthMode.Increase,
-                SensorAction.Decrease => StrengthMode.Decrease,
-                _ => StrengthMode.Set
+                Logger.Debug("Sensor rule {Name}: 没有活动目标设备", rule.Name);
+                return;
+            }
+
+            var actionType = rule.Action switch
+            {
+                SensorAction.Increase => "increase",
+                SensorAction.Decrease => "decrease",
+                SensorAction.Pulse => "pulse",
+                SensorAction.Wave => "wave",
+                _ => "set"
             };
 
-            foreach (var targetId in targetDevices)
+            var source = new CommandSource(CommandSourceKind.Automation, $"sensor-rule:{rule.Id}");
+            var request = new DeviceActionRequest
+            {
+                EventId = rule.Id,
+                ActionType = actionType,
+                Value = rule.Value,
+                RawValue = rule.Value,
+                DurationMs = rule.Duration,
+                Channels = new[] { rule.TargetChannel }
+            };
+
+            foreach (var target in targetDevices)
             {
                 try
                 {
-                    var device = _deviceManager.GetDevice(targetId);
-                    if (device == null) continue;
+                    var envelopes = _mapper.Map(
+                        request,
+                        target,
+                        source,
+                        _applicationService.CurrentSafetyEpoch,
+                        TimeProvider.System);
 
-                    if (rule.Action == SensorAction.Pulse || rule.Action == SensorAction.Wave)
+                    foreach (var envelope in envelopes)
                     {
-                        // 发送波形
-                        var waveform = new WaveformData
-                        {
-                            Frequency = 100,
-                            Strength = rule.Value,
-                            Duration = rule.Duration
-                        };
-                        await device.SendWaveformAsync(rule.TargetChannel, waveform);
+                        await _applicationService.DispatchAsync(envelope, CancellationToken.None);
                     }
-                    else
+
+                    // 带时长的 set 动作调度归零；Epoch 失配时由 Dispatcher 拒绝。
+                    if (rule.Duration > 0 && rule.Action == SensorAction.Set)
                     {
-                        // 设置强度
-                        await device.SetStrengthAsync(rule.TargetChannel, rule.Value, mode);
-                        
-                        // 如果有持续时间，延迟后恢复
-                        if (rule.Duration > 0 && rule.Action == SensorAction.Set)
+                        var release = _mapper.MapRelease(
+                            request,
+                            target,
+                            source,
+                            _applicationService.CurrentSafetyEpoch,
+                            TimeProvider.System);
+                        if (release is not null)
                         {
-                            _ = Task.Run(async () =>
-                            {
-                                await Task.Delay(rule.Duration);
-                                await device.SetStrengthAsync(rule.TargetChannel, 0, StrengthMode.Set);
-                            });
+                            _scheduler.ScheduleAfter(TimeSpan.FromMilliseconds(rule.Duration), release);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.Warning(ex, "Failed to execute rule on device {DeviceId}", targetId);
+                    Logger.Warning(ex, "Failed to execute rule on device {DeviceId}", target.InstanceId);
                 }
             }
 
@@ -489,6 +513,34 @@ public class SensorRuleService : IDisposable
         {
             Logger.Error(ex, "Failed to execute sensor rule: {Name}", rule.Name);
         }
+    }
+
+    private IReadOnlyList<ActiveDeviceView> ResolveTargetDevices(string? targetDeviceId)
+    {
+        if (!string.IsNullOrWhiteSpace(targetDeviceId))
+        {
+            var active = ResolveDeviceId(targetDeviceId);
+            return active is null ? Array.Empty<ActiveDeviceView>() : new[] { active };
+        }
+
+        return _queryService.GetActiveDevices();
+    }
+
+    private ActiveDeviceView? ResolveDeviceId(string deviceId)
+    {
+        if (Guid.TryParse(deviceId, out var guid))
+        {
+            var active = _queryService.GetActiveDevice(new ChargingPanel.Contracts.Identifiers.DeviceInstanceId(guid));
+            if (active is not null)
+            {
+                return active;
+            }
+        }
+
+        return _queryService.GetActiveDevices()
+            .FirstOrDefault(device =>
+                string.Equals(device.InstanceId.Value.ToString("D"), deviceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(device.InstanceId.Value.ToString("N"), deviceId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static double ResolveSensorValue(GameEvent evt, string key, double fallback)

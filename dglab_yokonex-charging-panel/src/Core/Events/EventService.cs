@@ -1,12 +1,10 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using ChargingPanel.Contracts.Commands;
+using ChargingPanel.Contracts.Identifiers;
+using ChargingPanel.Core.Application.Devices;
+using ChargingPanel.Core.Automation;
 using ChargingPanel.Core.Data;
 using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
 using ChargingPanel.Core.Protocols;
 using Serilog;
 
@@ -14,27 +12,40 @@ namespace ChargingPanel.Core.Events;
 
 /// <summary>
 /// 事件服务
-/// 负责事件触发和设备控制的映射
+/// 负责事件触发和设备控制的映射。
+///
+/// 目标选择只通过 <see cref="IDeviceQueryService"/> 查询活动实例，
+/// 命令下发只通过 <see cref="IDeviceApplicationService"/> 派发，
+/// 动作语义由 <see cref="DeviceActionMapperRegistry"/> 映射为命令信封。
 /// </summary>
 public class EventService
 {
-    private readonly DeviceManager _deviceManager;
+    private readonly IDeviceQueryService _queryService;
+    private readonly IDeviceApplicationService _applicationService;
+    private readonly DeviceCommandScheduler _scheduler;
+    private readonly DeviceActionMapperRegistry _mapper;
     private readonly ILogger _logger = Log.ForContext<EventService>();
     private readonly ConcurrentDictionary<string, EventRecord> _eventCache = new();
     private readonly ConcurrentDictionary<string, EventRecord> _runtimeModRules = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _modSessionRules = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _eventCooldowns = new();
     private readonly ConcurrentDictionary<string, DevicePriorityWindow> _devicePriorityWindows = new();
-    private readonly DeviceActionTranslatorRegistry _translatorRegistry = new();
 
     /// <summary>
     /// 事件触发时发出通知
     /// </summary>
     public event EventHandler<EventTriggeredEventArgs>? EventTriggered;
 
-    public EventService(DeviceManager deviceManager)
+    public EventService(
+        IDeviceQueryService queryService,
+        IDeviceApplicationService applicationService,
+        DeviceCommandScheduler scheduler,
+        DeviceActionMapperRegistry? mapper = null)
     {
-        _deviceManager = deviceManager;
+        _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+        _mapper = mapper ?? new DeviceActionMapperRegistry();
         RefreshCache();
     }
 
@@ -108,7 +119,7 @@ public class EventService
     /// 触发事件
     /// </summary>
     /// <param name="eventId">事件ID</param>
-    /// <param name="deviceId">目标设备ID（null表示所有已连接设备）</param>
+    /// <param name="deviceId">目标设备ID（null表示所有活动设备）</param>
     /// <param name="multiplier">强度倍数</param>
     public async Task TriggerEventAsync(string eventId, string? deviceId = null, double multiplier = 1.0)
     {
@@ -124,24 +135,14 @@ public class EventService
             return;
         }
 
-        var devices = deviceId != null
-            ? new[] { _deviceManager.GetDevice(deviceId) }
-            : _deviceManager
-                .GetConnectedDevices()
-                .Where(d => MatchesTargetDeviceType(d, eventRecord.TargetDeviceType))
-                .Select(d => _deviceManager.GetDevice(d.Id))
-                .ToArray();
-
-        // 过滤掉 null 设备
-        devices = devices.Where(d => d != null).ToArray()!;
-
-        if (!devices.Any())
+        var devices = SelectTargetDevices(deviceId, eventRecord.TargetDeviceType);
+        if (devices.Count == 0)
         {
-            _logger.Warning("No connected devices to trigger event {EventId}", eventId);
+            _logger.Warning("No active devices to trigger event {EventId}", eventId);
             return;
         }
 
-        // 统一强度：业务层按 0-100 归一化，再按设备能力线性映射。
+        // 统一强度：业务层按 0-100 归一化，具体设备范围由映射器按能力描述线性映射。
         var configuredStrengthCap = Database.Instance.GetSetting<int>("safety.maxStrength", 100);
         var normalizedStrengthCap = StrengthScalingPolicy.ResolveNormalizedCap(configuredStrengthCap);
         var normalizedValue = StrengthScalingPolicy.NormalizeInputValue(eventRecord.Value, multiplier, normalizedStrengthCap);
@@ -160,22 +161,24 @@ public class EventService
 
         var triggeredDevices = new List<string>();
         var now = DateTime.UtcNow;
+        var source = new CommandSource(CommandSourceKind.Automation, eventId);
 
         // 对每个设备执行操作
         foreach (var device in devices)
         {
-            if (IsOnCooldown(eventRecord, device.Id, now))
+            var deviceIdToken = device.InstanceId.Value.ToString("D");
+            if (IsOnCooldown(eventRecord, deviceIdToken, now))
             {
-                _logger.Debug("Skip event {EventId} on device {DeviceId}: cooldown", eventRecord.EventId, device.Id);
+                _logger.Debug("Skip event {EventId} on device {DeviceId}: cooldown", eventRecord.EventId, deviceIdToken);
                 continue;
             }
 
-            if (!TryAcquirePriorityWindow(device.Id, eventRecord, now, out var activePriority, out var activeEventId))
+            if (!TryAcquirePriorityWindow(deviceIdToken, eventRecord, now, out var activePriority, out var activeEventId))
             {
                 _logger.Debug(
                     "Skip event {EventId} on device {DeviceId}: lower priority ({Priority} < {ActivePriority}), activeEvent={ActiveEventId}",
                     eventRecord.EventId,
-                    device.Id,
+                    deviceIdToken,
                     eventRecord.Priority,
                     activePriority,
                     activeEventId);
@@ -184,61 +187,60 @@ public class EventService
 
             try
             {
-                var valueForDevice = normalizedValue;
-                var rawValueForDevice = eventRecord.Strength > 0 ? eventRecord.Strength : eventRecord.Value;
-                if (StrengthScalingPolicy.RequiresScaling(actionType))
-                {
-                    var deviceMaxStrength = StrengthScalingPolicy.ResolveDeviceMaxStrength(device);
-                    valueForDevice = StrengthScalingPolicy.ScaleNormalizedToDevice(
-                        normalizedValue,
-                        deviceMaxStrength,
-                        normalizedStrengthCap);
-                    rawValueForDevice = valueForDevice;
-
-                    _logger.Debug(
-                        "Strength scaled for device {DeviceId}: normalized={Normalized}/{Cap} -> device={DeviceValue}/{DeviceMax}",
-                        device.Id,
-                        normalizedValue,
-                        normalizedStrengthCap,
-                        valueForDevice,
-                        deviceMaxStrength);
-                }
-
                 var request = new DeviceActionRequest
                 {
                     EventId = eventRecord.EventId,
                     ActionType = actionType,
-                    Value = valueForDevice,
-                    RawValue = rawValueForDevice,
+                    Value = normalizedValue,
+                    RawValue = eventRecord.Strength > 0 ? eventRecord.Strength : eventRecord.Value,
                     DurationMs = eventRecord.Duration,
                     WaveformData = eventRecord.WaveformData,
                     Channels = channels
                 };
 
-                await _translatorRegistry.ExecuteAsync(device, request);
-                MarkTriggered(eventRecord, device.Id, now);
-                triggeredDevices.Add(device.Id);
+                var envelopes = _mapper.Map(
+                    request,
+                    device,
+                    source,
+                    _applicationService.CurrentSafetyEpoch,
+                    TimeProvider.System);
 
-                // 如果有持续时间且是 set/increase 动作，等待后恢复
+                if (envelopes.Count == 0)
+                {
+                    _logger.Debug(
+                        "Event {EventId} on device {DeviceId}: 设备不支持动作 {Action}，跳过",
+                        eventRecord.EventId,
+                        deviceIdToken,
+                        actionType);
+                    continue;
+                }
+
+                foreach (var envelope in envelopes)
+                {
+                    await _applicationService.DispatchAsync(envelope, CancellationToken.None);
+                }
+
+                MarkTriggered(eventRecord, deviceIdToken, now);
+                triggeredDevices.Add(deviceIdToken);
+
+                // 如果有持续时间且是 set/increase 动作，调度归零（安全 Epoch 失配时自动拒绝）。
                 if (eventRecord.Duration > 0 && actionType is "set" or "increase")
                 {
-                    _ = Task.Run(async () =>
+                    var release = _mapper.MapRelease(
+                        request,
+                        device,
+                        source,
+                        _applicationService.CurrentSafetyEpoch,
+                        TimeProvider.System);
+                    if (release is not null)
                     {
-                        await Task.Delay(eventRecord.Duration);
-                        foreach (var channel in channels)
-                        {
-                            try
-                            {
-                                await device.SetStrengthAsync(channel, 0, StrengthMode.Set);
-                            }
-                            catch { }
-                        }
-                    });
+                        _scheduler.ScheduleAfter(TimeSpan.FromMilliseconds(eventRecord.Duration), release);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to trigger event {EventId} on device {DeviceId}", eventId, device.Id);
+                _logger.Error(ex, "Failed to trigger event {EventId} on device {DeviceId}", eventId, deviceIdToken);
             }
         }
 
@@ -433,6 +435,70 @@ public class EventService
         return removed;
     }
 
+    /// <summary>
+    /// 选择目标活动设备。deviceId 为空时按目标设备类型过滤全部活动设备。
+    /// 实例不存在或没有活动 Session 时如实返回空集合，绝不为"无目标"伪造成功。
+    /// </summary>
+    private IReadOnlyList<ActiveDeviceView> SelectTargetDevices(string? deviceId, string? targetDeviceType)
+    {
+        if (!string.IsNullOrWhiteSpace(deviceId))
+        {
+            var instance = ResolveDeviceId(deviceId);
+            if (instance is null)
+            {
+                return Array.Empty<ActiveDeviceView>();
+            }
+
+            return MatchesTargetDeviceType(instance, targetDeviceType)
+                ? new[] { instance }
+                : Array.Empty<ActiveDeviceView>();
+        }
+
+        return _queryService.GetActiveDevices()
+            .Where(device => MatchesTargetDeviceType(device, targetDeviceType))
+            .ToArray();
+    }
+
+    private ActiveDeviceView? ResolveDeviceId(string deviceId)
+    {
+        if (Guid.TryParse(deviceId, out var guid))
+        {
+            var active = _queryService.GetActiveDevice(new DeviceInstanceId(guid));
+            if (active is not null)
+            {
+                return active;
+            }
+        }
+
+        // 兼容旧调用方传递的活动实例 GUID 字符串（N 格式无连字符）。
+        return _queryService.GetActiveDevices()
+            .FirstOrDefault(device =>
+                string.Equals(device.InstanceId.Value.ToString("D"), deviceId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(device.InstanceId.Value.ToString("N"), deviceId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool MatchesTargetDeviceType(ActiveDeviceView device, string? targetDeviceType)
+    {
+        if (string.IsNullOrWhiteSpace(targetDeviceType) ||
+            targetDeviceType.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var kind = DeviceViewClassifier.ResolveLegacyType(device);
+        return targetDeviceType.Trim() switch
+        {
+            "DGLab" or "dglab" => kind == "DGLab",
+            "Yokonex" or "yokonex" => kind.StartsWith("Yokonex", StringComparison.Ordinal),
+            "Yokonex_Estim" => kind == "Yokonex_Estim",
+            "Yokonex_Enema" => kind == "Yokonex_Enema",
+            "Yokonex_Vibrator" => kind == "Yokonex_Vibrator",
+            "Yokonex_Cup" => kind == "Yokonex_Vibrator",
+            "Yokonex_SmartLock" => kind == "Yokonex_SmartLock",
+            _ => true
+        };
+    }
+
     private static EventRecord NormalizeModRule(EventRecord inputRule, string eventId)
     {
         var now = DateTime.UtcNow.ToString("o");
@@ -605,29 +671,6 @@ public class EventService
         }
 
         return defaultHoldMs;
-    }
-
-    private static bool MatchesTargetDeviceType(DeviceInfo info, string? targetDeviceType)
-    {
-        if (string.IsNullOrWhiteSpace(targetDeviceType) ||
-            targetDeviceType.Equals("All", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return targetDeviceType.Trim() switch
-        {
-            "DGLab" => info.Type == DeviceType.DGLab,
-            "dglab" => info.Type == DeviceType.DGLab,
-            "Yokonex" => info.Type == DeviceType.Yokonex,
-            "yokonex" => info.Type == DeviceType.Yokonex,
-            "Yokonex_Estim" => info.Type == DeviceType.Yokonex && info.YokonexType == Devices.Yokonex.YokonexDeviceType.Estim,
-            "Yokonex_Enema" => info.Type == DeviceType.Yokonex && info.YokonexType == Devices.Yokonex.YokonexDeviceType.Enema,
-            "Yokonex_Vibrator" => info.Type == DeviceType.Yokonex && info.YokonexType == Devices.Yokonex.YokonexDeviceType.Vibrator,
-            "Yokonex_Cup" => info.Type == DeviceType.Yokonex && info.YokonexType == Devices.Yokonex.YokonexDeviceType.Cup,
-            "Yokonex_SmartLock" => info.Type == DeviceType.Yokonex && info.YokonexType == Devices.Yokonex.YokonexDeviceType.SmartLock,
-            _ => true
-        };
     }
 
     private sealed record DevicePriorityWindow(int Priority, DateTime ExpiresAtUtc, string EventId);

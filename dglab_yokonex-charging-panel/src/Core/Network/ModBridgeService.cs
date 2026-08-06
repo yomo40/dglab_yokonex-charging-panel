@@ -6,13 +6,15 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ChargingPanel.Core.Application.Devices;
 using ChargingPanel.Core.Data;
-using ChargingPanel.Core.Devices;
 using ChargingPanel.Core.Events;
+using ChargingPanel.Core.Network.RemoteControl;
 using Serilog;
 
 namespace ChargingPanel.Core.Network;
@@ -31,12 +33,14 @@ public sealed class ModBridgeService : IDisposable
 
     private readonly EventBus _eventBus;
     private readonly EventService _eventService;
-    private readonly DeviceManager _deviceManager;
+    private readonly IDeviceQueryService _queryService;
     private readonly ILogger _logger = Log.ForContext<ModBridgeService>();
 
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private readonly ConcurrentDictionary<string, ScriptBridgeRegistration> _scriptRegistrations = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Func<JsonElement, ModBridgeMappedEvent?>> _scriptMappers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string> _scriptTokens = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _scriptCapabilities = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ModBridgeSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, UdpBridgeSession> _udpSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _udpSessionByEndpoint = new(StringComparer.OrdinalIgnoreCase);
@@ -44,6 +48,7 @@ public sealed class ModBridgeService : IDisposable
     private readonly ConcurrentDictionary<int, UdpChannelWorker> _udpWorkers = new();
     private readonly ConcurrentDictionary<int, int> _udpRefCounts = new();
 
+    private RemoteCommandAuthenticator? _remoteCommands;
     private HttpListener? _wsListener;
     private HttpListener? _httpListener;
     private Task? _wsLoopTask;
@@ -58,11 +63,11 @@ public sealed class ModBridgeService : IDisposable
     public bool IsHttpRunning => _httpListener?.IsListening == true;
     public IReadOnlyCollection<int> ActiveUdpPorts => _udpWorkers.Keys.OrderBy(x => x).ToArray();
 
-    public ModBridgeService(EventBus eventBus, EventService eventService, DeviceManager deviceManager)
+    public ModBridgeService(EventBus eventBus, EventService eventService, IDeviceQueryService queryService)
     {
         _eventBus = eventBus;
         _eventService = eventService;
-        _deviceManager = deviceManager;
+        _queryService = queryService;
     }
 
     public async Task StartAsync()
@@ -167,6 +172,113 @@ public sealed class ModBridgeService : IDisposable
 
         _scriptMappers.TryRemove(scriptId, out _);
     }
+
+    /// <summary>
+    /// 设置脚本令牌（Task 21）。绑定回环地址不是绕过 Dispatcher 的理由；
+    /// 配置了令牌的脚本必须在 hello 中携带正确令牌，否则拒绝建立会话。
+    /// 令牌是秘密，不得写入日志。
+    /// </summary>
+    public void SetScriptToken(string scriptId, string token)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        _scriptTokens[scriptId] = token.Trim();
+    }
+
+    public void ClearScriptToken(string scriptId)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId))
+        {
+            return;
+        }
+
+        _scriptTokens.TryRemove(scriptId, out _);
+    }
+
+    /// <summary>
+    /// 授予脚本对某能力的直接命令权限（Task 21）。
+    /// 未声明任何能力限制时视为允许（迁移兼容）；一旦声明则只允许被授予的能力。
+    /// </summary>
+    public void GrantScriptCapability(string scriptId, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return;
+        }
+
+        var grants = _scriptCapabilities.GetOrAdd(
+            scriptId,
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
+        grants[capabilityId.Trim().ToLowerInvariant()] = 0;
+    }
+
+    public void RevokeScriptCapability(string scriptId, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return;
+        }
+
+        if (_scriptCapabilities.TryGetValue(scriptId, out var grants))
+        {
+            grants.TryRemove(capabilityId.Trim().ToLowerInvariant(), out _);
+            if (grants.IsEmpty)
+            {
+                _scriptCapabilities.TryRemove(scriptId, out _);
+            }
+        }
+    }
+
+    public void ClearScriptCapabilities(string scriptId)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId))
+        {
+            return;
+        }
+
+        _scriptCapabilities.TryRemove(scriptId, out _);
+    }
+
+    public bool CanScriptCapability(string scriptId, string capabilityId)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || string.IsNullOrWhiteSpace(capabilityId))
+        {
+            return false;
+        }
+
+        if (!_scriptCapabilities.TryGetValue(scriptId, out var grants))
+        {
+            return true; // 未声明能力限制则放行（迁移兼容）
+        }
+
+        return grants.ContainsKey(capabilityId.Trim().ToLowerInvariant());
+    }
+
+    private IReadOnlyCollection<string> GetScriptCapabilities(string scriptId)
+    {
+        if (!_scriptCapabilities.TryGetValue(scriptId, out var grants))
+        {
+            return Array.Empty<string>();
+        }
+
+        return grants.Keys.ToArray();
+    }
+
+    /// <summary>
+    /// 注入远端命令唯一入口。MOD 直接命令只经由
+    /// <see cref="IDeviceApplicationService"/> 下发，ACK 来自 Dispatcher 最终结果。
+    /// </summary>
+    public void AttachRemoteControlService(IDeviceApplicationService applicationService)
+    {
+        ArgumentNullException.ThrowIfNull(applicationService);
+        _remoteCommands = new RemoteCommandAuthenticator(applicationService);
+    }
+
+    /// <summary>是否已启用 MOD 直接命令入口。</summary>
+    public bool IsRemoteCommandIngressEnabled => _remoteCommands is not null;
 
     public async Task StartWebSocketForScriptAsync(string scriptId)
     {
@@ -285,6 +397,8 @@ public sealed class ModBridgeService : IDisposable
         }
 
         _scriptMappers.TryRemove(scriptId, out _);
+        _scriptTokens.TryRemove(scriptId, out _);
+        _scriptCapabilities.TryRemove(scriptId, out _);
 
         var ownedUdpSessions = _udpSessions.Values
             .Where(s => string.Equals(s.ScriptId, scriptId, StringComparison.OrdinalIgnoreCase))
@@ -525,8 +639,9 @@ public sealed class ModBridgeService : IDisposable
         switch (type)
         {
             case "hello":
-                await HandleHelloMessageAsync(session, root, ct);
-                return true;
+                return await HandleHelloMessageAsync(session, root, ct);
+            case "command":
+                return await HandleCommandMessageAsync(session, root, ct);
             case "event":
                 if (TryPublishEvent(root, session.SessionId, session.ScriptId, ModBridgeTransport.WebSocket, out var eventId, out var error))
                 {
@@ -555,10 +670,16 @@ public sealed class ModBridgeService : IDisposable
         }
     }
 
-    private async Task HandleHelloMessageAsync(ModBridgeSession session, JsonElement root, CancellationToken ct)
+    private async Task<bool> HandleHelloMessageAsync(ModBridgeSession session, JsonElement root, CancellationToken ct)
     {
         var scriptId = ResolveScriptId(root, session.ScriptId, ModBridgeTransport.WebSocket);
+        if (!await VerifyScriptTokenAsync(scriptId, root, session.Socket, ModBridgeTransport.WebSocket, ct))
+        {
+            return false;
+        }
+
         session.ScriptId = scriptId;
+        session.Authenticated = true;
         session.ModName = GetString(root, "name");
         session.GameName = GetString(root, "game");
         session.Version = GetString(root, "version");
@@ -567,9 +688,13 @@ public sealed class ModBridgeService : IDisposable
         var rules = ParseRulesFromHello(root);
         var registerResult = _eventService.RegisterModRulesForSession(session.SessionId, rules, MaxRulesPerSession);
 
-        var connectedDevices = _deviceManager
-            .GetConnectedDevices()
-            .Select(d => new { id = d.Id, name = d.Name, type = d.Type.ToString() })
+        var connectedDevices = _queryService
+            .GetActiveDevices()
+            .Select(device => new
+            {
+                id = device.InstanceId.Value.ToString("D"),
+                type = DeviceViewClassifier.ResolveLegacyType(device)
+            })
             .ToArray();
 
         await SendWebSocketJsonAsync(session.Socket, new
@@ -581,6 +706,146 @@ public sealed class ModBridgeService : IDisposable
             rejectedEventIds = registerResult.RejectedEventIds,
             connectedDevices
         }, ct);
+
+        return true;
+    }
+
+    /// <summary>
+    /// 校验脚本令牌（Task 21）。未配置令牌的脚本（迁移兼容）放行；
+    /// 配置了令牌的脚本必须携带正确令牌，否则拒绝并关闭会话。
+    /// </summary>
+    private async Task<bool> VerifyScriptTokenAsync(
+        string? scriptId,
+        JsonElement root,
+        WebSocket socket,
+        ModBridgeTransport transport,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || !_scriptTokens.TryGetValue(scriptId, out var expected))
+        {
+            return true;
+        }
+
+        var presented = GetString(root, "token");
+        if (!string.IsNullOrWhiteSpace(expected) && TokenMatches(expected, presented))
+        {
+            return true;
+        }
+
+        await SendWebSocketJsonAsync(socket, new
+        {
+            type = "error",
+            code = "auth.invalid_token",
+            message = "脚本令牌无效"
+        }, ct);
+        return false;
+    }
+
+    private static bool TokenMatches(string expected, string? presented)
+    {
+        if (string.IsNullOrWhiteSpace(presented))
+        {
+            return false;
+        }
+
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var presentedBytes = Encoding.UTF8.GetBytes(presented!);
+        return CryptographicOperations.FixedTimeEquals(expectedBytes, presentedBytes);
+    }
+
+    /// <summary>
+    /// 处理 MOD 直接命令（Task 21）。必须携带脚本令牌完成 hello 认证，
+    /// 且只能控制被授予的能力；最终结果来自 Dispatcher 的 Executed/Rejected/OutcomeUnknown。
+    /// </summary>
+    private async Task<bool> HandleCommandMessageAsync(ModBridgeSession session, JsonElement root, CancellationToken ct)
+    {
+        if (_remoteCommands is null)
+        {
+            await SendWebSocketJsonAsync(session.Socket, new { type = "error", code = "service.unavailable", message = "远控命令入口未启用" }, ct);
+            return true;
+        }
+
+        if (!session.Authenticated)
+        {
+            await SendWebSocketJsonAsync(session.Socket, new { type = "error", code = "auth.session_required", message = "请先携带脚本令牌完成 hello" }, ct);
+            return true;
+        }
+
+        var scriptId = session.ScriptId;
+        if (string.IsNullOrWhiteSpace(scriptId))
+        {
+            await SendWebSocketJsonAsync(session.Socket, new { type = "error", code = "script_id_required", message = "缺少脚本标识" }, ct);
+            return true;
+        }
+
+        var commandIdRaw = GetString(root, "commandId");
+        var capabilityId = GetString(root, "capability");
+        var operationId = GetString(root, "operation");
+        var deviceIdRaw = GetString(root, "deviceId");
+        var nonceRaw = GetLong(root, "nonce");
+        var timestampRaw = GetLong(root, "timestamp");
+        var authTag = GetString(root, "authTag");
+        var payload = root.TryGetProperty("payload", out var payloadElement)
+            ? payloadElement
+            : default;
+
+        if (string.IsNullOrWhiteSpace(commandIdRaw) ||
+            string.IsNullOrWhiteSpace(capabilityId) ||
+            string.IsNullOrWhiteSpace(operationId) ||
+            string.IsNullOrWhiteSpace(deviceIdRaw) ||
+            nonceRaw is null ||
+            timestampRaw is null ||
+            string.IsNullOrWhiteSpace(authTag) ||
+            payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ||
+            !Guid.TryParse(commandIdRaw, out var commandGuid) ||
+            !Guid.TryParse(deviceIdRaw, out var deviceGuid))
+        {
+            await SendWebSocketJsonAsync(session.Socket, new { type = "error", code = "invalid_command", message = "command 需要 commandId/capability/operation/deviceId/nonce/timestamp/authTag/payload" }, ct);
+            return true;
+        }
+
+        if (!CanScriptCapability(scriptId, capabilityId))
+        {
+            await SendWebSocketJsonAsync(session.Socket, new { type = "error", code = "permission.denied", message = "脚本无权控制该能力" }, ct);
+            return true;
+        }
+
+        var principal = $"ModBridge:{scriptId}";
+        var key = SHA256.HashData(Encoding.UTF8.GetBytes(_scriptTokens.TryGetValue(scriptId, out var token) ? token : principal));
+        var scope = BuildScriptScope(scriptId);
+
+        var request = new RemoteCommandRequest(
+            new Contracts.Identifiers.CommandId(commandGuid),
+            session.SessionId,
+            nonceRaw.Value,
+            DateTimeOffset.FromUnixTimeMilliseconds(timestampRaw.Value),
+            new Contracts.Identifiers.DeviceInstanceId(deviceGuid),
+            capabilityId,
+            operationId,
+            payload.Clone(),
+            authTag);
+
+        var result = await _remoteCommands.DispatchWithKeyAsync(principal, key, scope, request, ct);
+
+        await SendWebSocketJsonAsync(session.Socket, new
+        {
+            type = "command_result",
+            commandId = request.CommandId.Value.ToString("D"),
+            status = result.Status.ToString(),
+            reasonCode = result.ReasonCode,
+            message = result.Message,
+            executed = result.IsExecuted
+        }, ct);
+
+        return true;
+    }
+
+    private RemotePermissionScope BuildScriptScope(string scriptId)
+    {
+        var capabilities = GetScriptCapabilities(scriptId);
+        return capabilities.Count == 0
+            ? RemotePermissionScope.All
+            : new RemotePermissionScope(capabilities, null);
     }
 
     private async Task HttpAcceptLoopAsync(HttpListener listener, CancellationToken ct)
@@ -771,6 +1036,9 @@ public sealed class ModBridgeService : IDisposable
             case "hello":
                 await HandleUdpHelloAsync(worker, remote, root);
                 return;
+            case "command":
+                await HandleUdpCommandAsync(worker, remote, root);
+                return;
             case "event":
                 await HandleUdpEventAsync(worker, remote, root);
                 return;
@@ -809,6 +1077,11 @@ public sealed class ModBridgeService : IDisposable
             return;
         }
 
+        if (!await VerifyUdpScriptTokenAsync(scriptId, root, worker, remote))
+        {
+            return;
+        }
+
         if (_udpSessionByEndpoint.TryGetValue(remoteKey, out var existingSessionId) &&
             _udpSessions.TryGetValue(existingSessionId, out var existingSession))
         {
@@ -824,6 +1097,7 @@ public sealed class ModBridgeService : IDisposable
             Version = GetString(root, "version"),
             Port = worker.Port,
             RemoteKey = remoteKey,
+            Authenticated = true,
             LastSeenAtUtc = DateTime.UtcNow,
             ConnectedAtUtc = DateTime.UtcNow
         };
@@ -843,6 +1117,115 @@ public sealed class ModBridgeService : IDisposable
             rulesRejected = registerResult.RejectedCount,
             rejectedEventIds = registerResult.RejectedEventIds,
             heartbeatSeconds = UdpSessionIdleSeconds
+        });
+    }
+
+    private async Task<bool> VerifyUdpScriptTokenAsync(
+        string scriptId,
+        JsonElement root,
+        UdpChannelWorker worker,
+        IPEndPoint remote)
+    {
+        if (string.IsNullOrWhiteSpace(scriptId) || !_scriptTokens.TryGetValue(scriptId, out var expected))
+        {
+            return true;
+        }
+
+        var presented = GetString(root, "token");
+        if (!string.IsNullOrWhiteSpace(expected) && TokenMatches(expected, presented))
+        {
+            return true;
+        }
+
+        await SendUdpJsonAsync(worker.Client, remote, new
+        {
+            type = "error",
+            code = "auth.invalid_token",
+            message = "脚本令牌无效"
+        });
+        return false;
+    }
+
+    private async Task HandleUdpCommandAsync(UdpChannelWorker worker, IPEndPoint remote, JsonElement root)
+    {
+        if (_remoteCommands is null)
+        {
+            await SendUdpJsonAsync(worker.Client, remote, new { type = "error", code = "service.unavailable", message = "远控命令入口未启用" });
+            return;
+        }
+
+        var session = ResolveUdpSession(worker.Port, remote, root);
+        if (session == null || !session.Authenticated)
+        {
+            await SendUdpJsonAsync(worker.Client, remote, new
+            {
+                type = "error",
+                code = "auth.session_required",
+                message = "send hello with token first to create authenticated udp session"
+            });
+            return;
+        }
+
+        var scriptId = session.ScriptId;
+        var commandIdRaw = GetString(root, "commandId");
+        var capabilityId = GetString(root, "capability");
+        var operationId = GetString(root, "operation");
+        var deviceIdRaw = GetString(root, "deviceId");
+        var nonceRaw = GetLong(root, "nonce");
+        var timestampRaw = GetLong(root, "timestamp");
+        var authTag = GetString(root, "authTag");
+        var payload = root.TryGetProperty("payload", out var payloadElement)
+            ? payloadElement
+            : default;
+
+        if (string.IsNullOrWhiteSpace(commandIdRaw) ||
+            string.IsNullOrWhiteSpace(capabilityId) ||
+            string.IsNullOrWhiteSpace(operationId) ||
+            string.IsNullOrWhiteSpace(deviceIdRaw) ||
+            nonceRaw is null ||
+            timestampRaw is null ||
+            string.IsNullOrWhiteSpace(authTag) ||
+            payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ||
+            !Guid.TryParse(commandIdRaw, out var commandGuid) ||
+            !Guid.TryParse(deviceIdRaw, out var deviceGuid))
+        {
+            await SendUdpJsonAsync(worker.Client, remote, new { type = "error", code = "invalid_command", message = "command 需要 commandId/capability/operation/deviceId/nonce/timestamp/authTag/payload" });
+            return;
+        }
+
+        if (!CanScriptCapability(scriptId, capabilityId))
+        {
+            await SendUdpJsonAsync(worker.Client, remote, new { type = "error", code = "permission.denied", message = "脚本无权控制该能力" });
+            return;
+        }
+
+        var principal = $"ModBridge:{scriptId}";
+        var key = SHA256.HashData(Encoding.UTF8.GetBytes(_scriptTokens.TryGetValue(scriptId, out var token) ? token : principal));
+        var scope = BuildScriptScope(scriptId);
+
+        var request = new RemoteCommandRequest(
+            new Contracts.Identifiers.CommandId(commandGuid),
+            session.SessionId,
+            nonceRaw.Value,
+            DateTimeOffset.FromUnixTimeMilliseconds(timestampRaw.Value),
+            new Contracts.Identifiers.DeviceInstanceId(deviceGuid),
+            capabilityId,
+            operationId,
+            payload.Clone(),
+            authTag);
+
+        var result = await _remoteCommands.DispatchWithKeyAsync(principal, key, scope, request);
+
+        await SendUdpJsonAsync(worker.Client, remote, new
+        {
+            type = "command_result",
+            transport = "udp",
+            sessionId = session.SessionId,
+            commandId = request.CommandId.Value.ToString("D"),
+            status = result.Status.ToString(),
+            reasonCode = result.ReasonCode,
+            message = result.Message,
+            executed = result.IsExecuted
         });
     }
 
@@ -1349,6 +1732,26 @@ public sealed class ModBridgeService : IDisposable
         return null;
     }
 
+    private static long? GetLong(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var longValue))
+        {
+            return longValue;
+        }
+
+        if (value.ValueKind == JsonValueKind.String && long.TryParse(value.GetString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
     private static Dictionary<string, object> ConvertJsonObject(JsonElement element)
     {
         if (element.ValueKind != JsonValueKind.Object)
@@ -1549,6 +1952,7 @@ public sealed class ModBridgeService : IDisposable
         public string? ModName { get; set; }
         public string? GameName { get; set; }
         public string? Version { get; set; }
+        public bool Authenticated { get; set; }
         public DateTime ConnectedAtUtc { get; set; }
         public DateTime LastSeenAtUtc { get; set; }
     }
@@ -1562,6 +1966,7 @@ public sealed class ModBridgeService : IDisposable
         public string? Version { get; init; }
         public required int Port { get; init; }
         public required string RemoteKey { get; init; }
+        public bool Authenticated { get; set; }
         public DateTime ConnectedAtUtc { get; set; }
         public DateTime LastSeenAtUtc { get; set; }
     }

@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Generic;
-using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
-using ChargingPanel.Core.Devices.Yokonex;
-
 namespace ChargingPanel.Core.Protocols;
 
 /// <summary>
 /// 统一强度标定策略：
 /// 1) 业务层输入强度统一按 0-100 标准化；
-/// 2) 下发前按目标设备支持强度做线性映射。
+/// 2) 下发前按目标设备能力描述做线性映射（由映射器按执行器合法范围执行）。
+/// 本类型不接触 Driver/适配器，只做纯数值换算。
 /// </summary>
 internal static class StrengthScalingPolicy
 {
@@ -38,38 +33,6 @@ internal static class StrengthScalingPolicy
         var cap = ResolveNormalizedCap(normalizedCap);
         var value = (int)Math.Round(rawValue * multiplier, MidpointRounding.AwayFromZero);
         return Math.Clamp(value, 0, cap);
-    }
-
-    public static int ResolveDeviceMaxStrength(IDevice device)
-    {
-        var state = device.State;
-        var limitA = state.Strength.LimitA;
-        var limitB = state.Strength.LimitB;
-
-        if (limitA > 0 && limitB > 0)
-        {
-            return Math.Min(limitA, limitB);
-        }
-
-        if (limitA > 0)
-        {
-            return limitA;
-        }
-
-        if (limitB > 0)
-        {
-            return limitB;
-        }
-
-        return device switch
-        {
-            DGLabBluetoothAdapter => 200,
-            DGLabWebSocketAdapter => 200,
-            YokonexIMAdapter => 276,
-            YokonexDevice => 276,
-            _ when device.Type == DeviceType.DGLab => 200,
-            _ => 100
-        };
     }
 
     public static int ScaleNormalizedToDevice(int normalizedValue, int deviceMaxStrength, int normalizedCap = 100)

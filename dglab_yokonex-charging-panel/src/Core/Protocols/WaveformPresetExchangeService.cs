@@ -4,8 +4,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ChargingPanel.Core.Data;
-using ChargingPanel.Core.Devices;
-using ChargingPanel.Core.Devices.DGLab;
 
 namespace ChargingPanel.Core.Protocols;
 
@@ -135,7 +133,7 @@ public static class WaveformPresetExchangeService
 
     /// <summary>
     /// 将数据库预设解析为统一 WaveformData。
-    /// 可直接交给 DeviceManager.SendWaveformAsync。
+    /// 波形只描述强度/频率/时长等语义，不携带设备协议细节。
     /// </summary>
     public static WaveformData BuildWaveformData(WaveformPresetRecord preset)
     {
